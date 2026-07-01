@@ -222,7 +222,6 @@ export function generateSuggestions(failedTests: any[], metadata: any): string[]
 export function extractAssertionLine(test: any): string {
   const longreprObj = test.call?.longrepr ?? test.longrepr ?? '';
 
-  // ---- case ① longrepr 是对象（pytest-json-report ≥ 3） ----
   if (typeof longreprObj === 'object' && longreprObj) {
     const msg = longreprObj.reprcrash?.message;
     if (msg) return msg.trim();
@@ -235,13 +234,16 @@ export function extractAssertionLine(test: any): string {
     return (src ?? lrText.split('\n')[0] ?? '').trim();
   }
 
-  // ---- case ② longrepr 是字符串 ----
   const lines = (longreprObj as string).split('\n');
   const runtime = lines.find(l => /AssertionError:/i.test(l));
   if (runtime) return runtime.trim();
 
   const src = lines.find(l => /\bassert\b/.test(l));
   return (src ?? lines[0] ?? '').trim();
+}
+
+function escapeMarkdownTableCell(value: string): string {
+  return value.replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>');
 }
 
 /**
@@ -260,16 +262,13 @@ export function generateConciseTestSummary(failedTests: any[], totalTests: numbe
 
   for (const test of failedTests) {
     const testName = test.nodeid.split('::').pop() || 'Unknown Test';
-    const errorMessage = extractErrorMessage(test);
-    console.log('errorMessage', errorMessage);
-    // Use the new assertion line extractor
     const assertionLine = extractAssertionLine(test);
     const inputParam = extractTestInput(assertionLine);
 
     testCases.push({
-      test: testName,
-      input: inputParam,
-      assertion: assertionLine
+      test: escapeMarkdownTableCell(testName),
+      input: escapeMarkdownTableCell(inputParam),
+      assertion: escapeMarkdownTableCell(assertionLine)
     });
     if (testCases.length === 3) break;
   }

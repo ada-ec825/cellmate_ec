@@ -19,8 +19,7 @@ export async function toggleRecording(cell: vscode.NotebookCell) {
       const ok = await ensureLocalServer();
       if (!ok) return;
     }
-    startFFmpegRecording();
-    isRecording = true;
+    isRecording = startFFmpegRecording();
     return;
   }
 

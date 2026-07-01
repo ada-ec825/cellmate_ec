@@ -2,7 +2,7 @@
   "name": "cellmate",
   "publisher": "CellMate",
   "displayName": "CellMate",
-  "description": "Our team created an AI-powered feedback system for Jupyter Notebooks, enhancing student learning with AI-driven insights and support. the plugin contains a speech-to-text feature, an explain and expand feature, an error helper, and an AI-feedback button.",
+  "description": "An AI-powered feedback system for VS Code Jupyter Notebooks with speech-to-text, expand/explain, error helper, and AI feedback tools.",
   "repository": {
     "type": "git",
     "url": "https://github.com/teachnology/cellmate/tree/main"
@@ -19,7 +19,7 @@
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "axios": "^1.5.0",
     "extract-zip": "^2.0.1",
-    "get-port": "^7.1.0",
+    "form-data": "^4.0.3",
     "marked": "^16.0.0",
     "simple-git": "^3.28.0",
     "tmp": "^0.2.5"
@@ -185,7 +185,7 @@
       },
       {
         "command": "CellMate.selectTemplate",
-        "title": "choose Prompt template"
+        "title": "Choose Prompt Template"
       },
       {
         "command": "CellMate.syncGitRepo",
@@ -198,6 +198,10 @@
       {
         "command": "CellMate.toggleRecording",
         "title": "🎙️ Toggle Speech-to-Text Recording"
+      },
+      {
+        "command": "CellMate.explainMarkdownCell",
+        "title": "Expand or Explain Feedback Markdown"
       },
       {
         "command": "CellMate.askFollowUpFromButton",
