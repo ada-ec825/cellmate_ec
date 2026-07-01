@@ -5,6 +5,8 @@ import { toggleRecording } from './speech';
 import { getCellMateSetting } from './configParser';
 import { killLocal } from './localServer';
 import { setExtensionContext } from './localServer';
+import { initState } from './state';
+import { initTelemetry } from './telemetry';
 import { 
   syncGitRepo, 
   getPromptContent, 
@@ -983,6 +985,8 @@ async function insertMarkdownCellBelow(notebook: vscode.NotebookDocument, cellIn
 
 export function activate(ctx: vscode.ExtensionContext) {
   setExtensionContext(ctx);
+  initState(ctx);
+  initTelemetry(ctx);
   const provider: vscode.NotebookCellStatusBarItemProvider = {
     provideCellStatusBarItems(cell) {
       const items = [];
