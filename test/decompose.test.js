@@ -6,7 +6,11 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { extractJsonObject, parseDecomposition } = require('../out/decompose.js');
+const {
+  extractJsonObject,
+  parseDecomposition,
+  fillDecomposeTemplate,
+} = require('../out/decompose.js');
 
 /** Build a valid 3..7-step plan the parser should accept. */
 function makeSteps(n) {
@@ -190,4 +194,60 @@ test('rejects steps listed out of order', () => {
   const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
   assert.equal(r.ok, false);
   assert.match(r.reason, /indices must run 1\.\.N/);
+});
+
+// ── fillDecomposeTemplate ──────────────────────────────────────────
+
+const TPL =
+  'ID: {{exercise_id}}\nDesc:\n{{problem_description}}\nCode:\n{{code}}\nAgain: {{exercise_id}}';
+
+test('fills every placeholder, including repeated ones', () => {
+  const prompt = fillDecomposeTemplate(TPL, {
+    exerciseId: 'count_words',
+    problemDescription: 'Count each word in a sentence.',
+    code: 'x',
+  });
+  assert.match(prompt, /ID: count_words\n/);
+  assert.match(prompt, /Again: count_words/);
+  assert.match(prompt, /Count each word in a sentence\./);
+  assert.doesNotMatch(prompt, /\{\{/); // no residue
+});
+
+test('trims the description and code before inserting', () => {
+  const prompt = fillDecomposeTemplate(TPL, {
+    exerciseId: 'ex',
+    problemDescription: '  padded description  \n',
+    code: '\n  x  \n',
+  });
+  assert.match(prompt, /Desc:\npadded description\n/);
+  assert.match(prompt, /Code:\nx\n/);
+});
+
+test('empty student code leaves an empty section, not a placeholder', () => {
+  const prompt = fillDecomposeTemplate(TPL, {
+    exerciseId: 'ex',
+    problemDescription: 'd',
+    code: '',
+  });
+  assert.match(prompt, /Code:\n\nAgain/);
+  assert.doesNotMatch(prompt, /\{\{code\}\}/);
+});
+
+test('inserts regex-special sequences in values verbatim', () => {
+  // String.replace would expand $& and $1; split/join must not.
+  const prompt = fillDecomposeTemplate(TPL, {
+    exerciseId: 'ex',
+    problemDescription: 'd',
+    code: 'price = "$&" + "$1"',
+  });
+  assert.match(prompt, /price = "\$&" \+ "\$1"/);
+});
+
+test('leaves placeholders it does not own untouched', () => {
+  const prompt = fillDecomposeTemplate('{{exercise_id}} {{hidden_tests}}', {
+    exerciseId: 'ex',
+    problemDescription: 'd',
+    code: '',
+  });
+  assert.equal(prompt, 'ex {{hidden_tests}}');
 });
