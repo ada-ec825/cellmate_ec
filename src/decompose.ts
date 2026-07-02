@@ -1,4 +1,40 @@
+import { getPromptContent } from './gitUtils';
 import { Decomposition, DECOMPOSITION_VERSION, validateDecomposition } from './schema';
+
+/** Template id of the decompose prompt in the prompt repository. */
+export const DECOMPOSE_PROMPT_ID = 'decompose';
+
+/** Inputs the decompose template needs; gathered by the command layer. */
+export interface DecomposeContext {
+  exerciseId: string;
+  problemDescription: string;
+  /** Student's current code; may be empty for a stuck-from-the-start case. */
+  code: string;
+}
+
+/** Fill one {{key}} placeholder everywhere it appears in the template. */
+function fillAll(template: string, key: string, value: string): string {
+  return template.split(`{{${key}}}`).join(value);
+}
+
+/**
+ * Fill the decompose template with an exercise context. Pure counterpart
+ * of buildDecomposePrompt so tests can run it without a synced repo.
+ * Kept separate from promptUtils.fillPromptTemplate because these inputs
+ * come from the engine, not from notebook annotations.
+ */
+export function fillDecomposeTemplate(template: string, ctx: DecomposeContext): string {
+  let prompt = fillAll(template, 'exercise_id', ctx.exerciseId);
+  prompt = fillAll(prompt, 'problem_description', ctx.problemDescription.trim());
+  prompt = fillAll(prompt, 'code', ctx.code.trim());
+  return prompt;
+}
+
+/** Load the decompose template from the synced prompt repository and fill it. */
+export async function buildDecomposePrompt(ctx: DecomposeContext): Promise<string> {
+  const template = await getPromptContent(DECOMPOSE_PROMPT_ID);
+  return fillDecomposeTemplate(template, ctx);
+}
 
 /** Outcome of parsing one LLM response into a Decomposition. */
 export type ParseDecompositionResult =
