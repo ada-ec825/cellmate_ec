@@ -122,9 +122,13 @@ test('rejects too few and too many steps', () => {
 test('rejects code traces in an intent', () => {
   for (const leaky of [
     'just return x here',
+    'Return the final list to the caller', // keyword check is case-insensitive
     'write def solve first',
     'you should import math',
     'use ``` to format',
+    'call `text.split()` on the input', // inline code span
+    'set counter = 0 before the loop', // assignment operator
+    'loop with for word in words', // Python-style loop header
   ]) {
     const steps = makeSteps(3);
     steps[1].intent = leaky;
@@ -134,9 +138,41 @@ test('rejects code traces in an intent', () => {
   }
 });
 
+test('rejects code traces in a checkHint', () => {
+  const steps = makeSteps(3);
+  steps[2].checkHint = 'Sets total = 0 before the loop.';
+  const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
+  assert.equal(r.ok, false);
+});
+
+test('accepts plain-English prose that merely sounds imperative', () => {
+  const steps = makeSteps(3);
+  steps[0].intent = 'For each word, keep a running tally and hand the result back.';
+  steps[0].checkHint = 'A dictionary-like structure is updated inside a loop.';
+  const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
+  assert.equal(r.ok, true);
+});
+
 test('rejects non-string label or intent', () => {
   const steps = makeSteps(3);
   steps[0].label = 42;
+  const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
+  assert.equal(r.ok, false);
+});
+
+test('rejects empty or whitespace-only label and intent', () => {
+  const blankLabel = makeSteps(3);
+  blankLabel[0].label = '   ';
+  assert.equal(parseDecomposition(JSON.stringify({ steps: blankLabel }), 'ex').ok, false);
+
+  const blankIntent = makeSteps(3);
+  blankIntent[2].intent = '';
+  assert.equal(parseDecomposition(JSON.stringify({ steps: blankIntent }), 'ex').ok, false);
+});
+
+test('rejects a non-string checkHint', () => {
+  const steps = makeSteps(3);
+  steps[1].checkHint = 42;
   const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
   assert.equal(r.ok, false);
 });
