@@ -91,17 +91,34 @@ export function containsCodeTrace(text: string): boolean {
   return CODE_TRACE_PATTERNS.some((re) => re.test(text));
 }
 
+/**
+ * Structural gate for both LLM-generated plans and hand-written gold files.
+ * Tightening these checks does not change the data shape, so it needs no
+ * DECOMPOSITION_VERSION bump.
+ */
 export function validateDecomposition(d: any): d is Decomposition {
-  return (
-    !!d &&
-    Array.isArray(d.steps) &&
-    d.steps.length >= 3 &&
-    d.steps.length <= 7 &&
-    d.steps.every(
-      (s: any) =>
-        typeof s.label === 'string' &&
-        typeof s.intent === 'string' &&
-        !/```|def |return |import /.test(s.intent)
-    )
+  if (
+    !d ||
+    typeof d.exerciseId !== 'string' ||
+    d.exerciseId.trim() === '' ||
+    d.version !== DECOMPOSITION_VERSION ||
+    (d.source !== 'gold' && d.source !== 'generated') ||
+    !Array.isArray(d.steps) ||
+    d.steps.length < 3 ||
+    d.steps.length > 7
+  ) {
+    return false;
+  }
+  return d.steps.every(
+    (s: any, i: number) =>
+      !!s &&
+      s.index === i + 1 &&
+      typeof s.label === 'string' &&
+      s.label.trim() !== '' &&
+      typeof s.intent === 'string' &&
+      s.intent.trim() !== '' &&
+      (s.checkHint === undefined || typeof s.checkHint === 'string') &&
+      !containsCodeTrace(s.intent) &&
+      (s.checkHint === undefined || !containsCodeTrace(s.checkHint))
   );
 }
