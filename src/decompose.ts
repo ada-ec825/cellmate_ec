@@ -69,20 +69,22 @@ export function parseDecomposition(raw: string, exerciseId: string): ParseDecomp
     steps: Array.isArray(data.steps) ? data.steps : [],
   };
 
+  // Report index problems before the coarser schema gate so the retry
+  // signal names the exact position.
+  for (let i = 0; i < candidate.steps.length; i++) {
+    if (candidate.steps[i]?.index !== i + 1) {
+      return {
+        ok: false,
+        reason: `step indices must run 1..N; found ${candidate.steps[i]?.index} at position ${i + 1}`,
+      };
+    }
+  }
+
   if (!validateDecomposition(candidate)) {
     return {
       ok: false,
       reason: 'steps failed schema validation (3-7 steps, plain-English intents)',
     };
-  }
-
-  for (let i = 0; i < candidate.steps.length; i++) {
-    if (candidate.steps[i].index !== i + 1) {
-      return {
-        ok: false,
-        reason: `step indices must run 1..N; found ${candidate.steps[i].index} at position ${i + 1}`,
-      };
-    }
   }
 
   return { ok: true, decomposition: candidate };
