@@ -36,6 +36,52 @@ export async function buildDecomposePrompt(ctx: DecomposeContext): Promise<strin
   return fillDecomposeTemplate(template, ctx);
 }
 
+/** Outcome of one generation run, with the attempt count for telemetry. */
+export type GenerateDecompositionResult =
+  | { ok: true; decomposition: Decomposition; attempts: number }
+  | { ok: false; reason: string; attempts: number };
+
+/**
+ * Generate a decomposition via the injected LLM caller.
+ *
+ * The caller is injected (rather than importing the extension's LLM client)
+ * so the engine stays free of vscode dependencies and tests can drive it
+ * with a fake. Parse or validation failures are retried once, feeding the
+ * rejection reason back to the model; transport errors are not retried —
+ * the command layer decides how to surface those.
+ */
+export async function generateDecomposition(
+  ctx: DecomposeContext,
+  callLLM: (prompt: string) => Promise<string>
+): Promise<GenerateDecompositionResult> {
+  const basePrompt = await buildDecomposePrompt(ctx);
+
+  let lastReason = '';
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const prompt =
+      attempt === 1
+        ? basePrompt
+        : basePrompt +
+          `\n\nYour previous answer was rejected: ${lastReason}. ` +
+          'Correct this and reply with the raw JSON object only.';
+
+    let raw: string;
+    try {
+      raw = await callLLM(prompt);
+    } catch (e: any) {
+      return { ok: false, reason: `LLM call failed: ${e?.message ?? e}`, attempts: attempt };
+    }
+
+    const parsed = parseDecomposition(raw, ctx.exerciseId);
+    if (parsed.ok) {
+      return { ok: true, decomposition: parsed.decomposition, attempts: attempt };
+    }
+    lastReason = parsed.reason;
+  }
+
+  return { ok: false, reason: lastReason, attempts: 2 };
+}
+
 /** Outcome of parsing one LLM response into a Decomposition. */
 export type ParseDecompositionResult =
   | { ok: true; decomposition: Decomposition }
