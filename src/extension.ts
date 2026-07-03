@@ -1,12 +1,16 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
+import * as fs from 'fs';
 import * as path from 'path';
 import { toggleRecording } from './speech';
 import { getCellMateSetting } from './configParser';
 import { killLocal } from './localServer';
 import { setExtensionContext } from './localServer';
-import { initState } from './state';
-import { initTelemetry } from './telemetry';
+import { initState, getHelpState, setHelpState } from './state';
+import { initTelemetry, logEvent } from './telemetry';
+import { Decomposition } from './schema';
+import { DecomposeContext, generateDecomposition } from './decompose';
+import { GuidePanel, GuidePanelHooks } from './guidePanel';
 import { 
   syncGitRepo, 
   getPromptContent, 
@@ -38,6 +42,23 @@ export function showLog(preserveFocus=true){ chan.show(preserveFocus); }
 
 // Throttle: restrict 'CellMate.sendNotebookCell' to once per 3 seconds
 let lastSendNotebookCellTs = 0;
+
+// Session-local cache of generated plans so reopening the guide does not
+// re-bill the LLM; the Regenerate button bypasses it.
+const decompositionCache = new Map<string, Decomposition>();
+
+// Dev convenience: until the decompose template is published to the prompt
+// repository, seed the synced copy from the extension's local prompts/ dir.
+// Deliberately does not call syncGitRepo(): a re-clone would wipe the seed.
+function ensureDecomposeTemplate(extensionPath: string) {
+  const target = path.join(LOCAL_REPO_PATH, 'prompts', 'decompose.txt');
+  if (fs.existsSync(target)) return;
+  const local = path.join(extensionPath, 'prompts', 'decompose.txt');
+  if (fs.existsSync(local)) {
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(local, target);
+  }
+}
 
 // LLM API configuration interface
 interface LLMConfig {
@@ -1016,6 +1037,22 @@ export function activate(ctx: vscode.ExtensionContext) {
             items.push(errorHelperItem);
           }
 
+          // Guide entry point, only where an exercise id identifies the task
+          if (extractExerciseId(cell.document.getText())) {
+            const guideItem = new vscode.NotebookCellStatusBarItem(
+              '🧭 Guide',
+              vscode.NotebookCellStatusBarAlignment.Right
+            );
+            guideItem.priority = 150;
+            guideItem.command = {
+              command: 'CellMate.startGuide',
+              title: 'Start Guide',
+              arguments: [cell]
+            };
+            guideItem.tooltip = 'Break this exercise into step-by-step subgoals';
+            items.push(guideItem);
+          }
+
           const item = new vscode.NotebookCellStatusBarItem(
             '$(zap) 🧠 AI Feedback',
             vscode.NotebookCellStatusBarAlignment.Right
@@ -1219,6 +1256,128 @@ ${feedback}
           }
           return vscode.window.showErrorMessage(errorMessage);
         }
+      }
+    )
+  );
+
+  // Guide mode: decompose the exercise and reveal it step by step
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand(
+      'CellMate.startGuide',
+      async (cell?: vscode.NotebookCell) => {
+        const editor = vscode.window.activeNotebookEditor;
+        if (!editor) {
+          return vscode.window.showErrorMessage('No active Notebook editor');
+        }
+        if (!cell) {
+          const selection = editor.selections[0];
+          if (!selection) {
+            return vscode.window.showErrorMessage('No cell selected');
+          }
+          cell = editor.notebook.cellAt(selection.start);
+        }
+
+        const config = readLLMConfig();
+        if (!config) return;
+
+        const code = cell.document.getText();
+        const exerciseId = extractExerciseId(code);
+        if (!exerciseId) {
+          return vscode.window.showWarningMessage('No # EXERCISE_ID found in this cell');
+        }
+
+        // Problem description from notebook annotations, same keys as Error Helper
+        let problemDescription = '';
+        try {
+          const keys = new Set(['problem_description', 'problem', 'exercise_description', 'task']);
+          const placeholderMap = extractPromptPlaceholders(editor.notebook, cell.index, keys);
+          for (const key of keys) {
+            const value = placeholderMap.get(key);
+            if (value && value.trim()) {
+              problemDescription = value;
+              break;
+            }
+          }
+        } catch {
+          // extraction warnings were already shown to the user
+        }
+        if (!problemDescription) {
+          vscode.window.showWarningMessage(
+            'No problem description found near this cell; the plan will rely on the code alone.'
+          );
+        }
+
+        ensureDecomposeTemplate(ctx.extensionPath);
+
+        const decomposeCtx: DecomposeContext = { exerciseId, problemDescription, code };
+        const callLLM = (p: string) => callLLMAPI(p, config);
+        const generate = () =>
+          vscode.window.withProgress(
+            {
+              location: vscode.ProgressLocation.Notification,
+              title: 'CellMate: generating step plan…',
+            },
+            () => generateDecomposition(decomposeCtx, callLLM)
+          );
+
+        let plan = decompositionCache.get(exerciseId);
+        if (!plan) {
+          const result = await generate();
+          if (!result.ok) {
+            return vscode.window.showErrorMessage(`Guide generation failed: ${result.reason}`);
+          }
+          plan = result.decomposition;
+          decompositionCache.set(exerciseId, plan);
+          await logEvent({
+            exerciseId,
+            event: 'help_request',
+            meta: { kind: 'decompose', attempts: result.attempts },
+          });
+        }
+
+        const help = getHelpState(exerciseId);
+        const fromState = help.state;
+        help.state = 'Guide';
+        help.guideStep = Math.max(1, help.guideStep);
+        await setHelpState(help);
+        if (fromState !== 'Guide') {
+          await logEvent({ exerciseId, event: 'state_transition', fromState, toState: 'Guide' });
+        }
+
+        const hooks: GuidePanelHooks = {
+          onStepRevealed: async (step) => {
+            const s = getHelpState(exerciseId);
+            s.state = 'Guide';
+            s.guideStep = step;
+            await setHelpState(s);
+            await logEvent({ exerciseId, event: 'step_reveal', guideStep: step });
+          },
+          onReset: async () => {
+            const s = getHelpState(exerciseId);
+            s.guideStep = 1;
+            await setHelpState(s);
+            await logEvent({ exerciseId, event: 'step_reveal', guideStep: 1, meta: { reset: true } });
+          },
+          onRegenerate: async () => {
+            const result = await generate();
+            if (!result.ok) {
+              vscode.window.showErrorMessage(`Guide regeneration failed: ${result.reason}`);
+              return;
+            }
+            decompositionCache.set(exerciseId, result.decomposition);
+            const s = getHelpState(exerciseId);
+            s.guideStep = 1;
+            await setHelpState(s);
+            await logEvent({
+              exerciseId,
+              event: 'help_request',
+              meta: { kind: 'decompose', regenerate: true, attempts: result.attempts },
+            });
+            GuidePanel.currentPanel?.setDecomposition(result.decomposition, 1);
+          },
+        };
+
+        GuidePanel.createOrShow(plan, help.guideStep, hooks);
       }
     )
   );
