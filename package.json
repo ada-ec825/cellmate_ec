@@ -176,6 +176,10 @@
         "title": "Start Error Helper Chat"
       },
       {
+        "command": "CellMate.startGuide",
+        "title": "Start Guide - Break the exercise into steps"
+      },
+      {
         "command": "CellMate.listTemplates",
         "title": "List Available Templates"
       },
