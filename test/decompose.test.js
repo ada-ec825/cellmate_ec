@@ -3,14 +3,18 @@
 //   node --test test/
 // Uses only Node built-ins so no test dependency is added to package.json.
 
-const { test } = require('node:test');
+const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
   extractJsonObject,
   parseDecomposition,
   fillDecomposeTemplate,
+  generateDecomposition,
 } = require('../out/decompose.js');
+const { LOCAL_REPO_PATH } = require('../out/gitUtils.js');
 
 /** Build a valid 3..7-step plan the parser should accept. */
 function makeSteps(n) {
@@ -250,4 +254,88 @@ test('leaves placeholders it does not own untouched', () => {
     code: '',
   });
   assert.equal(prompt, 'ex {{hidden_tests}}');
+});
+
+// ── generateDecomposition ──────────────────────────────────────────
+// The engine loads its template through the synced prompt repository.
+// If no repo (or no decompose template) exists on this machine, create a
+// minimal one for the test run and remove exactly what was created.
+
+const TEMPLATE_PATH = path.join(LOCAL_REPO_PATH, 'prompts', 'decompose.txt');
+let createdTemplate = false;
+
+before(() => {
+  if (!fs.existsSync(TEMPLATE_PATH)) {
+    fs.mkdirSync(path.dirname(TEMPLATE_PATH), { recursive: true });
+    fs.writeFileSync(
+      TEMPLATE_PATH,
+      'ID: {{exercise_id}}\nDESC: {{problem_description}}\nCODE: {{code}}\n'
+    );
+    createdTemplate = true;
+  }
+});
+
+after(() => {
+  if (createdTemplate) {
+    fs.rmSync(TEMPLATE_PATH, { force: true });
+  }
+});
+
+const CTX = {
+  exerciseId: 'count_words',
+  problemDescription: 'Count each word in a sentence.',
+  code: '',
+};
+
+/** Fake LLM that replays scripted responses and records the prompts. */
+function fakeLLM(responses) {
+  const prompts = [];
+  const call = async (prompt) => {
+    prompts.push(prompt);
+    const next = responses.shift();
+    if (next instanceof Error) throw next;
+    return next;
+  };
+  return { call, prompts };
+}
+
+const VALID_RESPONSE = JSON.stringify({ steps: makeSteps(3) });
+
+test('engine succeeds on the first attempt', async () => {
+  const llm = fakeLLM([VALID_RESPONSE]);
+  const r = await generateDecomposition(CTX, llm.call);
+  assert.equal(r.ok, true);
+  assert.equal(r.attempts, 1);
+  assert.equal(r.decomposition.exerciseId, 'count_words');
+  assert.equal(llm.prompts.length, 1);
+  assert.match(llm.prompts[0], /count_words/); // placeholder was filled
+});
+
+test('engine retries once and feeds the rejection reason back', async () => {
+  const badIndex = makeSteps(3);
+  badIndex[2].index = 5;
+  const llm = fakeLLM([JSON.stringify({ steps: badIndex }), VALID_RESPONSE]);
+  const r = await generateDecomposition(CTX, llm.call);
+  assert.equal(r.ok, true);
+  assert.equal(r.attempts, 2);
+  assert.equal(llm.prompts.length, 2);
+  assert.match(llm.prompts[1], /Your previous answer was rejected:/);
+  assert.match(llm.prompts[1], /found 5 at position 3/); // specific reason fed back
+});
+
+test('engine gives up after two bad answers with the last reason', async () => {
+  const llm = fakeLLM(['nonsense', 'still nonsense']);
+  const r = await generateDecomposition(CTX, llm.call);
+  assert.equal(r.ok, false);
+  assert.equal(r.attempts, 2);
+  assert.match(r.reason, /no JSON object/);
+});
+
+test('engine does not retry transport errors', async () => {
+  const llm = fakeLLM([new Error('boom')]);
+  const r = await generateDecomposition(CTX, llm.call);
+  assert.equal(r.ok, false);
+  assert.equal(r.attempts, 1);
+  assert.match(r.reason, /LLM call failed: boom/);
+  assert.equal(llm.prompts.length, 1); // exactly one call, no retry
 });
