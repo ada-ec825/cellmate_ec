@@ -1310,7 +1310,19 @@ ${feedback}
         ensureDecomposeTemplate(ctx.extensionPath);
 
         const decomposeCtx: DecomposeContext = { exerciseId, problemDescription, code };
-        const callLLM = (p: string) => callLLMAPI(p, config);
+        // Log every exchange to the output channel: during template tuning we
+        // need to see exactly what the model was asked and what it answered.
+        const callLLM = async (p: string) => {
+          log(`[guide] prompt → model (${exerciseId}):\n${p}`);
+          try {
+            const raw = await callLLMAPI(p, config);
+            log(`[guide] response ← model (${exerciseId}):\n${raw}`);
+            return raw;
+          } catch (e: any) {
+            log(`[guide] LLM call error (${exerciseId}): ${e?.message ?? e}`);
+            throw e;
+          }
+        };
         const generate = () =>
           vscode.window.withProgress(
             {
@@ -1321,11 +1333,15 @@ ${feedback}
           );
 
         let plan = decompositionCache.get(exerciseId);
-        if (!plan) {
+        if (plan) {
+          log(`[guide] using cached plan for ${exerciseId}`);
+        } else {
           const result = await generate();
           if (!result.ok) {
+            log(`[guide] generation failed for ${exerciseId} after ${result.attempts} attempt(s): ${result.reason}`);
             return vscode.window.showErrorMessage(`Guide generation failed: ${result.reason}`);
           }
+          log(`[guide] plan for ${exerciseId} accepted after ${result.attempts} attempt(s)`);
           plan = result.decomposition;
           decompositionCache.set(exerciseId, plan);
           await logEvent({
@@ -1361,9 +1377,11 @@ ${feedback}
           onRegenerate: async () => {
             const result = await generate();
             if (!result.ok) {
+              log(`[guide] regeneration failed for ${exerciseId} after ${result.attempts} attempt(s): ${result.reason}`);
               vscode.window.showErrorMessage(`Guide regeneration failed: ${result.reason}`);
               return;
             }
+            log(`[guide] regenerated plan for ${exerciseId} accepted after ${result.attempts} attempt(s)`);
             decompositionCache.set(exerciseId, result.decomposition);
             const s = getHelpState(exerciseId);
             s.guideStep = 1;
