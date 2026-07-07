@@ -115,16 +115,20 @@ test('rejects malformed JSON', () => {
 });
 
 test('rejects a missing steps array', () => {
+  // The parser normalises a missing steps field to [], so the violation
+  // surfaces as a step-count problem rather than a type problem.
   const r = parseDecomposition('{"plan": []}', 'ex');
   assert.equal(r.ok, false);
-  assert.match(r.reason, /schema validation/);
+  assert.match(r.reason, /3 to 7 steps, found 0/);
 });
 
-test('rejects too few and too many steps', () => {
+test('rejects too few and too many steps, reporting the count', () => {
   const few = parseDecomposition(JSON.stringify({ steps: makeSteps(2) }), 'ex');
   const many = parseDecomposition(JSON.stringify({ steps: makeSteps(8) }), 'ex');
   assert.equal(few.ok, false);
+  assert.match(few.reason, /3 to 7 steps, found 2/);
   assert.equal(many.ok, false);
+  assert.match(many.reason, /3 to 7 steps, found 8/);
 });
 
 test('rejects code traces in an intent', () => {
@@ -142,7 +146,7 @@ test('rejects code traces in an intent', () => {
     steps[1].intent = leaky;
     const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
     assert.equal(r.ok, false, `intent should be rejected: "${leaky}"`);
-    assert.match(r.reason, /schema validation/);
+    assert.match(r.reason, /step 2 intent contains code/); // names the step
   }
 });
 
@@ -151,6 +155,7 @@ test('rejects code traces in a checkHint', () => {
   steps[2].checkHint = 'Sets total = 0 before the loop.';
   const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
   assert.equal(r.ok, false);
+  assert.match(r.reason, /step 3 checkHint contains code/);
 });
 
 test('accepts plain-English prose that merely sounds imperative', () => {
@@ -166,16 +171,21 @@ test('rejects non-string label or intent', () => {
   steps[0].label = 42;
   const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
   assert.equal(r.ok, false);
+  assert.match(r.reason, /step 1 label must be a non-empty string/);
 });
 
 test('rejects empty or whitespace-only label and intent', () => {
   const blankLabel = makeSteps(3);
   blankLabel[0].label = '   ';
-  assert.equal(parseDecomposition(JSON.stringify({ steps: blankLabel }), 'ex').ok, false);
+  const r1 = parseDecomposition(JSON.stringify({ steps: blankLabel }), 'ex');
+  assert.equal(r1.ok, false);
+  assert.match(r1.reason, /step 1 label/);
 
   const blankIntent = makeSteps(3);
   blankIntent[2].intent = '';
-  assert.equal(parseDecomposition(JSON.stringify({ steps: blankIntent }), 'ex').ok, false);
+  const r2 = parseDecomposition(JSON.stringify({ steps: blankIntent }), 'ex');
+  assert.equal(r2.ok, false);
+  assert.match(r2.reason, /step 3 intent/);
 });
 
 test('rejects a non-string checkHint', () => {
@@ -183,6 +193,19 @@ test('rejects a non-string checkHint', () => {
   steps[1].checkHint = 42;
   const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
   assert.equal(r.ok, false);
+  assert.match(r.reason, /step 2 checkHint must be a string/);
+});
+
+test('names every violation at once, not just the first', () => {
+  const steps = makeSteps(3);
+  steps[0].intent = 'just return x here'; // code trace
+  steps[1].label = '   '; // blank label
+  steps[2].checkHint = 42; // wrong type
+  const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /step 1 intent contains code/);
+  assert.match(r.reason, /step 2 label must be a non-empty string/);
+  assert.match(r.reason, /step 3 checkHint must be a string/);
 });
 
 test('rejects non-contiguous step indices and reports the position', () => {
