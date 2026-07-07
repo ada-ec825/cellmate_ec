@@ -47,6 +47,11 @@ let lastSendNotebookCellTs = 0;
 // re-bill the LLM; the Regenerate button bypasses it.
 const decompositionCache = new Map<string, Decomposition>();
 
+// Exercises with a generation in flight. Generation takes minutes on a
+// thinking model, and an impatient second click would fire a duplicate
+// (billed) request; block it instead.
+const decomposeInFlight = new Set<string>();
+
 // Dev convenience: until the decompose template is published to the prompt
 // repository, seed the synced copy from the extension's local prompts/ dir.
 // Deliberately does not call syncGitRepo(): a re-clone would wipe the seed.
@@ -1331,20 +1336,33 @@ ${feedback}
             throw e;
           }
         };
-        const generate = () =>
-          vscode.window.withProgress(
-            {
-              location: vscode.ProgressLocation.Notification,
-              title: 'CellMate: generating step plan…',
-            },
-            () => generateDecomposition(decomposeCtx, callLLM)
-          );
+        const generate = async () => {
+          if (decomposeInFlight.has(exerciseId)) {
+            vscode.window.showInformationMessage(
+              `CellMate is already generating a plan for ${exerciseId} — hang on.`
+            );
+            return null;
+          }
+          decomposeInFlight.add(exerciseId);
+          try {
+            return await vscode.window.withProgress(
+              {
+                location: vscode.ProgressLocation.Notification,
+                title: 'CellMate: generating step plan…',
+              },
+              () => generateDecomposition(decomposeCtx, callLLM)
+            );
+          } finally {
+            decomposeInFlight.delete(exerciseId);
+          }
+        };
 
         let plan = decompositionCache.get(exerciseId);
         if (plan) {
           log(`[guide] using cached plan for ${exerciseId}`);
         } else {
           const result = await generate();
+          if (!result) return; // another click is already generating this plan
           if (!result.ok) {
             log(`[guide] generation failed for ${exerciseId} after ${result.attempts} attempt(s): ${result.reason}`);
             return vscode.window.showErrorMessage(`Guide generation failed: ${result.reason}`);
@@ -1384,6 +1402,7 @@ ${feedback}
           },
           onRegenerate: async () => {
             const result = await generate();
+            if (!result) return; // a generation for this exercise is already running
             if (!result.ok) {
               log(`[guide] regeneration failed for ${exerciseId} after ${result.attempts} attempt(s): ${result.reason}`);
               vscode.window.showErrorMessage(`Guide regeneration failed: ${result.reason}`);
