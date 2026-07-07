@@ -67,6 +67,13 @@ interface LLMConfig {
   modelName: string;
 }
 
+// Abort LLM requests that exceed this window. The department server runs a
+// thinking model whose slow-but-healthy responses land within one or two
+// minutes, so at three minutes a missing response means a hung request, not
+// a slow answer. Without a timeout a stalled connection leaves the progress
+// notification spinning forever and the command cannot be retried.
+const LLM_TIMEOUT_MS = 180_000;
+
 // Chat message interface
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -789,7 +796,8 @@ async function callLLMAPI(prompt: string, config: LLMConfig): Promise<string> {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${config.apiKey}`
         },
-        responseType: isOpenAIEndpoint ? 'json' : 'text'
+        responseType: isOpenAIEndpoint ? 'json' : 'text',
+        timeout: LLM_TIMEOUT_MS
     }
   );
 
@@ -1674,7 +1682,8 @@ ${feedback}
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${apiKey}`
                 },
-                responseType: isOpenAIEndpoint ? 'json' : 'text'
+                responseType: isOpenAIEndpoint ? 'json' : 'text',
+                timeout: LLM_TIMEOUT_MS
             }
           );
 
@@ -2007,7 +2016,10 @@ function getExplanationCtx(cellUri: string) {
               'Content-Type' : 'application/json',
               Authorization: `Bearer ${apiKey}`
             },
-            responseType: 'stream'
+            responseType: 'stream',
+            // For a streamed response this only bounds the wait for the
+            // connection and response headers, not stalls mid-stream.
+            timeout: LLM_TIMEOUT_MS
           });
 
           let accumulated = '';
@@ -2403,7 +2415,8 @@ function getExplanationCtx(cellUri: string) {
 
           try {
           const resp = await axios.post(apiUrl, { model: modelName, prompt: fullPrompt, stream:false }, {
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` }
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+            timeout: LLM_TIMEOUT_MS
           });
 
           const answer = resp.data?.message?.content || resp.data?.response || 'No response received';
