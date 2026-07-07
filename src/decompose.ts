@@ -1,5 +1,5 @@
 import { getPromptContent } from './gitUtils';
-import { Decomposition, DECOMPOSITION_VERSION, validateDecomposition } from './schema';
+import { Decomposition, DECOMPOSITION_VERSION, listDecompositionViolations } from './schema';
 
 /** Template id of the decompose prompt in the prompt repository. */
 export const DECOMPOSE_PROMPT_ID = 'decompose';
@@ -162,10 +162,12 @@ export function parseDecomposition(raw: string, exerciseId: string): ParseDecomp
     }
   }
 
-  if (!validateDecomposition(candidate)) {
+  // Name every broken rule so a retry prompt can list all fixes at once.
+  const violations = listDecompositionViolations(candidate);
+  if (violations.length > 0) {
     return {
       ok: false,
-      reason: 'steps failed schema validation (3-7 steps, plain-English intents)',
+      reason: `steps failed schema validation: ${violations.join('; ')}`,
     };
   }
 
