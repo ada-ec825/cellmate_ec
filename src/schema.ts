@@ -92,33 +92,68 @@ export function containsCodeTrace(text: string): boolean {
 }
 
 /**
+ * Every rule the candidate breaks, as one-line messages that name the
+ * step and field concretely. The engine feeds these back to the model on
+ * a retry, so precision here buys retry success; they also tell a gold
+ * file author exactly what to fix.
+ */
+export function listDecompositionViolations(d: any): string[] {
+  const violations: string[] = [];
+  if (!d || typeof d !== 'object') {
+    return ['decomposition must be an object'];
+  }
+
+  if (typeof d.exerciseId !== 'string' || d.exerciseId.trim() === '') {
+    violations.push('exerciseId must be a non-empty string');
+  }
+  if (d.version !== DECOMPOSITION_VERSION) {
+    violations.push(`version must equal ${DECOMPOSITION_VERSION}`);
+  }
+  if (d.source !== 'gold' && d.source !== 'generated') {
+    violations.push("source must be 'gold' or 'generated'");
+  }
+  if (!Array.isArray(d.steps)) {
+    violations.push('steps must be an array');
+    return violations;
+  }
+  if (d.steps.length < 3 || d.steps.length > 7) {
+    violations.push(`the plan must have 3 to 7 steps, found ${d.steps.length}`);
+  }
+
+  d.steps.forEach((s: any, i: number) => {
+    const n = i + 1;
+    if (!s || typeof s !== 'object') {
+      violations.push(`step ${n} is not an object`);
+      return;
+    }
+    if (s.index !== n) {
+      violations.push(`step ${n} has index ${s.index}; indices must run 1..N in order`);
+    }
+    if (typeof s.label !== 'string' || s.label.trim() === '') {
+      violations.push(`step ${n} label must be a non-empty string`);
+    }
+    if (typeof s.intent !== 'string' || s.intent.trim() === '') {
+      violations.push(`step ${n} intent must be a non-empty string`);
+    } else if (containsCodeTrace(s.intent)) {
+      violations.push(`step ${n} intent contains code; rewrite it as plain English`);
+    }
+    if (s.checkHint !== undefined) {
+      if (typeof s.checkHint !== 'string') {
+        violations.push(`step ${n} checkHint must be a string when present`);
+      } else if (containsCodeTrace(s.checkHint)) {
+        violations.push(`step ${n} checkHint contains code; rewrite it as plain English`);
+      }
+    }
+  });
+
+  return violations;
+}
+
+/**
  * Structural gate for both LLM-generated plans and hand-written gold files.
  * Tightening these checks does not change the data shape, so it needs no
  * DECOMPOSITION_VERSION bump.
  */
 export function validateDecomposition(d: any): d is Decomposition {
-  if (
-    !d ||
-    typeof d.exerciseId !== 'string' ||
-    d.exerciseId.trim() === '' ||
-    d.version !== DECOMPOSITION_VERSION ||
-    (d.source !== 'gold' && d.source !== 'generated') ||
-    !Array.isArray(d.steps) ||
-    d.steps.length < 3 ||
-    d.steps.length > 7
-  ) {
-    return false;
-  }
-  return d.steps.every(
-    (s: any, i: number) =>
-      !!s &&
-      s.index === i + 1 &&
-      typeof s.label === 'string' &&
-      s.label.trim() !== '' &&
-      typeof s.intent === 'string' &&
-      s.intent.trim() !== '' &&
-      (s.checkHint === undefined || typeof s.checkHint === 'string') &&
-      !containsCodeTrace(s.intent) &&
-      (s.checkHint === undefined || !containsCodeTrace(s.checkHint))
-  );
+  return listDecompositionViolations(d).length === 0;
 }
