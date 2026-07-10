@@ -1,13 +1,14 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { toggleRecording } from './speech';
 import { getCellMateSetting } from './configParser';
 import { killLocal } from './localServer';
 import { setExtensionContext } from './localServer';
 import { initState, getHelpState, setHelpState } from './state';
-import { initTelemetry, logEvent } from './telemetry';
+import { initTelemetry, logEvent, getEvents, clearEvents } from './telemetry';
 import { Decomposition } from './schema';
 import { DecomposeContext, generateDecomposition } from './decompose';
 import { GuidePanel, GuidePanelHooks } from './guidePanel';
@@ -1461,6 +1462,50 @@ ${feedback}
         GuidePanel.createOrShow(plan, help.guideStep, hooks);
       }
     )
+  );
+
+  // Export the anonymised help-trajectory telemetry to a JSON file (O5).
+  // The researcher runs this at the end of a session; the file is what the
+  // offline analysis scripts consume.
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand('CellMate.exportTelemetry', async () => {
+      const events = getEvents();
+      if (events.length === 0) {
+        vscode.window.showInformationMessage('No telemetry events recorded yet.');
+        return;
+      }
+
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const defaultDir =
+        vscode.workspace.workspaceFolders?.[0]?.uri ?? vscode.Uri.file(os.homedir());
+      const target = await vscode.window.showSaveDialog({
+        defaultUri: vscode.Uri.joinPath(defaultDir, `cellmate-telemetry-${stamp}.json`),
+        filters: { JSON: ['json'] },
+        title: 'Export CellMate telemetry',
+      });
+      if (!target) return; // dialog cancelled
+
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        eventCount: events.length,
+        events,
+      };
+      await vscode.workspace.fs.writeFile(
+        target,
+        Buffer.from(JSON.stringify(payload, null, 2), 'utf8')
+      );
+      log(`[telemetry] exported ${events.length} events to ${target.fsPath}`);
+
+      const choice = await vscode.window.showInformationMessage(
+        `Exported ${events.length} telemetry events. Clear the buffer now?`,
+        'Clear',
+        'Keep'
+      );
+      if (choice === 'Clear') {
+        await clearEvents();
+        log('[telemetry] buffer cleared after export');
+      }
+    })
   );
 
   // Start Error Chat command
