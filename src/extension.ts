@@ -1322,6 +1322,18 @@ ${feedback}
 
         ensureDecomposeTemplate(ctx.extensionPath);
 
+        // State and telemetry are auxiliary: if their storage hiccups, log
+        // and carry on — a lost trace must never take the guide down with it.
+        // Hooks also run fire-and-forget from the panel, so without this a
+        // rejection would vanish as an unhandled promise.
+        const recordSafely = async (what: string, body: () => Promise<void>) => {
+          try {
+            await body();
+          } catch (e: any) {
+            log(`[guide] failed to record ${what} for ${exerciseId}: ${e?.message ?? e}`);
+          }
+        };
+
         const decomposeCtx: DecomposeContext = { exerciseId, problemDescription, code };
         // Log every exchange to the output channel: during template tuning we
         // need to see exactly what the model was asked and what it answered.
@@ -1361,7 +1373,14 @@ ${feedback}
         if (plan) {
           log(`[guide] using cached plan for ${exerciseId}`);
         } else {
-          const result = await generate();
+          let result;
+          try {
+            result = await generate();
+          } catch (e: any) {
+            // e.g. the decompose template is missing from the prompt repo
+            log(`[guide] generation crashed for ${exerciseId}: ${e?.message ?? e}`);
+            return vscode.window.showErrorMessage(`Guide generation failed: ${e?.message ?? e}`);
+          }
           if (!result) return; // another click is already generating this plan
           if (!result.ok) {
             log(`[guide] generation failed for ${exerciseId} after ${result.attempts} attempt(s): ${result.reason}`);
@@ -1370,55 +1389,72 @@ ${feedback}
           log(`[guide] plan for ${exerciseId} accepted after ${result.attempts} attempt(s)`);
           plan = result.decomposition;
           decompositionCache.set(exerciseId, plan);
-          await logEvent({
-            exerciseId,
-            event: 'help_request',
-            meta: { kind: 'decompose', attempts: result.attempts },
-          });
+          const attempts = result.attempts;
+          await recordSafely('plan request', () =>
+            logEvent({
+              exerciseId,
+              event: 'help_request',
+              meta: { kind: 'decompose', attempts },
+            })
+          );
         }
 
         const help = getHelpState(exerciseId);
         const fromState = help.state;
         help.state = 'Guide';
         help.guideStep = Math.max(1, help.guideStep);
-        await setHelpState(help);
-        if (fromState !== 'Guide') {
-          await logEvent({ exerciseId, event: 'state_transition', fromState, toState: 'Guide' });
-        }
+        await recordSafely('guide entry', async () => {
+          await setHelpState(help);
+          if (fromState !== 'Guide') {
+            await logEvent({ exerciseId, event: 'state_transition', fromState, toState: 'Guide' });
+          }
+        });
 
         const hooks: GuidePanelHooks = {
-          onStepRevealed: async (step) => {
-            const s = getHelpState(exerciseId);
-            s.state = 'Guide';
-            s.guideStep = step;
-            await setHelpState(s);
-            await logEvent({ exerciseId, event: 'step_reveal', guideStep: step });
-          },
-          onReset: async () => {
-            const s = getHelpState(exerciseId);
-            s.guideStep = 1;
-            await setHelpState(s);
-            await logEvent({ exerciseId, event: 'step_reveal', guideStep: 1, meta: { reset: true } });
-          },
+          onStepRevealed: (step) =>
+            recordSafely('step reveal', async () => {
+              const s = getHelpState(exerciseId);
+              s.state = 'Guide';
+              s.guideStep = step;
+              await setHelpState(s);
+              await logEvent({ exerciseId, event: 'step_reveal', guideStep: step });
+            }),
+          onReset: () =>
+            recordSafely('guide reset', async () => {
+              const s = getHelpState(exerciseId);
+              s.guideStep = 1;
+              await setHelpState(s);
+              await logEvent({ exerciseId, event: 'step_reveal', guideStep: 1, meta: { reset: true } });
+            }),
           onRegenerate: async () => {
-            const result = await generate();
-            if (!result) return; // a generation for this exercise is already running
-            if (!result.ok) {
-              log(`[guide] regeneration failed for ${exerciseId} after ${result.attempts} attempt(s): ${result.reason}`);
-              vscode.window.showErrorMessage(`Guide regeneration failed: ${result.reason}`);
-              return;
+            try {
+              const result = await generate();
+              if (!result) return; // a generation for this exercise is already running
+              if (!result.ok) {
+                log(`[guide] regeneration failed for ${exerciseId} after ${result.attempts} attempt(s): ${result.reason}`);
+                vscode.window.showErrorMessage(`Guide regeneration failed: ${result.reason}`);
+                return;
+              }
+              log(`[guide] regenerated plan for ${exerciseId} accepted after ${result.attempts} attempt(s)`);
+              decompositionCache.set(exerciseId, result.decomposition);
+              // Update the panel first: recording problems must not block
+              // the student from seeing the new plan.
+              GuidePanel.currentPanel?.setDecomposition(result.decomposition, 1);
+              const attempts = result.attempts;
+              await recordSafely('regenerated plan', async () => {
+                const s = getHelpState(exerciseId);
+                s.guideStep = 1;
+                await setHelpState(s);
+                await logEvent({
+                  exerciseId,
+                  event: 'help_request',
+                  meta: { kind: 'decompose', regenerate: true, attempts },
+                });
+              });
+            } catch (e: any) {
+              log(`[guide] regeneration crashed for ${exerciseId}: ${e?.message ?? e}`);
+              vscode.window.showErrorMessage(`Guide regeneration failed: ${e?.message ?? e}`);
             }
-            log(`[guide] regenerated plan for ${exerciseId} accepted after ${result.attempts} attempt(s)`);
-            decompositionCache.set(exerciseId, result.decomposition);
-            const s = getHelpState(exerciseId);
-            s.guideStep = 1;
-            await setHelpState(s);
-            await logEvent({
-              exerciseId,
-              event: 'help_request',
-              meta: { kind: 'decompose', regenerate: true, attempts: result.attempts },
-            });
-            GuidePanel.currentPanel?.setDecomposition(result.decomposition, 1);
           },
         };
 
