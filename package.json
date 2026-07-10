@@ -180,6 +180,10 @@
         "title": "Start Guide - Break the exercise into steps"
       },
       {
+        "command": "CellMate.exportTelemetry",
+        "title": "Export CellMate Telemetry"
+      },
+      {
         "command": "CellMate.listTemplates",
         "title": "List Available Templates"
       },
