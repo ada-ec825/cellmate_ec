@@ -1,21 +1,21 @@
 import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as os from 'os';
 import * as fs from 'fs';
 import ffmpeg from '@ffmpeg-installer/ffmpeg';
 
 let ffmpegProcess: ChildProcessWithoutNullStreams | null = null;
 let outputPath: string = '';
-let recordingStartTime: number | null = null;  // Used to record recording start time
+let recordingStartTime: number | null = null;
 
-// Start recording: Use FFmpeg to record and save as .webm file
-export function startFFmpegRecording() {
+export function startFFmpegRecording(): boolean {
     if (ffmpegProcess) {
         vscode.window.showWarningMessage('Recording is already in progress.');
-        return;
+        return false;
     }
 
-    outputPath = path.join(__dirname, 'recorded_audio.ogg'); // Use .ogg format, more suitable for speech recognition
+    outputPath = path.join(os.tmpdir(), `cellmate-recording-${process.pid}-${Date.now()}.ogg`);
     if (fs.existsSync(outputPath)) {
         fs.unlinkSync(outputPath);
     }
@@ -31,37 +31,34 @@ export function startFFmpegRecording() {
         inputArgs = ['-f', 'alsa', '-i', 'default'];
     } else {
         vscode.window.showErrorMessage('Unsupported platform for FFmpeg recording.');
-        return;
+        return false;
     }
 
     const ffmpegArgs = [
         ...inputArgs,
-        '-ar', '16000',         // Set sampling rate to 16kHz (Azure recommended)
-        '-ac', '1',             // Mono channel (more stable than stereo)
+        '-ar', '16000',
+        '-ac', '1',
         '-c:a', 'libopus',
         '-b:a', '64k',
         '-vbr', 'on',
-        '-f', 'ogg',   // Output format as OGG (more suitable for speech recognition)
+        '-f', 'ogg',
         outputPath
     ];
 
-    // Use bundled FFmpeg instead of system FFmpeg
     ffmpegProcess = spawn(ffmpeg.path, ffmpegArgs);
 
-    recordingStartTime = Date.now();  // Mark start time
-
-    ffmpegProcess.stderr.on('data', data => {
-        console.log('[FFmpeg]', data.toString());
-    });
+    recordingStartTime = Date.now();
 
     ffmpegProcess.on('error', err => {
+        ffmpegProcess = null;
+        recordingStartTime = null;
         vscode.window.showErrorMessage(`FFmpeg failed: ${err.message}`);
     });
 
     vscode.window.showInformationMessage('🎙️ Recording started...');
+    return true;
 }
 
-// Stop recording and return audio file path
 export function stopFFmpegRecording(): Promise<string> {
     return new Promise((resolve, reject) => {
         if (!ffmpegProcess || !recordingStartTime) {

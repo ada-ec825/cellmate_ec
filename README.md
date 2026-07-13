@@ -13,7 +13,7 @@ Cellmate is an AI-powered teaching feedback extension designed specifically for 
 - **Multi-format Support**: Supports HTML comments, Markdown comments, and other formats
 
 ## Installation
-### **Cellmate is avaiable in VScode plugin market now**
+### **Cellmate is available in the VS Code Marketplace now**
 
 OR:
 1. Clone the repository:
@@ -98,14 +98,14 @@ Configure LLM service in VS Code settings:
 
 ```json
 {
-  "jupyterAiFeedback.llm.apiUrl": "http://your-llm-server.com/api",
-  "jupyterAiFeedback.llm.apiKey": "your-api-key",
-  "jupyterAiFeedback.llm.modelName": "your-model-name"
+  "CellMate.apiUrl": "http://your-llm-server.com/api",
+  "CellMate.apiKey": "your-api-key",
+  "CellMate.modelName": "your-model-name"
 }
 ```
 
 ### Prompt Template list
-The extension will fetching prompt templates from remote repository with the name of the prompt, the remote repository is https://github.com/teachnology/promptfolio/tree/main/prompts. If you design some useful prompts, please contact us and we can add them into the prompt repo.
+The extension fetches prompt templates from the remote prompt repository: https://github.com/teachnology/promptfolio/tree/main/prompts. If you design useful prompts, please contact us and we can add them to the prompt repo.
 
 ## 📝 Prompt Placeholder Usage Guide
 Cellmate provides a powerful prompt template system that supports various types of placeholders for dynamic content filling.
@@ -116,18 +116,18 @@ Cellmate provides a powerful prompt template system that supports various types 
 <!-- prompt:problem_description -->
 This is an exercise to calculate the number of digits
 ```
-This will replace the {{problem_description}} in the prompt templete if it is exist.
+This will replace the {{problem_description}} in the prompt template if it exists.
 
 #### Hash Comment Format
 ```python
 # prompt: expected_output
 The function should return the number of digits in the input number
 ```
-This will replace the {{expected_output}} in the prompt templete if it is exist.
+This will replace the {{expected_output}} in the prompt template if it exists.
 
 ### 2. Multi-block Region Placeholders
 
-For long content or muti-cell contens, you can use start and end markers:
+For long content or multi-cell content, you can use start and end markers:
 
 ```markdown
 <!-- prompt:detailed_instructions:start -->
@@ -140,7 +140,7 @@ Please read the following instructions carefully:
 3. Pay attention to handling negative numbers
 <!-- prompt:detailed_instructions:end -->
 ```
-This will take the two cell contents to replace the {{detailed_instructions}} in the prompt templete if it is exist.
+This will use the two cell contents to replace the {{detailed_instructions}} in the prompt template if it exists.
 
 ### 3. Cell Reference Placeholders
 #### Absolute References

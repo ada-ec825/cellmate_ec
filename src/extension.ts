@@ -1,9 +1,17 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
+import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { toggleRecording } from './speech';
+import { getCellMateSetting } from './configParser';
 import { killLocal } from './localServer';
 import { setExtensionContext } from './localServer';
+import { initState, getHelpState, setHelpState } from './state';
+import { initTelemetry, logEvent, getEvents, clearEvents } from './telemetry';
+import { Decomposition } from './schema';
+import { DecomposeContext, generateDecomposition } from './decompose';
+import { GuidePanel, GuidePanelHooks } from './guidePanel';
 import { 
   syncGitRepo, 
   getPromptContent, 
@@ -30,12 +38,33 @@ import {
 
 const chan = vscode.window.createOutputChannel("Jupyter AI Feedback");
 function toStr(x:any){ try{ return typeof x==='string'?x:JSON.stringify(x,(_k,v)=>v,2);}catch{ return String(x);} }
-export function log(...args:any[]){ chan.appendLine(`[${new Date().toISOString()}] ` + args.map(toStr).join(" ")); console.log(...args); }
+export function log(...args:any[]){ chan.appendLine(`[${new Date().toISOString()}] ` + args.map(toStr).join(" ")); }
 export function showLog(preserveFocus=true){ chan.show(preserveFocus); }
 
-let recording = false;
 // Throttle: restrict 'CellMate.sendNotebookCell' to once per 3 seconds
 let lastSendNotebookCellTs = 0;
+
+// Session-local cache of generated plans so reopening the guide does not
+// re-bill the LLM; the Regenerate button bypasses it.
+const decompositionCache = new Map<string, Decomposition>();
+
+// Exercises with a generation in flight. Generation takes minutes on a
+// thinking model, and an impatient second click would fire a duplicate
+// (billed) request; block it instead.
+const decomposeInFlight = new Set<string>();
+
+// Dev convenience: until the decompose template is published to the prompt
+// repository, seed the synced copy from the extension's local prompts/ dir.
+// Deliberately does not call syncGitRepo(): a re-clone would wipe the seed.
+function ensureDecomposeTemplate(extensionPath: string) {
+  const target = path.join(LOCAL_REPO_PATH, 'prompts', 'decompose.txt');
+  if (fs.existsSync(target)) return;
+  const local = path.join(extensionPath, 'prompts', 'decompose.txt');
+  if (fs.existsSync(local)) {
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(local, target);
+  }
+}
 
 // LLM API configuration interface
 interface LLMConfig {
@@ -43,6 +72,13 @@ interface LLMConfig {
   apiKey: string;
   modelName: string;
 }
+
+// Abort LLM requests that exceed this window. The department server runs a
+// thinking model whose slow-but-healthy responses land within one or two
+// minutes, so at three minutes a missing response means a hung request, not
+// a slow answer. Without a timeout a stalled connection leaves the progress
+// notification spinning forever and the command cannot be retried.
+const LLM_TIMEOUT_MS = 180_000;
 
 // Chat message interface
 interface ChatMessage {
@@ -683,7 +719,7 @@ ${analysis}
     // Create new output
     const newOutput = new vscode.NotebookCellOutput([outputItem]);
 
-    // CRITICAL: Preserve ALL existing outputs and add the new one
+    // Preserve existing outputs and append the Error Helper analysis.
     const existingOutputs = [...(cell.outputs || [])];
     const updatedOutputs = [...existingOutputs, newOutput];
 
@@ -706,10 +742,7 @@ ${analysis}
 
     const success = await vscode.workspace.applyEdit(edit);
 
-    if (success) {
-      console.log('Successfully added Error Helper analysis to cell output');
-      console.log('Preserved', existingOutputs.length, 'existing outputs');
-    } else {
+    if (!success) {
       throw new Error('Failed to apply edit to notebook');
     }
 
@@ -717,7 +750,6 @@ ${analysis}
     console.error('Failed to add analysis to cell output:', error);
 
     // Fallback: create markdown cell instead
-    console.log('Falling back to markdown cell...');
     const isMac = process.platform === 'darwin';
     const shortcut = isMac ? 'Cmd+Shift+P' : 'Ctrl+Shift+P';
 
@@ -762,13 +794,6 @@ async function callLLMAPI(prompt: string, config: LLMConfig): Promise<string> {
     };
   }
 
-  console.log('=== API Request Debug ===');
-  console.log('API URL:', config.apiUrl);
-  console.log('Model Name:', config.modelName);
-  console.log('Is OpenAI Endpoint:', isOpenAIEndpoint);
-  console.log('Request Body:', JSON.stringify(body, null, 2));
-  console.log('=== End API Request Debug ===');
-
   const resp = await axios.post(
     config.apiUrl,
     body,
@@ -777,15 +802,10 @@ async function callLLMAPI(prompt: string, config: LLMConfig): Promise<string> {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${config.apiKey}`
         },
-        responseType: isOpenAIEndpoint ? 'json' : 'text'
+        responseType: isOpenAIEndpoint ? 'json' : 'text',
+        timeout: LLM_TIMEOUT_MS
     }
   );
-
-  console.log('=== API Response Debug ===');
-  console.log('Response Status:', resp.status);
-  console.log('Response Data:', resp.data);
-  console.log('Response Headers:', resp.headers);
-  console.log('=== End API Response Debug ===');
 
   if (isOpenAIEndpoint) {
     // Handle OpenAI format response
@@ -806,7 +826,7 @@ async function callLLMAPI(prompt: string, config: LLMConfig): Promise<string> {
           fullResponse += jsonResponse.response;
         }
       } catch (e) {
-        console.warn('Failed to parse JSON line:', line);
+        console.warn('Failed to parse JSON line from LLM response');
       }
     }
 
@@ -821,10 +841,9 @@ async function callLLMAPI(prompt: string, config: LLMConfig): Promise<string> {
 
 // Read LLM configuration from settings
 function readLLMConfig(): LLMConfig | null {
-  const cfg = vscode.workspace.getConfiguration('CellMate');
-  const apiUrl = cfg.get<string>('apiUrl') || '';
-  const apiKey = cfg.get<string>('apiKey') || '';
-  const modelName = cfg.get<string>('modelName') || '';
+  const apiUrl = getCellMateSetting<string>('apiUrl', '') || '';
+  const apiKey = getCellMateSetting<string>('apiKey', '') || '';
+  const modelName = getCellMateSetting<string>('modelName', '') || '';
 
   if (!apiUrl || !apiKey || !modelName) {
     vscode.window.showErrorMessage(
@@ -1001,12 +1020,13 @@ async function insertMarkdownCellBelow(notebook: vscode.NotebookDocument, cellIn
 
 export function activate(ctx: vscode.ExtensionContext) {
   setExtensionContext(ctx);
+  initState(ctx);
+  initTelemetry(ctx);
   const provider: vscode.NotebookCellStatusBarItemProvider = {
     provideCellStatusBarItems(cell) {
       const items = [];
       if (cell.document.languageId === 'python') {
-          const cfg = vscode.workspace.getConfiguration('CellMate');
-          const alwaysShowErrorHelper = cfg.get<boolean>('errorHelper.alwaysShow', false);
+          const alwaysShowErrorHelper = getCellMateSetting<boolean>('errorHelper.alwaysShow', false) ?? false;
 
           const cellOutput = getCellOutput(cell);
           const hasError = cellOutput.executionError ||
@@ -1031,7 +1051,22 @@ export function activate(ctx: vscode.ExtensionContext) {
             items.push(errorHelperItem);
           }
 
-          // Original AI Feedback button
+          // Guide entry point, only where an exercise id identifies the task
+          if (extractExerciseId(cell.document.getText())) {
+            const guideItem = new vscode.NotebookCellStatusBarItem(
+              '🧭 Guide',
+              vscode.NotebookCellStatusBarAlignment.Right
+            );
+            guideItem.priority = 150;
+            guideItem.command = {
+              command: 'CellMate.startGuide',
+              title: 'Start Guide',
+              arguments: [cell]
+            };
+            guideItem.tooltip = 'Break this exercise into step-by-step subgoals';
+            items.push(guideItem);
+          }
+
           const item = new vscode.NotebookCellStatusBarItem(
             '$(zap) 🧠 AI Feedback',
             vscode.NotebookCellStatusBarAlignment.Right
@@ -1058,13 +1093,11 @@ export function activate(ctx: vscode.ExtensionContext) {
         items.push(speechItem);
       }
 
-      const cfg = vscode.workspace.getConfiguration('CellMate')
-      const showAll = cfg.get<boolean>('showButtonInAllMarkdown')
+      const showAll = getCellMateSetting<boolean>('showButtonInAllMarkdown', false) ?? false;
       const text = cell.document.getText().toLowerCase()
       const containsFeedback = text.includes('**feedback**') || text.includes('**🤖feedback expansion**')
       if(cell.kind === vscode.NotebookCellKind.Markup && (showAll || containsFeedback)){
-        const cfg = vscode.workspace.getConfiguration('CellMate');
-        const mode = cfg.get<string>('feedbackMode');
+        const mode = getCellMateSetting<string>('feedbackMode', 'Expand') || 'Expand';
 
         const label =
           mode === 'Expand'
@@ -1153,15 +1186,8 @@ export function activate(ctx: vscode.ExtensionContext) {
           return;
         }
 
-        // Case 3: Cell has errors - proceed with normal analysis
+        // Case 3: Cell has errors.
         try {
-          console.log('=== Error Helper Debug ===');
-          console.log('Cell has', cellOutput.hasOutput ? 'output' : 'no output');
-          console.log('Execution error:', cellOutput.executionError);
-          console.log('Output content:', cellOutput.output.substring(0, 200));
-          console.log('Current cell outputs count:', cell.outputs?.length || 0);
-          console.log('=== End Debug ===');
-
           await syncGitRepo();
           const promptContent = await getPromptContent('error_helper');
           const placeholderKeys = getTemplatePlaceholderKeys(promptContent);
@@ -1177,7 +1203,6 @@ export function activate(ctx: vscode.ExtensionContext) {
             if (placeholderMap.has(key)) {
               problemDescription = placeholderMap.get(key) || '';
               if (problemDescription) {
-                console.log(`Found explicitly marked problem description with key: ${key}`);
                 break;
               }
             }
@@ -1194,23 +1219,14 @@ export function activate(ctx: vscode.ExtensionContext) {
               `Ensure your suggestions align with the expected solution approach.`
             );
             prompt = fillPromptTemplate(enhancedPrompt, placeholderMap, editor.notebook);
-            console.log('Using enhanced prompt with problem description');
           } else {
             let standardPrompt = promptContent.replace('{{problem_description}}', '');
             prompt = fillPromptTemplate(standardPrompt, placeholderMap, editor.notebook);
-            console.log('Using standard prompt without problem description');
           }
-          
-          console.log('Problem description found:', problemDescription ? 'Yes' : 'No');
-          console.log('Problem description length:', problemDescription.length);
 
           const feedback = await callLLMAPI(prompt, config);
 
-          // Check output mode setting
-          const cfg = vscode.workspace.getConfiguration('CellMate');
-          const outputMode = cfg.get<string>('errorHelperOutput', 'markdown');
-
-          console.log('Using output mode:', outputMode);
+          const outputMode = getCellMateSetting<string>('errorHelperOutput', 'markdown') || 'markdown';
 
           if (outputMode === 'cellOutput') {
             await addAnalysisToCellOutput(cell, feedback);
@@ -1256,6 +1272,240 @@ ${feedback}
         }
       }
     )
+  );
+
+  // Guide mode: decompose the exercise and reveal it step by step
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand(
+      'CellMate.startGuide',
+      async (cell?: vscode.NotebookCell) => {
+        const editor = vscode.window.activeNotebookEditor;
+        if (!editor) {
+          return vscode.window.showErrorMessage('No active Notebook editor');
+        }
+        if (!cell) {
+          const selection = editor.selections[0];
+          if (!selection) {
+            return vscode.window.showErrorMessage('No cell selected');
+          }
+          cell = editor.notebook.cellAt(selection.start);
+        }
+
+        const config = readLLMConfig();
+        if (!config) return;
+
+        const code = cell.document.getText();
+        const exerciseId = extractExerciseId(code);
+        if (!exerciseId) {
+          return vscode.window.showWarningMessage('No # EXERCISE_ID found in this cell');
+        }
+
+        // Problem description from notebook annotations, same keys as Error Helper
+        let problemDescription = '';
+        try {
+          const keys = new Set(['problem_description', 'problem', 'exercise_description', 'task']);
+          const placeholderMap = extractPromptPlaceholders(editor.notebook, cell.index, keys);
+          for (const key of keys) {
+            const value = placeholderMap.get(key);
+            if (value && value.trim()) {
+              problemDescription = value;
+              break;
+            }
+          }
+        } catch {
+          // extraction warnings were already shown to the user
+        }
+        if (!problemDescription) {
+          vscode.window.showWarningMessage(
+            'No problem description found near this cell; the plan will rely on the code alone.'
+          );
+        }
+
+        ensureDecomposeTemplate(ctx.extensionPath);
+
+        // State and telemetry are auxiliary: if their storage hiccups, log
+        // and carry on — a lost trace must never take the guide down with it.
+        // Hooks also run fire-and-forget from the panel, so without this a
+        // rejection would vanish as an unhandled promise.
+        const recordSafely = async (what: string, body: () => Promise<void>) => {
+          try {
+            await body();
+          } catch (e: any) {
+            log(`[guide] failed to record ${what} for ${exerciseId}: ${e?.message ?? e}`);
+          }
+        };
+
+        const decomposeCtx: DecomposeContext = { exerciseId, problemDescription, code };
+        // Log every exchange to the output channel: during template tuning we
+        // need to see exactly what the model was asked and what it answered.
+        const callLLM = async (p: string) => {
+          log(`[guide] prompt → model (${exerciseId}):\n${p}`);
+          try {
+            const raw = await callLLMAPI(p, config);
+            log(`[guide] response ← model (${exerciseId}):\n${raw}`);
+            return raw;
+          } catch (e: any) {
+            log(`[guide] LLM call error (${exerciseId}): ${e?.message ?? e}`);
+            throw e;
+          }
+        };
+        const generate = async () => {
+          if (decomposeInFlight.has(exerciseId)) {
+            vscode.window.showInformationMessage(
+              `CellMate is already generating a plan for ${exerciseId} — hang on.`
+            );
+            return null;
+          }
+          decomposeInFlight.add(exerciseId);
+          try {
+            return await vscode.window.withProgress(
+              {
+                location: vscode.ProgressLocation.Notification,
+                title: 'CellMate: generating step plan…',
+              },
+              () => generateDecomposition(decomposeCtx, callLLM)
+            );
+          } finally {
+            decomposeInFlight.delete(exerciseId);
+          }
+        };
+
+        let plan = decompositionCache.get(exerciseId);
+        if (plan) {
+          log(`[guide] using cached plan for ${exerciseId}`);
+        } else {
+          let result;
+          try {
+            result = await generate();
+          } catch (e: any) {
+            // e.g. the decompose template is missing from the prompt repo
+            log(`[guide] generation crashed for ${exerciseId}: ${e?.message ?? e}`);
+            return vscode.window.showErrorMessage(`Guide generation failed: ${e?.message ?? e}`);
+          }
+          if (!result) return; // another click is already generating this plan
+          if (!result.ok) {
+            log(`[guide] generation failed for ${exerciseId} after ${result.attempts} attempt(s): ${result.reason}`);
+            return vscode.window.showErrorMessage(`Guide generation failed: ${result.reason}`);
+          }
+          log(`[guide] plan for ${exerciseId} accepted after ${result.attempts} attempt(s)`);
+          plan = result.decomposition;
+          decompositionCache.set(exerciseId, plan);
+          const attempts = result.attempts;
+          await recordSafely('plan request', () =>
+            logEvent({
+              exerciseId,
+              event: 'help_request',
+              meta: { kind: 'decompose', attempts },
+            })
+          );
+        }
+
+        const help = getHelpState(exerciseId);
+        const fromState = help.state;
+        help.state = 'Guide';
+        help.guideStep = Math.max(1, help.guideStep);
+        await recordSafely('guide entry', async () => {
+          await setHelpState(help);
+          if (fromState !== 'Guide') {
+            await logEvent({ exerciseId, event: 'state_transition', fromState, toState: 'Guide' });
+          }
+        });
+
+        const hooks: GuidePanelHooks = {
+          onStepRevealed: (step) =>
+            recordSafely('step reveal', async () => {
+              const s = getHelpState(exerciseId);
+              s.state = 'Guide';
+              s.guideStep = step;
+              await setHelpState(s);
+              await logEvent({ exerciseId, event: 'step_reveal', guideStep: step });
+            }),
+          onReset: () =>
+            recordSafely('guide reset', async () => {
+              const s = getHelpState(exerciseId);
+              s.guideStep = 1;
+              await setHelpState(s);
+              await logEvent({ exerciseId, event: 'step_reveal', guideStep: 1, meta: { reset: true } });
+            }),
+          onRegenerate: async () => {
+            try {
+              const result = await generate();
+              if (!result) return; // a generation for this exercise is already running
+              if (!result.ok) {
+                log(`[guide] regeneration failed for ${exerciseId} after ${result.attempts} attempt(s): ${result.reason}`);
+                vscode.window.showErrorMessage(`Guide regeneration failed: ${result.reason}`);
+                return;
+              }
+              log(`[guide] regenerated plan for ${exerciseId} accepted after ${result.attempts} attempt(s)`);
+              decompositionCache.set(exerciseId, result.decomposition);
+              // Update the panel first: recording problems must not block
+              // the student from seeing the new plan.
+              GuidePanel.currentPanel?.setDecomposition(result.decomposition, 1);
+              const attempts = result.attempts;
+              await recordSafely('regenerated plan', async () => {
+                const s = getHelpState(exerciseId);
+                s.guideStep = 1;
+                await setHelpState(s);
+                await logEvent({
+                  exerciseId,
+                  event: 'help_request',
+                  meta: { kind: 'decompose', regenerate: true, attempts },
+                });
+              });
+            } catch (e: any) {
+              log(`[guide] regeneration crashed for ${exerciseId}: ${e?.message ?? e}`);
+              vscode.window.showErrorMessage(`Guide regeneration failed: ${e?.message ?? e}`);
+            }
+          },
+        };
+
+        GuidePanel.createOrShow(plan, help.guideStep, hooks);
+      }
+    )
+  );
+
+  // Export the anonymised help-trajectory telemetry to a JSON file (O5).
+  // The researcher runs this at the end of a session; the file is what the
+  // offline analysis scripts consume.
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand('CellMate.exportTelemetry', async () => {
+      const events = getEvents();
+      if (events.length === 0) {
+        vscode.window.showInformationMessage('No telemetry events recorded yet.');
+        return;
+      }
+
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const defaultDir =
+        vscode.workspace.workspaceFolders?.[0]?.uri ?? vscode.Uri.file(os.homedir());
+      const target = await vscode.window.showSaveDialog({
+        defaultUri: vscode.Uri.joinPath(defaultDir, `cellmate-telemetry-${stamp}.json`),
+        filters: { JSON: ['json'] },
+        title: 'Export CellMate telemetry',
+      });
+      if (!target) return; // dialog cancelled
+
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        eventCount: events.length,
+        events,
+      };
+      await vscode.workspace.fs.writeFile(
+        target,
+        Buffer.from(JSON.stringify(payload, null, 2), 'utf8')
+      );
+      log(`[telemetry] exported ${events.length} events to ${target.fsPath}`);
+
+      const choice = await vscode.window.showInformationMessage(
+        `Exported ${events.length} telemetry events. Clear the buffer now?`,
+        'Clear',
+        'Keep'
+      );
+      if (choice === 'Clear') {
+        await clearEvents();
+        log('[telemetry] buffer cleared after export');
+      }
+    })
   );
 
   // Start Error Chat command
@@ -1308,7 +1558,6 @@ ${feedback}
             if (placeholderMap.has(key)) {
               problemDescription = placeholderMap.get(key) || '';
               if (problemDescription) {
-                console.log(`Found problem description with key: ${key} in Start Error Chat`);
                 break;
               }
             }
@@ -1338,22 +1587,10 @@ ${feedback}
         }
         lastSendNotebookCellTs = now;
 
-        // Read user configuration
-        const cfg = vscode.workspace.getConfiguration('CellMate');
-        const apiUrl = cfg.get<string>('apiUrl') || '';
-        const apiKey = cfg.get<string>('apiKey') || '';
-        const modelName = cfg.get<string>('modelName') || '';
-        const useHiddenTests = cfg.get<boolean>('useHiddenTests', true);
-
-        // Debug configuration
-        // log('=== Configuration Debug ===');
-        // log('All CellMate config:', cfg);
-        // log('useHiddenTests raw value:', cfg.get('useHiddenTests'));
-        // log('useHiddenTests with default:', useHiddenTests);
-        // log('Configuration source:', cfg.inspect('useHiddenTests'));
-        // log('=== End Debug ===');
-        // log('useHiddenTests:', useHiddenTests);
-        // log('modelName:', modelName);
+        const apiUrl = getCellMateSetting<string>('apiUrl', '') || '';
+        const apiKey = getCellMateSetting<string>('apiKey', '') || '';
+        const modelName = getCellMateSetting<string>('modelName', '') || '';
+        const useHiddenTests = getCellMateSetting<boolean>('useHiddenTests', true) ?? true;
 
         if (!apiUrl || !apiKey || !modelName) {
           return vscode.window.showErrorMessage(
@@ -1368,7 +1605,7 @@ ${feedback}
 
         // 2. Get prompt content
         const promptIdFromCell = extractPromptId(code);
-        const promptId = promptIdFromCell || cfg.get<string>('templateId', '');
+        const promptId = promptIdFromCell || getCellMateSetting<string>('templateId', 'standard_feedback') || '';
 
         // check if prompt id exists in local prompt list
         const templates = await listLocalTemplates();
@@ -1395,7 +1632,6 @@ ${feedback}
 
           // Get notebook Python path
           const pythonPath = await getNotebookPythonPath();
-          // log("pythonPath:", pythonPath)
           if (!pythonPath) {
             vscode.window.showErrorMessage('cannot detect the Python environment of the current Notebook, please select the kernel first');
             return;
@@ -1420,8 +1656,6 @@ ${feedback}
 
           // Run tests locally (with internal timeout guard and resource copy)
           const testResult = await runLocalTest(code, test, pythonPath, 15000, resourceDirs);
-          // log('=== test result Debug ===');
-          log(testResult)
 
           // Parse test results and generate analysis
           if (testResult.report && testResult.report.tests) {
@@ -1477,9 +1711,6 @@ ${feedback}
           }
         }
 
-        // 5. Assemble prompt
-        // log("promptContent:", promptContent)
-        // log("analysis:", analysis)
         let prompt = promptContent;
 
         // 6. Extract and fill placeholders
@@ -1497,7 +1728,6 @@ ${feedback}
           const cellOutput = getCellOutput(cell);
           if (cellOutput.hasOutput) {
             placeholderMap.set('code_output', cellOutput.output);
-            // log("cellOutput:", cellOutput.output)
           } else {
             placeholderMap.set('code_output', '');
           }
@@ -1512,13 +1742,11 @@ ${feedback}
 
         // Fill only declared placeholders, keep others unchanged
         prompt = fillPromptTemplate(prompt, placeholderMap, editor.notebook);
-        // log("Final prompt after filling placeholders:", prompt);
 
         // Add system role to the beginning of the prompt
         const system_role = "You are a Python teaching assistant for programming beginners. Given the uploaded code and optional hidden test results, offer concise code suggestions on improvement and fixing output errors without directly giving solutions. Be encouraging and constructive in your feedback. ";
 
         const fullPrompt = system_role + prompt;
-        log("fullPrompt:", fullPrompt)
 
         // Call the LLM interface
         let feedback: string;
@@ -1546,13 +1774,6 @@ ${feedback}
             };
           }
 
-          // log('=== API Request Debug ===');
-          // log('API URL:', apiUrl);
-          // log('Model Name:', modelName);
-          // log('Is OpenAI Endpoint:', isOpenAIEndpoint);
-          // log('Request Body:', JSON.stringify(body, null, 2));
-          // log('=== End API Request Debug ===');
-
           const resp = await axios.post(
             apiUrl,
             body,
@@ -1561,14 +1782,10 @@ ${feedback}
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${apiKey}`
                 },
-                responseType: isOpenAIEndpoint ? 'json' : 'text'
+                responseType: isOpenAIEndpoint ? 'json' : 'text',
+                timeout: LLM_TIMEOUT_MS
             }
           );
-
-          // log('=== API Response Debug ===');
-          // log('Response Status:', resp.status);
-          // log('Response Headers:', resp.headers);
-          // log('=== End API Response Debug ===');
 
           if (isOpenAIEndpoint) {
             // Handle OpenAI format response
@@ -1589,7 +1806,7 @@ ${feedback}
                   fullResponse += jsonResponse.response;
                 }
               } catch (e) {
-                console.warn('Failed to parse JSON line:', line);
+                console.warn('Failed to parse JSON line from LLM response');
               }
             }
 
@@ -1599,8 +1816,6 @@ ${feedback}
             }
             feedback = fullResponse;
           }
-          // log('feedback:', feedback)
-
         } catch (e: any) {
           let errorMessage = 'AI API call failed: ' + e.message;
           if (e.response?.data) {
@@ -1671,7 +1886,6 @@ ${feedback}
           vscode.window.showInformationMessage('No available templates');
           return;
         }
-        // 生成下拉选项
         const items = templates.map(t => ({
           label: t.id,
           description: t.filename
@@ -1680,7 +1894,6 @@ ${feedback}
           placeHolder: 'Please select a template'
         });
         if (pick) {
-          // 写入配置
           await vscode.workspace.getConfiguration('CellMate')
             .update('templateId', pick.label, vscode.ConfigurationTarget.Global);
           vscode.window.showInformationMessage(`Selected template: ${pick.label}`);
@@ -1719,7 +1932,6 @@ ${feedback}
             return;
           }
 
-          // 生成下拉选项
           const items = templates.map(t => ({
             label: t.id,
             description: t.filename
@@ -1816,20 +2028,18 @@ function getExplanationCtx(cellUri: string) {
           return;
         }
 
-        const cfg = vscode.workspace.getConfiguration('CellMate');
-        const mode = cfg.get<string>('feedbackMode');
-        const apiUrl = cfg.get<string>('apiUrl') || '';
-        const apiKey = cfg.get<string>('apiKey') || '';
-        const modelName = cfg.get<string>('modelName') || '';
-        if (!apiUrl || !apiKey || !mode) {
+        const mode = getCellMateSetting<string>('feedbackMode', 'Expand') || 'Expand';
+        const apiUrl = getCellMateSetting<string>('apiUrl', '') || '';
+        const apiKey = getCellMateSetting<string>('apiKey', '') || '';
+        const modelName = getCellMateSetting<string>('modelName', '') || '';
+        if (!apiUrl || !apiKey || !modelName || !mode) {
           return vscode.window.showErrorMessage(
-            'Please set apiUrl, apiKey and feedbackMode in your settings'
+            'Please set apiUrl, apiKey, modelName and feedbackMode in your settings'
           );
         }
 
         const fullText = cell.document.getText();
 
-        // full text or select sentences
         let inputText = '';
         let header = '';
 
@@ -1837,7 +2047,6 @@ function getExplanationCtx(cellUri: string) {
           inputText = fullText;
           header = `**🤖 Feedback Expansion**`;
         } else if (mode === 'Explain') {
-          // select sentences
           const activeEditor = vscode.window.activeTextEditor;
           const selection = activeEditor?.selection;
           const selectedText = selection && !selection.isEmpty
@@ -1870,18 +2079,14 @@ function getExplanationCtx(cellUri: string) {
             prompt = promptTpl;
         }
         
-        // extract all placeholders
         const placeholderKeys = getTemplatePlaceholderKeys(prompt);
 
-        // extract placeholder content
         const placeholderMap = extractPromptPlaceholders(editor.notebook, cell.index, placeholderKeys)
 
         prompt = fillPromptTemplate(prompt, placeholderMap, editor.notebook)
 
         const generatingNote = `*(Generating...)*`;
-        //const finishedNote = `**✅ AI Generation Completed**`;
 
-        // add or renew markdown cell
         let newCell: vscode.NotebookCell;
         const nextIndex = cell.index + 1;
 
@@ -1908,16 +2113,17 @@ function getExplanationCtx(cellUri: string) {
 
           const resp = await axios.post(apiUrl, body, {
             headers: {
-              'content-Type' : 'application/json',
+              'Content-Type' : 'application/json',
               Authorization: `Bearer ${apiKey}`
             },
-            responseType: 'stream'
+            responseType: 'stream',
+            // For a streamed response this only bounds the wait for the
+            // connection and response headers, not stalls mid-stream.
+            timeout: LLM_TIMEOUT_MS
           });
 
           let accumulated = '';
-          let chunkCount = 0;
           for await (const chunk of resp.data) {
-            chunkCount++;
             const lines = chunk.toString().split('\n');
             
             for (const line of lines) {
@@ -1935,15 +2141,13 @@ function getExplanationCtx(cellUri: string) {
                 }
               } catch (parseError) {
                 // Skip invalid JSON lines, which is normal in streaming responses
-                console.warn('Skipping invalid JSON line:', trimmedLine);
+                console.warn('Skipping invalid JSON line from streaming response');
               }
             }
           }
 
-          // give a sign that it is finished generating
           const finalText = cleanMarkdown(accumulated);
 
-          // Add colored border based on mode, wrapping both header and content
           const borderColor = mode === 'Expand' ? '#6ec5d2ff' : '#4CAF50';
           const wrappedContent = `<div style="box-sizing:border-box; border: 3px solid ${borderColor}; padding: 10px ;border-radius:8px;">\n\n${header}\n\n${finalText.replace(/\n/g, '  \n')}\n\n</div>`;
           const finalContent = `${wrappedContent}\n`;
@@ -2044,7 +2248,7 @@ function getExplanationCtx(cellUri: string) {
             border: 1px solid #e5e7eb;
           }
 
-          /* 防溢出优化 */
+          /* Keep rendered Markdown content within message bounds. */
           .message code {
             white-space: pre-wrap;
             word-break: break-word;
@@ -2066,7 +2270,7 @@ function getExplanationCtx(cellUri: string) {
           .message th, .message td {
             word-break: break-word;
           }
-          /* 紧凑 Markdown 样式 */
+          /* Compact Markdown styles. */
           .message.assistant p {
             margin: 0.2em 0;
             line-height: 1.4;
@@ -2173,7 +2377,7 @@ function getExplanationCtx(cellUri: string) {
         </div>
 
         <div id="inputArea">
-          <textarea id="input" placeholder="Type your follow-up question..." /></textarea>
+          <textarea id="input" placeholder="Type your follow-up question..."></textarea>
           <button id="sendBtn">Send</button>
         </div>
 
@@ -2182,13 +2386,39 @@ function getExplanationCtx(cellUri: string) {
         <script>
           const vscode = acquireVsCodeApi();
 
+          function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, ch => ({
+              '&': '&amp;',
+              '<': '&lt;',
+              '>': '&gt;',
+              '"': '&quot;',
+              "'": '&#39;'
+            }[ch]));
+          }
+
+          function sanitizeRenderedMarkdown(html) {
+            const template = document.createElement('template');
+            template.innerHTML = html;
+            template.content.querySelectorAll('script, iframe, object, embed, link, style').forEach(node => node.remove());
+            template.content.querySelectorAll('*').forEach(node => {
+              for (const attr of Array.from(node.attributes)) {
+                const name = attr.name.toLowerCase();
+                const value = attr.value.trim().toLowerCase();
+                if (name.startsWith('on') || ((name === 'href' || name === 'src') && value.startsWith('javascript:'))) {
+                  node.removeAttribute(attr.name);
+                }
+              }
+            });
+            return template.innerHTML;
+          }
+
           function appendMessage(role, content) {
             const chat = document.getElementById('chat');
             const div = document.createElement('div');
             div.className = 'message ' + role;
             const label = role === 'user' ? '👤 You' : '🤖 AI';
 
-            const rendered = role === 'assistant' ? marked.parse(content) : content;
+            const rendered = role === 'assistant' ? sanitizeRenderedMarkdown(marked.parse(content)) : escapeHtml(content);
             div.innerHTML = '<strong>' + label + ':</strong><br>' + rendered;
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
@@ -2204,7 +2434,6 @@ function getExplanationCtx(cellUri: string) {
               btn.addEventListener('click', () => {
                 appendMessage('user', text);
 
-                // loading status
                 const button = document.getElementById('sendBtn');
 
                 button.disabled = true;
@@ -2224,7 +2453,6 @@ function getExplanationCtx(cellUri: string) {
             if (question) {
               appendMessage('user', question);
 
-              // show loading status
               button.disabled = true;
               button.textContent = 'Thinking...';
 
@@ -2267,29 +2495,28 @@ function getExplanationCtx(cellUri: string) {
       panel.webview.html = getHTML();
 
       panel.webview.onDidReceiveMessage(async (msg) => {
-        // if (msg.type === 'ask') {
-        //   const question = msg.question;
-        //   conversation.push({ role: 'user', content: question });
-
           if (msg.type !== 'ask') return;
 
           const question = String(msg.question ?? '');
           const wholeFeedback = ctxData?.wholeFeedback ?? '';
 
-          // 直接拼接 prompt
           const fullPrompt = followupPromptTpl
             .replace('{{explanationOutput}}', explanationOutput)
             .replace('{{wholeFeedback}}', wholeFeedback)
             .replace('{{followupQuestion}}', question);
 
-          const cfg = vscode.workspace.getConfiguration('CellMate');
-          const apiUrl = cfg.get<string>('apiUrl') || '';
-          const apiKey = cfg.get<string>('apiKey') || '';
-          const modelName = cfg.get<string>('modelName') || '';
+          const apiUrl = getCellMateSetting<string>('apiUrl', '') || '';
+          const apiKey = getCellMateSetting<string>('apiKey', '') || '';
+          const modelName = getCellMateSetting<string>('modelName', '') || '';
+          if (!apiUrl || !apiKey || !modelName) {
+            panel.webview.postMessage({ type: 'answer', content: 'Please configure CellMate.apiUrl, apiKey, and modelName in settings.' });
+            return;
+          }
 
           try {
           const resp = await axios.post(apiUrl, { model: modelName, prompt: fullPrompt, stream:false }, {
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` }
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+            timeout: LLM_TIMEOUT_MS
           });
 
           const answer = resp.data?.message?.content || resp.data?.response || 'No response received';
@@ -2320,7 +2547,7 @@ function getExplanationCtx(cellUri: string) {
           items.push(item);
         };
 
-        // Feeback Expansion cell
+        // Feedback Expansion cell
         if (text.includes('**🤖Feedback Expansion**')){
           const item = new vscode.NotebookCellStatusBarItem(
             '💬 Ask follow-up',
