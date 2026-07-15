@@ -14,7 +14,7 @@ const {
   fillDecomposeTemplate,
   generateDecomposition,
 } = require('../out/decompose.js');
-const { DECOMPOSITION_VERSION } = require('../out/schema.js');
+const { DECOMPOSITION_VERSION, listDecompositionViolations } = require('../out/schema.js');
 const { LOCAL_REPO_PATH } = require('../out/gitUtils.js');
 
 /** Build a valid 3..7-step plan the parser should accept. */
@@ -362,4 +362,57 @@ test('engine does not retry transport errors', async () => {
   assert.equal(r.attempts, 1);
   assert.match(r.reason, /LLM call failed: boom/);
   assert.equal(llm.prompts.length, 1); // exactly one call, no retry
+});
+
+// ── timeShare (schema v2) ──────────────────────────────────────────
+// Exercised through listDecompositionViolations directly: gold files skip
+// the parser, so the validator must hold these rules on its own.
+
+/** A gold-file-shaped object at a given version. */
+function makeGold(version, steps) {
+  return { exerciseId: 'ex', version, source: 'gold', steps };
+}
+
+/** Attach the given shares to a fresh 3-step plan. */
+function stepsWithShares(shares) {
+  return makeSteps(shares.length).map((s, i) =>
+    shares[i] === undefined ? s : { ...s, timeShare: shares[i] }
+  );
+}
+
+test('accepts a v1 gold plan without timeShare (compatibility)', () => {
+  const v = listDecompositionViolations(makeGold(1, makeSteps(3)));
+  assert.deepEqual(v, []);
+});
+
+test('accepts a full set of timeShares summing to 100', () => {
+  const v = listDecompositionViolations(makeGold(2, stepsWithShares([20, 30, 50])));
+  assert.deepEqual(v, []);
+});
+
+test('rejects timeShare on only some steps', () => {
+  const v = listDecompositionViolations(makeGold(2, stepsWithShares([50, undefined, undefined])));
+  assert.ok(v.some((m) => /every step or on none/.test(m)), v.join('; '));
+});
+
+test('rejects shares that do not sum to roughly 100', () => {
+  const v = listDecompositionViolations(makeGold(2, stepsWithShares([50, 50, 30])));
+  assert.ok(v.some((m) => /sum to roughly 100, found 130/.test(m)), v.join('; '));
+});
+
+test('rejects a share below 5 percent', () => {
+  const v = listDecompositionViolations(makeGold(2, stepsWithShares([2, 49, 49])));
+  assert.ok(v.some((m) => /step 1 timeShare must be a number between 5 and 100/.test(m)), v.join('; '));
+});
+
+test('rejects versions above the current one', () => {
+  const v = listDecompositionViolations(makeGold(DECOMPOSITION_VERSION + 1, makeSteps(3)));
+  assert.ok(v.some((m) => /version must be between 1 and/.test(m)), v.join('; '));
+});
+
+test('parses timeShare through from model output', () => {
+  const steps = stepsWithShares([25, 25, 50]);
+  const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
+  assert.equal(r.ok, true);
+  assert.equal(r.decomposition.steps[2].timeShare, 50);
 });
