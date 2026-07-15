@@ -81,22 +81,11 @@ export interface TelemetryEvent {
   meta?: Record<string, unknown>;
 }
 
-/**
- * Patterns that mark unambiguous code syntax in prose fields. Only these
- * reject a plan outright. Broader heuristics (keywords like "return",
- * inline back-ticks, "=") were tried and rejected legitimate plans that
- * merely quoted the exercise's own contract ("return this value",
- * "v(0) = 0"), so subtler prose leakage is left to the offline judge audit.
- */
-const CODE_TRACE_PATTERNS: RegExp[] = [
-  /```/, // fenced code block
-  /\bdef\s+\w+\s*\(/, // Python function-definition syntax
-];
-
-/** True if the text looks like it contains code rather than plain English. */
-export function containsCodeTrace(text: string): boolean {
-  return CODE_TRACE_PATTERNS.some((re) => re.test(text));
-}
+// No code-trace regex gate. Every pattern tried — keywords, back-ticks,
+// "=", even literal "def name(" — ended up rejecting legitimate plans that
+// quoted the exercise's own contract or signatures. Leakage review is the
+// job of the offline audit (LLM judge + human reading), never of a
+// parse-time regex; the validator below checks structure only.
 
 /**
  * Every rule the candidate breaks, as one-line messages that name the
@@ -141,15 +130,9 @@ export function listDecompositionViolations(d: any): string[] {
     }
     if (typeof s.intent !== 'string' || s.intent.trim() === '') {
       violations.push(`step ${n} intent must be a non-empty string`);
-    } else if (containsCodeTrace(s.intent)) {
-      violations.push(`step ${n} intent contains code; rewrite it as plain English`);
     }
-    if (s.checkHint !== undefined) {
-      if (typeof s.checkHint !== 'string') {
-        violations.push(`step ${n} checkHint must be a string when present`);
-      } else if (containsCodeTrace(s.checkHint)) {
-        violations.push(`step ${n} checkHint contains code; rewrite it as plain English`);
-      }
+    if (s.checkHint !== undefined && typeof s.checkHint !== 'string') {
+      violations.push(`step ${n} checkHint must be a string when present`);
     }
     if (s.timeShare !== undefined) {
       if (!Number.isFinite(s.timeShare) || s.timeShare < 5 || s.timeShare > 100) {

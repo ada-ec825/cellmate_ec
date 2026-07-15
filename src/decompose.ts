@@ -123,6 +123,19 @@ export function extractJsonObject(raw: string): string | null {
 }
 
 /**
+ * Double the lone backslashes that JSON forbids. Models quoting maths from
+ * an exercise write LaTeX ("\Delta t", "\frac{1}{2}") straight into JSON
+ * strings, and JSON.parse rejects those escapes. Valid escape sequences
+ * (\" \\ \/ \b \f \n \r \t \uXXXX) are consumed atomically and preserved.
+ */
+function repairInvalidEscapes(jsonText: string): string {
+  return jsonText.replace(
+    /\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4})|\\/g,
+    (m) => (m.length > 1 ? m : '\\\\')
+  );
+}
+
+/**
  * Parse raw LLM output into a validated Decomposition.
  *
  * Fields the extension owns (exerciseId, version, source) are stamped
@@ -141,7 +154,11 @@ export function parseDecomposition(raw: string, exerciseId: string): ParseDecomp
   try {
     data = JSON.parse(jsonText);
   } catch (e: any) {
-    return { ok: false, reason: `invalid JSON: ${e.message}` };
+    try {
+      data = JSON.parse(repairInvalidEscapes(jsonText));
+    } catch {
+      return { ok: false, reason: `invalid JSON: ${e.message}` };
+    }
   }
 
   const candidate: Decomposition = {

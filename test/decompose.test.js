@@ -132,41 +132,23 @@ test('rejects too few and too many steps, reporting the count', () => {
   assert.match(many.reason, /3 to 7 steps, found 8/);
 });
 
-test('rejects unambiguous code syntax in an intent', () => {
-  for (const leaky of [
-    'start by writing def solve(values): and go from there',
-    'use ``` to format your answer',
-  ]) {
-    const steps = makeSteps(3);
-    steps[1].intent = leaky;
-    const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
-    assert.equal(r.ok, false, `intent should be rejected: "${leaky}"`);
-    assert.match(r.reason, /step 2 intent contains code/); // names the step
-  }
-});
-
-test('accepts contract references, math and keywords as prose', () => {
-  // The exercise's own contract is public: quoting names, formulas and
-  // natural-English keywords must not be treated as leaked code.
+test('never rejects prose for looking like code', () => {
+  // The validator checks structure only. Contract quoting, math, keywords,
+  // even signature snippets must all pass; leakage review happens in the
+  // offline audit, not at parse time.
   for (const ok of [
     'The function compute_velocity(dt, k, a) should return one velocity value.',
     'Assume v(0) = 0, exactly as the exercise states.',
     'Read the values from data/acc.dat before you import any plotting library.',
+    'Write def compute_velocity(dt, k, a) exactly as the exercise names it.',
     'Decide what the function hands back for an empty input.',
   ]) {
     const steps = makeSteps(3);
     steps[1].intent = ok;
+    steps[2].checkHint = ok;
     const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
-    assert.equal(r.ok, true, `intent should be accepted: "${ok}"`);
+    assert.equal(r.ok, true, `should be accepted: "${ok}"`);
   }
-});
-
-test('rejects unambiguous code syntax in a checkHint', () => {
-  const steps = makeSteps(3);
-  steps[2].checkHint = 'Contains something like def helper(xs): inside.';
-  const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
-  assert.equal(r.ok, false);
-  assert.match(r.reason, /step 3 checkHint contains code/);
 });
 
 test('accepts plain-English prose that merely sounds imperative', () => {
@@ -209,12 +191,12 @@ test('rejects a non-string checkHint', () => {
 
 test('names every violation at once, not just the first', () => {
   const steps = makeSteps(3);
-  steps[0].intent = 'begin with def solve(xs): then fill it in'; // code trace
+  steps[0].intent = '   '; // blank intent
   steps[1].label = '   '; // blank label
   steps[2].checkHint = 42; // wrong type
   const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
   assert.equal(r.ok, false);
-  assert.match(r.reason, /step 1 intent contains code/);
+  assert.match(r.reason, /step 1 intent must be a non-empty string/);
   assert.match(r.reason, /step 2 label must be a non-empty string/);
   assert.match(r.reason, /step 3 checkHint must be a string/);
 });
