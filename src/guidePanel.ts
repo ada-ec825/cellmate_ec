@@ -115,8 +115,18 @@ export class GuidePanel {
           return `<li class="step locked">Step ${s.index} &#128274;</li>`;
         }
         const current = s.index === this.revealed ? ' current' : '';
+        // Pacing guidance (schema v2). Plans without timeShare render as before.
+        let share = '';
+        if (typeof s.timeShare === 'number') {
+          const pct = Math.round(Math.min(100, Math.max(0, s.timeShare)));
+          share = `<div class="share">
+            <div class="share-track"><div class="share-fill" style="width:${pct}%"></div></div>
+            <span class="share-label">~${pct}% of your time</span>
+          </div>`;
+        }
         return `<li class="step${current}">
           <div class="label">Step ${s.index}: ${escapeHtml(s.label)}</div>
+          ${share}
           <div class="intent">${escapeHtml(s.intent)}</div>
         </li>`;
       })
@@ -153,6 +163,19 @@ export class GuidePanel {
     border-left-style: dashed;
   }
   .label { font-weight: 600; margin-bottom: 4px; }
+  .share { display: flex; align-items: center; gap: 8px; margin: 2px 0 6px; }
+  .share-track {
+    flex: 0 0 80px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--vscode-panel-border);
+  }
+  .share-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--vscode-textLink-foreground);
+  }
+  .share-label { font-size: 11px; color: var(--vscode-descriptionForeground); }
   .intent { font-size: 13px; line-height: 1.5; }
   .buttons { margin-top: 14px; display: flex; gap: 8px; }
   button {
