@@ -1,4 +1,9 @@
-export const DECOMPOSITION_VERSION = 1;
+/**
+ * v2 adds the optional per-step timeShare (recommended percentage of the
+ * exercise's time). The change is additive: v1 plans remain valid, and the
+ * validator accepts versions 1..DECOMPOSITION_VERSION.
+ */
+export const DECOMPOSITION_VERSION = 2;
 
 export interface DecompositionStep {
   /** 1-based position in the ordered plan. */
@@ -9,6 +14,12 @@ export interface DecompositionStep {
   intent: string;
   /** Optional: what step_check should look for as evidence of this intent. */
   checkHint?: string;
+  /**
+   * Optional (v2): recommended share of the whole exercise's time, as a
+   * percentage. Guidance for pacing, never a deadline. Either every step
+   * carries one or none does, and a plan's shares sum to roughly 100.
+   */
+  timeShare?: number;
 }
 
 export interface Decomposition {
@@ -106,8 +117,8 @@ export function listDecompositionViolations(d: any): string[] {
   if (typeof d.exerciseId !== 'string' || d.exerciseId.trim() === '') {
     violations.push('exerciseId must be a non-empty string');
   }
-  if (d.version !== DECOMPOSITION_VERSION) {
-    violations.push(`version must equal ${DECOMPOSITION_VERSION}`);
+  if (typeof d.version !== 'number' || d.version < 1 || d.version > DECOMPOSITION_VERSION) {
+    violations.push(`version must be between 1 and ${DECOMPOSITION_VERSION}`);
   }
   if (d.source !== 'gold' && d.source !== 'generated') {
     violations.push("source must be 'gold' or 'generated'");
@@ -144,7 +155,26 @@ export function listDecompositionViolations(d: any): string[] {
         violations.push(`step ${n} checkHint contains code; rewrite it as plain English`);
       }
     }
+    if (s.timeShare !== undefined) {
+      if (!Number.isFinite(s.timeShare) || s.timeShare < 5 || s.timeShare > 100) {
+        violations.push(`step ${n} timeShare must be a number between 5 and 100`);
+      }
+    }
   });
+
+  // timeShare is all-or-none, and a complete set must sum to roughly 100.
+  const withShare = d.steps.filter((s: any) => s && s.timeShare !== undefined);
+  if (withShare.length > 0 && withShare.length !== d.steps.length) {
+    violations.push('timeShare must be given on every step or on none');
+  } else if (d.steps.length > 0 && withShare.length === d.steps.length) {
+    const sum = withShare.reduce(
+      (acc: number, s: any) => acc + (Number.isFinite(s.timeShare) ? s.timeShare : 0),
+      0
+    );
+    if (sum < 90 || sum > 110) {
+      violations.push(`timeShare values must sum to roughly 100, found ${sum}`);
+    }
+  }
 
   return violations;
 }

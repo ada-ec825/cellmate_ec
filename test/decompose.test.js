@@ -14,6 +14,7 @@ const {
   fillDecomposeTemplate,
   generateDecomposition,
 } = require('../out/decompose.js');
+const { DECOMPOSITION_VERSION } = require('../out/schema.js');
 const { LOCAL_REPO_PATH } = require('../out/gitUtils.js');
 
 /** Build a valid 3..7-step plan the parser should accept. */
@@ -81,7 +82,7 @@ test('accepts a valid plan and stamps exerciseId/version/source', () => {
   assert.equal(r.ok, true);
   // Fields the extension owns are stamped, not trusted from the echo.
   assert.equal(r.decomposition.exerciseId, 'count_words');
-  assert.equal(r.decomposition.version, 1);
+  assert.equal(r.decomposition.version, DECOMPOSITION_VERSION); // stamped to current
   assert.equal(r.decomposition.source, 'generated');
   assert.equal(r.decomposition.steps.length, 3);
 });
