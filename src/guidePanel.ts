@@ -12,10 +12,6 @@ export interface GuidePanelHooks {
   onCheckProgress?(): void;
   /** The student asked for a fresh decomposition. */
   onRegenerate?(): void;
-  /** @deprecated Never fired anymore; removed once the wiring migrates. */
-  onStepRevealed?(step: number): void;
-  /** @deprecated Never fired anymore; removed once the wiring migrates. */
-  onReset?(): void;
 }
 
 /**

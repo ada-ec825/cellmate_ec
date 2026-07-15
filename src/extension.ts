@@ -11,12 +11,13 @@ import { initState, getHelpState, setHelpState } from './state';
 import { initTelemetry, logEvent, getEvents, clearEvents } from './telemetry';
 import { Decomposition } from './schema';
 import { DecomposeContext, generateDecomposition } from './decompose';
+import { runProgressCheck } from './stepCheck';
 import { GuidePanel, GuidePanelHooks } from './guidePanel';
-import { 
-  syncGitRepo, 
-  getPromptContent, 
-  getTestFiles, 
-  listLocalExercises, 
+import {
+  syncGitRepo,
+  getPromptContent,
+  getTestFiles,
+  listLocalExercises,
   listLocalTemplates,
   LOCAL_REPO_PATH,
 } from './gitUtils';
@@ -37,9 +38,9 @@ import {
 } from './promptUtils';
 
 const chan = vscode.window.createOutputChannel("Jupyter AI Feedback");
-function toStr(x:any){ try{ return typeof x==='string'?x:JSON.stringify(x,(_k,v)=>v,2);}catch{ return String(x);} }
-export function log(...args:any[]){ chan.appendLine(`[${new Date().toISOString()}] ` + args.map(toStr).join(" ")); }
-export function showLog(preserveFocus=true){ chan.show(preserveFocus); }
+function toStr(x: any) { try { return typeof x === 'string' ? x : JSON.stringify(x, (_k, v) => v, 2); } catch { return String(x); } }
+export function log(...args: any[]) { chan.appendLine(`[${new Date().toISOString()}] ` + args.map(toStr).join(" ")); }
+export function showLog(preserveFocus = true) { chan.show(preserveFocus); }
 
 // Throttle: restrict 'CellMate.sendNotebookCell' to once per 3 seconds
 let lastSendNotebookCellTs = 0;
@@ -53,16 +54,20 @@ const decompositionCache = new Map<string, Decomposition>();
 // (billed) request; block it instead.
 const decomposeInFlight = new Set<string>();
 
-// Dev convenience: until the decompose template is published to the prompt
-// repository, seed the synced copy from the extension's local prompts/ dir.
-// Deliberately does not call syncGitRepo(): a re-clone would wipe the seed.
-function ensureDecomposeTemplate(extensionPath: string) {
-  const target = path.join(LOCAL_REPO_PATH, 'prompts', 'decompose.txt');
-  if (fs.existsSync(target)) return;
-  const local = path.join(extensionPath, 'prompts', 'decompose.txt');
-  if (fs.existsSync(local)) {
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.copyFileSync(local, target);
+// Dev convenience: until the guide templates are published to the prompt
+// repository, seed the synced copies from the extension's local prompts/
+// dir. Deliberately does not call syncGitRepo(): a re-clone would wipe
+// the seeds.
+const SEEDED_TEMPLATES = ['decompose.txt', 'progress_check.txt'];
+function ensureTemplateSeeds(extensionPath: string) {
+  for (const name of SEEDED_TEMPLATES) {
+    const target = path.join(LOCAL_REPO_PATH, 'prompts', name);
+    if (fs.existsSync(target)) continue;
+    const local = path.join(extensionPath, 'prompts', name);
+    if (fs.existsSync(local)) {
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.copyFileSync(local, target);
+    }
   }
 }
 
@@ -798,12 +803,12 @@ async function callLLMAPI(prompt: string, config: LLMConfig): Promise<string> {
     config.apiUrl,
     body,
     {
-        headers: {
+      headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${config.apiKey}`
-        },
-        responseType: isOpenAIEndpoint ? 'json' : 'text',
-        timeout: LLM_TIMEOUT_MS
+      },
+      responseType: isOpenAIEndpoint ? 'json' : 'text',
+      timeout: LLM_TIMEOUT_MS
     }
   );
 
@@ -1026,58 +1031,58 @@ export function activate(ctx: vscode.ExtensionContext) {
     provideCellStatusBarItems(cell) {
       const items = [];
       if (cell.document.languageId === 'python') {
-          const alwaysShowErrorHelper = getCellMateSetting<boolean>('errorHelper.alwaysShow', false) ?? false;
+        const alwaysShowErrorHelper = getCellMateSetting<boolean>('errorHelper.alwaysShow', false) ?? false;
 
-          const cellOutput = getCellOutput(cell);
-          const hasError = cellOutput.executionError ||
-                          (cellOutput.hasOutput && cellOutput.output.toLowerCase().includes('error'));
+        const cellOutput = getCellOutput(cell);
+        const hasError = cellOutput.executionError ||
+          (cellOutput.hasOutput && cellOutput.output.toLowerCase().includes('error'));
 
-          const shouldShowErrorHelper = alwaysShowErrorHelper || hasError;
+        const shouldShowErrorHelper = alwaysShowErrorHelper || hasError;
 
-          if (shouldShowErrorHelper) {
-            const errorHelperItem = new vscode.NotebookCellStatusBarItem(
-              '🆘 Error Helper',
-              vscode.NotebookCellStatusBarAlignment.Right
-            );
-            errorHelperItem.priority = 200;
-            errorHelperItem.command = {
-              command: 'CellMate.errorHelper',
-              title: 'Error Helper',
-              arguments: [cell]
-            };
-            errorHelperItem.tooltip = hasError ?
-              'Get AI help with this error' :
-              'Get AI help with your code (no errors detected)';
-            items.push(errorHelperItem);
-          }
-
-          // Guide entry point, only where an exercise id identifies the task
-          if (extractExerciseId(cell.document.getText())) {
-            const guideItem = new vscode.NotebookCellStatusBarItem(
-              '🧭 Guide',
-              vscode.NotebookCellStatusBarAlignment.Right
-            );
-            guideItem.priority = 150;
-            guideItem.command = {
-              command: 'CellMate.startGuide',
-              title: 'Start Guide',
-              arguments: [cell]
-            };
-            guideItem.tooltip = 'Break this exercise into step-by-step subgoals';
-            items.push(guideItem);
-          }
-
-          const item = new vscode.NotebookCellStatusBarItem(
-            '$(zap) 🧠 AI Feedback',
+        if (shouldShowErrorHelper) {
+          const errorHelperItem = new vscode.NotebookCellStatusBarItem(
+            '🆘 Error Helper',
             vscode.NotebookCellStatusBarAlignment.Right
           );
-          item.priority = 100;
-          item.command = {
-            command: 'CellMate.sendNotebookCell',
-            title: 'Send to AI',
+          errorHelperItem.priority = 200;
+          errorHelperItem.command = {
+            command: 'CellMate.errorHelper',
+            title: 'Error Helper',
             arguments: [cell]
           };
-          items.push(item);
+          errorHelperItem.tooltip = hasError ?
+            'Get AI help with this error' :
+            'Get AI help with your code (no errors detected)';
+          items.push(errorHelperItem);
+        }
+
+        // Guide entry point, only where an exercise id identifies the task
+        if (extractExerciseId(cell.document.getText())) {
+          const guideItem = new vscode.NotebookCellStatusBarItem(
+            '🧭 Guide',
+            vscode.NotebookCellStatusBarAlignment.Right
+          );
+          guideItem.priority = 150;
+          guideItem.command = {
+            command: 'CellMate.startGuide',
+            title: 'Start Guide',
+            arguments: [cell]
+          };
+          guideItem.tooltip = 'Break this exercise into step-by-step subgoals';
+          items.push(guideItem);
+        }
+
+        const item = new vscode.NotebookCellStatusBarItem(
+          '$(zap) 🧠 AI Feedback',
+          vscode.NotebookCellStatusBarAlignment.Right
+        );
+        item.priority = 100;
+        item.command = {
+          command: 'CellMate.sendNotebookCell',
+          title: 'Send to AI',
+          arguments: [cell]
+        };
+        items.push(item);
       }
       if (cell.document.languageId === 'markdown') {
         const speechItem = new vscode.NotebookCellStatusBarItem(
@@ -1096,7 +1101,7 @@ export function activate(ctx: vscode.ExtensionContext) {
       const showAll = getCellMateSetting<boolean>('showButtonInAllMarkdown', false) ?? false;
       const text = cell.document.getText().toLowerCase()
       const containsFeedback = text.includes('**feedback**') || text.includes('**🤖feedback expansion**')
-      if(cell.kind === vscode.NotebookCellKind.Markup && (showAll || containsFeedback)){
+      if (cell.kind === vscode.NotebookCellKind.Markup && (showAll || containsFeedback)) {
         const mode = getCellMateSetting<string>('feedbackMode', 'Expand') || 'Expand';
 
         const label =
@@ -1105,13 +1110,13 @@ export function activate(ctx: vscode.ExtensionContext) {
             : '📖 Expand | ➤ Explain';
 
         const markdownItem = new vscode.NotebookCellStatusBarItem(
-        label,
-        vscode.NotebookCellStatusBarAlignment.Right
+          label,
+          vscode.NotebookCellStatusBarAlignment.Right
         );
         markdownItem.command = {
-          command : 'CellMate.explainMarkdownCell',
+          command: 'CellMate.explainMarkdownCell',
           title: 'Expand or Explain Feedback Markdown',
-          arguments:[cell]
+          arguments: [cell]
         }
         markdownItem.priority = 100;
         markdownItem.tooltip = `Use AI to ${mode} the feedback`
@@ -1198,7 +1203,7 @@ export function activate(ctx: vscode.ExtensionContext) {
 
           const possibleKeys = ['problem_description', 'problem', 'exercise_description', 'task'];
           let problemDescription = '';
-          
+
           for (const key of possibleKeys) {
             if (placeholderMap.has(key)) {
               problemDescription = placeholderMap.get(key) || '';
@@ -1321,7 +1326,7 @@ ${feedback}
           );
         }
 
-        ensureDecomposeTemplate(ctx.extensionPath);
+        ensureTemplateSeeds(ctx.extensionPath);
 
         // State and telemetry are auxiliary: if their storage hiccups, log
         // and carry on — a lost trace must never take the guide down with it.
@@ -1412,21 +1417,53 @@ ${feedback}
         });
 
         const hooks: GuidePanelHooks = {
-          onStepRevealed: (step) =>
-            recordSafely('step reveal', async () => {
-              const s = getHelpState(exerciseId);
-              s.state = 'Guide';
-              s.guideStep = step;
-              await setHelpState(s);
-              await logEvent({ exerciseId, event: 'step_reveal', guideStep: step });
-            }),
-          onReset: () =>
-            recordSafely('guide reset', async () => {
-              const s = getHelpState(exerciseId);
-              s.guideStep = 1;
-              await setHelpState(s);
-              await logEvent({ exerciseId, event: 'step_reveal', guideStep: 1, meta: { reset: true } });
-            }),
+          onCheckProgress: async () => {
+            // The panel disables its button while a check runs; whatever
+            // happens below, showProgress() must be reached to re-enable it.
+            try {
+              const currentPlan = decompositionCache.get(exerciseId);
+              if (!currentPlan) {
+                GuidePanel.currentPanel?.showProgress(null);
+                return;
+              }
+              const liveCode = cell!.document.getText();
+              log(`[guide] progress check requested for ${exerciseId}`);
+              const result = await runProgressCheck(
+                {
+                  exerciseId,
+                  problemDescription,
+                  code: liveCode,
+                  steps: currentPlan.steps,
+                },
+                callLLM
+              );
+              GuidePanel.currentPanel?.showProgress(result);
+              if (!result) {
+                log(`[guide] progress check for ${exerciseId} failed open`);
+                return;
+              }
+              const addressed = result.verdicts.filter(Boolean).length;
+              log(`[guide] progress check for ${exerciseId}: ${addressed}/${result.verdicts.length} addressed`);
+              const frontier = result.verdicts.findIndex((v) => !v);
+              await recordSafely('progress check', async () => {
+                const s = getHelpState(exerciseId);
+                s.state = 'Guide';
+                // guideStep now tracks the frontier: first step without evidence.
+                s.guideStep = frontier === -1 ? currentPlan.steps.length : frontier + 1;
+                await setHelpState(s);
+                await logEvent({
+                  exerciseId,
+                  event: 'step_check',
+                  guideStep: s.guideStep,
+                  meta: { verdicts: result.verdicts, addressed },
+                });
+              });
+            } catch (e: any) {
+              // runProgressCheck is fail-open; this guards the wiring itself.
+              log(`[guide] progress check wiring error for ${exerciseId}: ${e?.message ?? e}`);
+              GuidePanel.currentPanel?.showProgress(null);
+            }
+          },
           onRegenerate: async () => {
             try {
               const result = await generate();
@@ -1546,7 +1583,7 @@ ${feedback}
 
         const editor = vscode.window.activeNotebookEditor;
         let problemDescription = '';
-        
+
         if (editor) {
           // Extract placeholders
           const placeholderKeys = new Set(['problem_description', 'problem', 'exercise_description', 'task']);
@@ -1652,7 +1689,7 @@ ${feedback}
             // 1) From synced repo tests folder
             const repoDataDir = path.join(LOCAL_REPO_PATH, 'tests', exId, 'data');
             resourceDirs.push(repoDataDir);
-          } catch {}
+          } catch { }
 
           // Run tests locally (with internal timeout guard and resource copy)
           const testResult = await runLocalTest(code, test, pythonPath, 15000, resourceDirs);
@@ -1778,12 +1815,12 @@ ${feedback}
             apiUrl,
             body,
             {
-                headers: {
+              headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${apiKey}`
-                },
-                responseType: isOpenAIEndpoint ? 'json' : 'text',
-                timeout: LLM_TIMEOUT_MS
+              },
+              responseType: isOpenAIEndpoint ? 'json' : 'text',
+              timeout: LLM_TIMEOUT_MS
             }
           );
 
@@ -1963,9 +2000,9 @@ ${feedback}
     })
   );
 
-  async function replaceCellContent(doc:vscode.TextDocument, content:string){
+  async function replaceCellContent(doc: vscode.TextDocument, content: string) {
     const edit = new vscode.WorkspaceEdit();
-    const start = new vscode.Position(0,0);
+    const start = new vscode.Position(0, 0);
     const end = doc.lineAt(doc.lineCount - 1).range.end;
     const fullRange = new vscode.Range(start, end);
     edit.replace(doc.uri, fullRange, content);
@@ -1976,47 +2013,47 @@ ${feedback}
     let cleaned = text;
 
     // Remove common redundant phrases generated by LLMs
-    cleaned = cleaned.replace(/^.*?(Expanded Feedback|Feedback Expansion|Here.*feedback|Based on.*feedback).*$/gmi, '');    
+    cleaned = cleaned.replace(/^.*?(Expanded Feedback|Feedback Expansion|Here.*feedback|Based on.*feedback).*$/gmi, '');
     // Remove extra blank lines
     cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
 
     // Fix unmatched markdown symbol
     const count = (str: string) => (cleaned.match(new RegExp(str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
-    
+
     // Prioritize fixing unmatched **
     if (count('\\*\\*') % 2 !== 0) cleaned += '**';
-    
+
     // Then fix single *
     const singleStarCount = count('\\*') - 2 * count('\\*\\*');
     if (singleStarCount % 2 !== 0) cleaned += '*';
-    
+
     // Fix unmatched backticks `
     if (count('`') % 2 !== 0) cleaned += '`';
 
-     // Do not touch patterns related to **
+    // Do not touch patterns related to **
     cleaned = cleaned.replace(/\\([_`#])/g, '$1');
     cleaned = cleaned.replace(/\\n/g, '\n');
 
     return cleaned.trim();
-}
+  }
 
-type ExplanationCtx = {
-  wholeFeedback?: string;    
-};
+  type ExplanationCtx = {
+    wholeFeedback?: string;
+  };
 
-const explanationStore = new Map<string, ExplanationCtx>();
+  const explanationStore = new Map<string, ExplanationCtx>();
 
-function setExplanationCtx(cellUri: string, ctx: ExplanationCtx) {
-  explanationStore.set(cellUri, ctx);
-}
-function getExplanationCtx(cellUri: string) {
-  return explanationStore.get(cellUri);
-}
+  function setExplanationCtx(cellUri: string, ctx: ExplanationCtx) {
+    explanationStore.set(cellUri, ctx);
+  }
+  function getExplanationCtx(cellUri: string) {
+    return explanationStore.get(cellUri);
+  }
   // Markdown cell
   ctx.subscriptions.push(
     vscode.commands.registerCommand(
       'CellMate.explainMarkdownCell',
-      async(cell: vscode.NotebookCell) => {
+      async (cell: vscode.NotebookCell) => {
         const editor = vscode.window.activeNotebookEditor;
         if (!editor) {
           return vscode.window.showErrorMessage('No activity')
@@ -2057,15 +2094,15 @@ function getExplanationCtx(cellUri: string) {
             return vscode.window.showErrorMessage('Please select the sentence you want explained.')
           }
           inputText = selectedText;
-          header =  `**🤖Explanation** for:**_"${selectedText}"_**`
+          header = `**🤖Explanation** for:**_"${selectedText}"_**`
         } else {
           return vscode.window.showErrorMessage(`Unsupported mode: ${mode}`);
         }
 
         await syncGitRepo()
         const promptTpl = await getPromptContent(mode);
-        
-        let prompt:string 
+
+        let prompt: string
         switch (mode) {
           case "Expand": {
             prompt = promptTpl.replace('{{content}}', inputText);
@@ -2078,7 +2115,7 @@ function getExplanationCtx(cellUri: string) {
           default:
             prompt = promptTpl;
         }
-        
+
         const placeholderKeys = getTemplatePlaceholderKeys(prompt);
 
         const placeholderMap = extractPromptPlaceholders(editor.notebook, cell.index, placeholderKeys)
@@ -2106,14 +2143,14 @@ function getExplanationCtx(cellUri: string) {
 
         try {
           const body = {
-            model : modelName,
+            model: modelName,
             prompt: prompt,
-            stream : true
+            stream: true
           };
 
           const resp = await axios.post(apiUrl, body, {
             headers: {
-              'Content-Type' : 'application/json',
+              'Content-Type': 'application/json',
               Authorization: `Bearer ${apiKey}`
             },
             responseType: 'stream',
@@ -2125,16 +2162,16 @@ function getExplanationCtx(cellUri: string) {
           let accumulated = '';
           for await (const chunk of resp.data) {
             const lines = chunk.toString().split('\n');
-            
+
             for (const line of lines) {
               const trimmedLine = line.trim();
               if (!trimmedLine) continue;
-              
+
               try {
                 const jsonResponse = JSON.parse(trimmedLine);
                 if (jsonResponse.response) {
                   accumulated += jsonResponse.response;
-                  
+
                   const safeText = cleanMarkdown(accumulated);
                   const updatedContent = `${header}\n\n${safeText.replace(/\n/g, '  \n')}\n\n${generatingNote}`;
                   await replaceCellContent(doc, updatedContent);
@@ -2151,13 +2188,13 @@ function getExplanationCtx(cellUri: string) {
           const borderColor = mode === 'Expand' ? '#6ec5d2ff' : '#4CAF50';
           const wrappedContent = `<div style="box-sizing:border-box; border: 3px solid ${borderColor}; padding: 10px ;border-radius:8px;">\n\n${header}\n\n${finalText.replace(/\n/g, '  \n')}\n\n</div>`;
           const finalContent = `${wrappedContent}\n`;
-          await replaceCellContent(doc,finalContent);
+          await replaceCellContent(doc, finalContent);
 
           const cellUri = newCell.document.uri.toString();
           setExplanationCtx(cellUri, {
-            wholeFeedback: fullText,              
+            wholeFeedback: fullText,
           });
-        } catch (e:any) {
+        } catch (e: any) {
           console.error("AI Extension fail:", e);
           const errorMsg = `${header}\n\n❌ AI generation failed:\n\n\`${e.message}\``;
           await replaceCellContent(doc, errorMsg);
@@ -2175,7 +2212,7 @@ function getExplanationCtx(cellUri: string) {
       if (!editor) {
         return vscode.window.showErrorMessage('No active notebook editor');
       }
-      
+
       const cellUri = cell.document.uri.toString();
       const ctxData = getExplanationCtx?.(cellUri);
 
@@ -2184,7 +2221,7 @@ function getExplanationCtx(cellUri: string) {
       let followupPromptTpl = '';
       try {
         followupPromptTpl = await getPromptContent('followup');
-      } catch (e:any) {
+      } catch (e: any) {
         vscode.window.showErrorMessage('⚠️ Failed to load Followup prompt: ' + e.message);
       }
       const panel = vscode.window.createWebviewPanel(
@@ -2196,7 +2233,7 @@ function getExplanationCtx(cellUri: string) {
 
 
       function getHTML() {
-      return `<!DOCTYPE html>
+        return `<!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8">
@@ -2490,76 +2527,76 @@ function getExplanationCtx(cellUri: string) {
         </script>
       </body>
       </html>`;
-        }
+      }
 
       panel.webview.html = getHTML();
 
       panel.webview.onDidReceiveMessage(async (msg) => {
-          if (msg.type !== 'ask') return;
+        if (msg.type !== 'ask') return;
 
-          const question = String(msg.question ?? '');
-          const wholeFeedback = ctxData?.wholeFeedback ?? '';
+        const question = String(msg.question ?? '');
+        const wholeFeedback = ctxData?.wholeFeedback ?? '';
 
-          const fullPrompt = followupPromptTpl
-            .replace('{{explanationOutput}}', explanationOutput)
-            .replace('{{wholeFeedback}}', wholeFeedback)
-            .replace('{{followupQuestion}}', question);
+        const fullPrompt = followupPromptTpl
+          .replace('{{explanationOutput}}', explanationOutput)
+          .replace('{{wholeFeedback}}', wholeFeedback)
+          .replace('{{followupQuestion}}', question);
 
-          const apiUrl = getCellMateSetting<string>('apiUrl', '') || '';
-          const apiKey = getCellMateSetting<string>('apiKey', '') || '';
-          const modelName = getCellMateSetting<string>('modelName', '') || '';
-          if (!apiUrl || !apiKey || !modelName) {
-            panel.webview.postMessage({ type: 'answer', content: 'Please configure CellMate.apiUrl, apiKey, and modelName in settings.' });
-            return;
-          }
+        const apiUrl = getCellMateSetting<string>('apiUrl', '') || '';
+        const apiKey = getCellMateSetting<string>('apiKey', '') || '';
+        const modelName = getCellMateSetting<string>('modelName', '') || '';
+        if (!apiUrl || !apiKey || !modelName) {
+          panel.webview.postMessage({ type: 'answer', content: 'Please configure CellMate.apiUrl, apiKey, and modelName in settings.' });
+          return;
+        }
 
-          try {
-          const resp = await axios.post(apiUrl, { model: modelName, prompt: fullPrompt, stream:false }, {
+        try {
+          const resp = await axios.post(apiUrl, { model: modelName, prompt: fullPrompt, stream: false }, {
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
             timeout: LLM_TIMEOUT_MS
           });
 
           const answer = resp.data?.message?.content || resp.data?.response || 'No response received';
           panel.webview.postMessage({ type: 'answer', content: answer });
-          } catch (e:any) {
-            panel.webview.postMessage({ type: 'answer', content: `❌ Request failed: ${e.message}` });
-          }
+        } catch (e: any) {
+          panel.webview.postMessage({ type: 'answer', content: `❌ Request failed: ${e.message}` });
+        }
       });
     })
   );
 
   ctx.subscriptions.push(
     vscode.notebooks.registerNotebookCellStatusBarItemProvider('jupyter-notebook', {
-    provideCellStatusBarItems(cell, _token) {
-      const items: vscode.NotebookCellStatusBarItem[] = [];
+      provideCellStatusBarItems(cell, _token) {
+        const items: vscode.NotebookCellStatusBarItem[] = [];
 
-      if (cell.kind === vscode.NotebookCellKind.Markup) {
-        const text = cell.document.getText();
+        if (cell.kind === vscode.NotebookCellKind.Markup) {
+          const text = cell.document.getText();
 
-        // Explanation cell
-        if (text.includes('**🤖Explanation** for:')) {
-          const item = new vscode.NotebookCellStatusBarItem(
-            '💬 Ask follow-up',
-            vscode.NotebookCellStatusBarAlignment.Right
-          );
-          item.command = 'CellMate.askFollowUpFromButton';
-          item.tooltip = 'Ask a follow-up question about this explanation';
-          items.push(item);
-        };
+          // Explanation cell
+          if (text.includes('**🤖Explanation** for:')) {
+            const item = new vscode.NotebookCellStatusBarItem(
+              '💬 Ask follow-up',
+              vscode.NotebookCellStatusBarAlignment.Right
+            );
+            item.command = 'CellMate.askFollowUpFromButton';
+            item.tooltip = 'Ask a follow-up question about this explanation';
+            items.push(item);
+          };
 
-        // Feedback Expansion cell
-        if (text.includes('**🤖Feedback Expansion**')){
-          const item = new vscode.NotebookCellStatusBarItem(
-            '💬 Ask follow-up',
-            vscode.NotebookCellStatusBarAlignment.Right
-          );
-          item.command = 'CellMate.askFollowUpFromButton';
-          item.tooltip = 'Ask a follow-up question about this explanation';
-          items.push(item);
+          // Feedback Expansion cell
+          if (text.includes('**🤖Feedback Expansion**')) {
+            const item = new vscode.NotebookCellStatusBarItem(
+              '💬 Ask follow-up',
+              vscode.NotebookCellStatusBarAlignment.Right
+            );
+            item.command = 'CellMate.askFollowUpFromButton';
+            item.tooltip = 'Ask a follow-up question about this explanation';
+            items.push(item);
+          }
         }
+        return items;
       }
-      return items;
-    }
     })
   );
 }
