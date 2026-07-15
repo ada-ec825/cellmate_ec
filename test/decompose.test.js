@@ -132,16 +132,10 @@ test('rejects too few and too many steps, reporting the count', () => {
   assert.match(many.reason, /3 to 7 steps, found 8/);
 });
 
-test('rejects code traces in an intent', () => {
+test('rejects unambiguous code syntax in an intent', () => {
   for (const leaky of [
-    'just return x here',
-    'Return the final list to the caller', // keyword check is case-insensitive
-    'write def solve first',
-    'you should import math',
-    'use ``` to format',
-    'call `text.split()` on the input', // inline code span
-    'set counter = 0 before the loop', // assignment operator
-    'loop with for word in words', // Python-style loop header
+    'start by writing def solve(values): and go from there',
+    'use ``` to format your answer',
   ]) {
     const steps = makeSteps(3);
     steps[1].intent = leaky;
@@ -151,9 +145,25 @@ test('rejects code traces in an intent', () => {
   }
 });
 
-test('rejects code traces in a checkHint', () => {
+test('accepts contract references, math and keywords as prose', () => {
+  // The exercise's own contract is public: quoting names, formulas and
+  // natural-English keywords must not be treated as leaked code.
+  for (const ok of [
+    'The function compute_velocity(dt, k, a) should return one velocity value.',
+    'Assume v(0) = 0, exactly as the exercise states.',
+    'Read the values from data/acc.dat before you import any plotting library.',
+    'Decide what the function hands back for an empty input.',
+  ]) {
+    const steps = makeSteps(3);
+    steps[1].intent = ok;
+    const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
+    assert.equal(r.ok, true, `intent should be accepted: "${ok}"`);
+  }
+});
+
+test('rejects unambiguous code syntax in a checkHint', () => {
   const steps = makeSteps(3);
-  steps[2].checkHint = 'Sets total = 0 before the loop.';
+  steps[2].checkHint = 'Contains something like def helper(xs): inside.';
   const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
   assert.equal(r.ok, false);
   assert.match(r.reason, /step 3 checkHint contains code/);
@@ -199,7 +209,7 @@ test('rejects a non-string checkHint', () => {
 
 test('names every violation at once, not just the first', () => {
   const steps = makeSteps(3);
-  steps[0].intent = 'just return x here'; // code trace
+  steps[0].intent = 'begin with def solve(xs): then fill it in'; // code trace
   steps[1].label = '   '; // blank label
   steps[2].checkHint = 42; // wrong type
   const r = parseDecomposition(JSON.stringify({ steps }), 'ex');

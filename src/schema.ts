@@ -82,19 +82,15 @@ export interface TelemetryEvent {
 }
 
 /**
- * Patterns that suggest code has leaked into prose fields. Shared by the
- * decomposition validator and reusable for later hint leakage audits.
- * Deliberately conservative: a false hit costs one retry, a miss leaks
- * implementation.
+ * Patterns that mark unambiguous code syntax in prose fields. Only these
+ * reject a plan outright. Broader heuristics (keywords like "return",
+ * inline back-ticks, "=") were tried and rejected legitimate plans that
+ * merely quoted the exercise's own contract ("return this value",
+ * "v(0) = 0"), so subtler prose leakage is left to the offline judge audit.
  */
 const CODE_TRACE_PATTERNS: RegExp[] = [
   /```/, // fenced code block
-  /`[^`\n]+`/, // inline code span
-  /\bdef\s+\w+/i, // function definition
-  /\bimport\b/i, // import statement
-  /\breturn\b/i, // return statement
-  /\bfor\s+\w+\s+in\b/i, // Python-style loop header
-  /=/, // assignment or comparison operator
+  /\bdef\s+\w+\s*\(/, // Python function-definition syntax
 ];
 
 /** True if the text looks like it contains code rather than plain English. */
