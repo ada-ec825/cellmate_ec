@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Decomposition } from './schema';
-import { ProgressCheckResult } from './stepCheck';
+import { ProgressCheckResult, StepVerdict } from './stepCheck';
 
 /**
  * Side effects the panel raises but does not own. The command layer wires
@@ -29,7 +29,7 @@ export class GuidePanel {
   private decomposition: Decomposition;
   private hooks: GuidePanelHooks;
   /** Latest check verdicts; null until the first check of this plan. */
-  private verdicts: boolean[] | null = null;
+  private verdicts: StepVerdict[] | null = null;
   private feedback: string | null = null;
   private checking = false;
 
@@ -118,16 +118,23 @@ export class GuidePanel {
 
   private render(): string {
     const d = this.decomposition;
-    const doneCount = this.verdicts ? this.verdicts.filter(Boolean).length : 0;
-    // The frontier — first step without evidence — gets the highlight.
-    const frontier = this.verdicts ? this.verdicts.findIndex((v) => !v) : 0;
+    const doneCount = this.verdicts
+      ? this.verdicts.filter((v) => v.status === 'done').length
+      : 0;
+    // The frontier — first step not cleanly done — gets the highlight.
+    const frontier = this.verdicts
+      ? this.verdicts.findIndex((v) => v.status !== 'done')
+      : 0;
 
     const stepsHtml = d.steps
       .map((s, i) => {
-        const verdict = this.verdicts?.[i];
-        const stateClass = verdict === true ? ' done' : verdict === false ? ' flagged' : '';
+        const status = this.verdicts?.[i]?.status;
+        const stateClass = status === 'done' ? ' done' : status === 'issue' ? ' flagged' : '';
         const currentClass = i === frontier ? ' current' : '';
-        const marker = verdict === true ? '&#10003;' : verdict === false ? '&#9651;' : '&#183;';
+        const marker = status === 'done' ? '&#10003;' : status === 'issue' ? '&#9888;' : '&#183;';
+        const note = this.verdicts?.[i]?.note
+          ? `<div class="note">${escapeHtml(this.verdicts[i].note!)}</div>`
+          : '';
         const share =
           typeof s.timeShare === 'number'
             ? `<span class="share-label">~${Math.round(s.timeShare)}% of your time</span>`
@@ -135,6 +142,7 @@ export class GuidePanel {
         return `<li class="step${stateClass}${currentClass}">
           <div class="label"><span class="marker">${marker}</span>Step ${s.index}: ${escapeHtml(s.label)} ${share}</div>
           <div class="intent">${escapeHtml(s.intent)}</div>
+          ${note}
         </li>`;
       })
       .join('\n');
@@ -174,7 +182,13 @@ export class GuidePanel {
   .step.current { border-left-color: var(--vscode-textLink-foreground); }
   .step.done { opacity: 0.75; }
   .step.done .marker { color: var(--vscode-charts-green, #4caf50); }
-  .step.flagged .marker { color: var(--vscode-charts-yellow, #e0a93b); }
+  .step.flagged .marker { color: var(--vscode-editorWarning-foreground, #e0a93b); }
+  .note {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--vscode-editorWarning-foreground, #e0a93b);
+    margin: 3px 0 0 1.1em;
+  }
   .marker { display: inline-block; width: 1.1em; font-weight: 700; }
   .label { font-weight: 600; margin-bottom: 4px; }
   .share-label {

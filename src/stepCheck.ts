@@ -16,12 +16,24 @@ export interface ProgressCheckContext {
 }
 
 /**
+ * done: clear evidence and looks sound. issue: attempted, but seems wrong,
+ * incomplete or would fail to run. missing: no visible attempt yet.
+ */
+export type StepStatus = 'done' | 'issue' | 'missing';
+
+export interface StepVerdict {
+  status: StepStatus;
+  /** For issues: one short symptom description — never the fix, never code. */
+  note?: string;
+}
+
+/**
  * The model's assessment of one check: a verdict per plan step plus one
  * short overall remark. Advisory only — never a gate.
  */
 export interface ProgressCheckResult {
-  /** One entry per plan step, same order: does the code show evidence? */
-  verdicts: boolean[];
+  /** One entry per plan step, in plan order. */
+  verdicts: StepVerdict[];
   feedback: string;
 }
 
@@ -61,6 +73,8 @@ export async function buildProgressCheckPrompt(ctx: ProgressCheckContext): Promi
  * null rather than an error. A lost nudge must never cost the student
  * anything.
  */
+const VALID_STATUSES = new Set(['done', 'issue', 'missing']);
+
 export function parseProgressCheck(raw: string, stepCount: number): ProgressCheckResult | null {
   const jsonText = extractJsonObject(raw);
   if (!jsonText) return null;
@@ -72,11 +86,21 @@ export function parseProgressCheck(raw: string, stepCount: number): ProgressChec
     return null;
   }
 
-  if (!Array.isArray(data.verdicts) || data.verdicts.length !== stepCount) return null;
-  if (!data.verdicts.every((v: any) => typeof v === 'boolean')) return null;
+  if (!Array.isArray(data.steps) || data.steps.length !== stepCount) return null;
+
+  const verdicts: StepVerdict[] = [];
+  for (const entry of data.steps) {
+    if (!entry || typeof entry !== 'object' || !VALID_STATUSES.has(entry.status)) return null;
+    const verdict: StepVerdict = { status: entry.status };
+    if (typeof entry.note === 'string' && entry.note.trim() !== '') {
+      verdict.note = entry.note.trim();
+    }
+    verdicts.push(verdict);
+  }
+
   if (typeof data.feedback !== 'string' || data.feedback.trim() === '') return null;
 
-  return { verdicts: data.verdicts, feedback: data.feedback.trim() };
+  return { verdicts, feedback: data.feedback.trim() };
 }
 
 /**

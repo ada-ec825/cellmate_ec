@@ -1442,20 +1442,21 @@ ${feedback}
                 log(`[guide] progress check for ${exerciseId} failed open`);
                 return;
               }
-              const addressed = result.verdicts.filter(Boolean).length;
-              log(`[guide] progress check for ${exerciseId}: ${addressed}/${result.verdicts.length} addressed`);
-              const frontier = result.verdicts.findIndex((v) => !v);
+              const addressed = result.verdicts.filter((v) => v.status === 'done').length;
+              const issues = result.verdicts.filter((v) => v.status === 'issue').length;
+              log(`[guide] progress check for ${exerciseId}: ${addressed}/${result.verdicts.length} done, ${issues} with issues`);
+              const frontier = result.verdicts.findIndex((v) => v.status !== 'done');
               await recordSafely('progress check', async () => {
                 const s = getHelpState(exerciseId);
                 s.state = 'Guide';
-                // guideStep now tracks the frontier: first step without evidence.
+                // guideStep now tracks the frontier: first step not cleanly done.
                 s.guideStep = frontier === -1 ? currentPlan.steps.length : frontier + 1;
                 await setHelpState(s);
                 await logEvent({
                   exerciseId,
                   event: 'step_check',
                   guideStep: s.guideStep,
-                  meta: { verdicts: result.verdicts, addressed },
+                  meta: { statuses: result.verdicts.map((v) => v.status), addressed, issues },
                 });
               });
             } catch (e: any) {
