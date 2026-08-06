@@ -33,7 +33,15 @@
     "typescript": "^4.9.5"
   },
   "scripts": {
-    "compile": "tsc -p ."
+    "compile": "tsc -p .",
+    "test:node": "node --test test/*.test.js eval/lib/*.test.js",
+    "test:provenance": "node --test eval/lib/provenance.test.js",
+    "test:sandbox-canary": "node eval/lib/sandbox_canary.js",
+    "test:suites": "node eval/check_suites.js",
+    "test:analysis": "eval/.venv/bin/python -m pytest eval/test_analysis.py -q",
+    "verify:manifest": "node eval/verify_manifest.js",
+    "verify:grid": "node eval/verify_grid.js",
+    "verify": "bash bin/verify_m0.sh"
   },
   "contributes": {
     "configuration": [
