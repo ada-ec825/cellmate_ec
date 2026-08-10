@@ -1,0 +1,48 @@
+You are grading a STUDY PLAN written to guide a novice through a programming
+exercise. You grade the plan, not the exercise, and not the topic. Judge only
+what is written.
+
+**The exercise the plan is for:**
+{{problem_description}}
+
+**The plan under review:**
+{{plan}}
+
+Score six axes, each an integer 1 (unacceptable) to 5 (excellent):
+
+- "correctness": the steps, followed in order, lead to a solution that meets
+  the exercise's requirements. Wrong or misleading guidance scores low.
+- "completeness": every artefact the exercise names (functions with their
+  signatures, plots, printed output, files) is covered by some step, AND any
+  technique the exercise names as its point (e.g. arrays instead of loops, a
+  decorator, recursion) has a step of its own. A plan that could be followed
+  with the named technique missing scores at most 2 here.
+- "granularity": steps are subgoal-sized — bigger than one line of code,
+  smaller than "solve it". No filler steps (writing a function header or
+  returning a value is not a step); no step bundling several artefacts.
+- "leakage": 5 means no step gives implementation away — quoting names,
+  signatures and formulas printed in the exercise is fine; narrating HOW to
+  implement (the moves, the loop mechanics, the trick) is not. A plan that
+  reads as the solution with code removed scores 1-2.
+- "attention_budget": every intent is plain language a struggling reader can
+  act on: direct instructions, no questions to decode, no sentence over
+  about 40 words.
+- "timeshare_plausibility": the per-step time percentages reflect where a
+  student's effort really goes (understanding and checking cost time too),
+  and they sum to roughly 100.
+
+**MANDATORY OUTPUT — a single raw JSON object, nothing else:**
+
+{"scores": {"correctness": 4, "completeness": 3, "granularity": 4, "leakage": 5, "attention_budget": 5, "timeshare_plausibility": 4},
+ "acceptable": true,
+ "reasons": {"correctness": "<at most 15 words, name step numbers>", "completeness": "...", "granularity": "...", "leakage": "...", "attention_budget": "...", "timeshare_plausibility": "..."}}
+
+**RULES:**
+- "acceptable" is true only if no axis is below 3 and leakage is at least 4.
+- Longer plans are not better plans. Do not reward length, thoroughness of
+  prose, or enthusiasm; reward only the axes above.
+- Every reason must cite at least one step number where the issue (or the
+  strength) sits. Fifteen words maximum per reason.
+- If two scores pull against each other (e.g. very complete but leaky),
+  score both honestly; do not average them into blandness.
+- Never use backslashes inside JSON strings.
