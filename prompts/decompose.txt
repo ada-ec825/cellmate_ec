@@ -30,10 +30,11 @@ Use the student's code only to calibrate vocabulary and granularity to their lev
 
 **Artefact inventory.** First identify every artefact the exercise explicitly asks for — named functions with their signatures, plots, printed output, files to read or write. Every artefact must be covered by at least one step; a plan that solves only part of the exercise is a wrong plan.
 
-**Step structure — two modes.**
-- If the exercise names multiple functions or artefacts, default to ONE STEP PER FUNCTION, ordered by call dependency: a function's step comes after the steps of every function it uses. Inside each step, state what the function receives, what it returns (including for invalid input), and every rule its behavior must satisfy.
-- If the exercise centers on one function or a small script, fall back to conceptual subgoals: understand the input/output contract, choose what the data must capture, the main transformation, edge cases, final assembly. A good step here is something a student could tick off after a few minutes of thought and typing — bigger than a single line, smaller than "solve the problem".
-- In both modes, keep definitions and demonstrations apart. When a step builds a named function, say what that function hands back to its caller. When a step prints, plots, or experiments with values, say that this happens outside the function, using it — so a slip there cannot bury correct work. Never spend a step on plumbing the reader would do unprompted (writing a function header, returning the value just computed); fold such details into the step that builds the function.
+**Step structure.** Every plan has between 3 and 8 steps; the exercise's shape decides what a step is.
+- If the exercise centers on one or two functions, do NOT give each function a step — you would run short of steps. Break the work into conceptual subgoals instead: understand the input/output contract, choose what the data must capture, the main transformation, edge cases, final assembly. A good subgoal is something a student could tick off after a few minutes of thought and typing — bigger than a single line, smaller than "solve the problem".
+- If the exercise names several functions or artefacts, lean towards one step per function, ordered by call dependency: a function's step comes after the steps of every function it uses. Treat this as a default, not a rule. Fold two or three trivial functions — a one-line helper, a thin wrapper — into a single step, and split a function that carries many independent rules into consecutive steps that each take part of its behavior. Judge a step by how much work and how many rules it carries, not by counting functions.
+- Whichever way you split the work, state inside each step what the code receives, what it returns (including for invalid input), and every rule its behavior must satisfy.
+- Keep definitions and demonstrations apart. When a step builds a named function, say what that function hands back to its caller. When a step prints, plots, or experiments with values, say that this happens outside the function, using it — so a slip there cannot bury correct work. Never spend a step on plumbing the reader would do unprompted (writing a function header, returning the value just computed); fold such details into the step that builds the function.
 - If the exercise names a technique to practise (arrays instead of loops, recursion, a decorator, a particular library), give that technique its own step and say plainly that it is the way to do the work. A plan that could be followed with the technique missing has missed the point of the exercise.
 
 **Constraint distribution — the core of this task.** Before writing steps, silently list every rule the exercise states: global conventions, format rules, validity rules, edge cases, and any later clarification or erratum. Then assign each rule to every step whose work it governs:
@@ -48,7 +49,6 @@ Write every step as a direct instruction, not a question. The reader may be stru
 
 {
   "exerciseId": "<echo the Exercise ID exactly as given above>",
-  "version": 3,
   "source": "generated",
   "steps": [
     {
@@ -64,9 +64,10 @@ Write every step as a direct instruction, not a question. The reader may be stru
 **STRICT REQUIREMENTS:**
 - Output raw JSON only: no markdown fences, no commentary before or after, no trailing commas.
 - Never use backslashes inside JSON strings except where JSON itself requires escaping. Write maths in plain words or symbols — "dt", "delta t", "v(0) = 0" — not LaTeX like \Delta or \frac.
-- Between 3 and 8 steps, or one per named function if the exercise names more than 8. Do not merge two named functions into one step just to shrink the count.
+- Between 3 and 8 steps, always. Merge trivial functions and split rule-heavy ones to stay inside that range; never pad the plan with plumbing steps to reach three, and never drop a required artefact to stay under eight.
 - "index" starts at 1 and increases by 1 with no gaps.
 - Steps are ordered so each step relies only on earlier steps.
+- The field carrying each step's specification must be named exactly "intent". Do not rename it to "spec", "specification", "description", or any other synonym, and do not drop it.
 - Each intent fully specifies behavior (inputs, outputs, invalid-input results, edge cases, applicable constraints) in plain English, without code, identifiers used as code, or a spelled-out internal algorithm. Exercise-given names, signatures, exact formats, and constants are contract and must appear verbatim where the step needs them.
 - "checkHint" must be plain English plus at most one concrete input/output example.
 - "timeShare": give one on every step, integers summing to about 100, none below 5. Base it on where a student actually spends effort — understanding the contract and checking edge cases take time too, not just the main construction.

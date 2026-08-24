@@ -1,5 +1,5 @@
 import { getPromptContent } from './gitUtils';
-import { Decomposition, DECOMPOSITION_VERSION, listDecompositionViolations } from './schema';
+import { Decomposition, listDecompositionViolations } from './schema';
 
 /** Template id of the decompose prompt in the prompt repository. */
 export const DECOMPOSE_PROMPT_ID = 'decompose';
@@ -82,6 +82,27 @@ export async function generateDecomposition(
   return { ok: false, reason: lastReason, attempts: 2 };
 }
 
+/**
+ * Names generators actually use for the specification field instead of
+ * `intent`. Prompt wording drifts and models rename the field on their own;
+ * a rejected plan costs the student a whole regeneration (minutes on a 35B
+ * reasoning model), so accept the synonym rather than spend a retry
+ * teaching the model our spelling.
+ */
+const INTENT_ALIASES = ['spec', 'specification', 'description'];
+
+/** Move a recognised alias onto `intent`, leaving a real `intent` untouched. */
+function normaliseStep(step: any): any {
+  if (!step || typeof step !== 'object') return step;
+  if (typeof step.intent === 'string' && step.intent.trim() !== '') return step;
+  const alias = INTENT_ALIASES.find(
+    (key) => typeof step[key] === 'string' && step[key].trim() !== ''
+  );
+  if (!alias) return step;
+  const { [alias]: intent, ...rest } = step;
+  return { ...rest, intent };
+}
+
 /** Outcome of parsing one LLM response into a Decomposition. */
 export type ParseDecompositionResult =
   | { ok: true; decomposition: Decomposition }
@@ -138,7 +159,7 @@ function repairInvalidEscapes(jsonText: string): string {
 /**
  * Parse raw LLM output into a validated Decomposition.
  *
- * Fields the extension owns (exerciseId, version, source) are stamped
+ * Fields the extension owns (exerciseId, source) are stamped
  * authoritatively rather than trusted from the model's echo. The
  * model-authored steps must pass validateDecomposition and carry
  * contiguous 1-based indices; any violation is returned as a reason
@@ -163,9 +184,8 @@ export function parseDecomposition(raw: string, exerciseId: string): ParseDecomp
 
   const candidate: Decomposition = {
     exerciseId,
-    version: DECOMPOSITION_VERSION,
     source: 'generated',
-    steps: Array.isArray(data.steps) ? data.steps : [],
+    steps: Array.isArray(data.steps) ? data.steps.map(normaliseStep) : [],
   };
 
   // Report index problems before the coarser schema gate so the retry

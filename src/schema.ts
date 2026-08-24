@@ -1,10 +1,3 @@
-/**
- * v2 adds the optional per-step timeShare (recommended percentage of the
- * exercise's time). The change is additive: v1 plans remain valid, and the
- * validator accepts versions 1..DECOMPOSITION_VERSION.
- */
-export const DECOMPOSITION_VERSION = 2;
-
 export interface DecompositionStep {
   /** 1-based position in the ordered plan. */
   index: number;
@@ -24,11 +17,9 @@ export interface DecompositionStep {
 
 export interface Decomposition {
   exerciseId: string;
-  /** Equals DECOMPOSITION_VERSION at write time. */
-  version: number;
   /** Hand-written gold plan vs. LLM-generated plan. */
   source: 'gold' | 'generated';
-  /** Ordered subgoals. The plan constrains this to 3..7 steps. */
+  /** Ordered subgoals. The plan constrains this to 3..8 steps. */
   steps: DecompositionStep[];
 }
 
@@ -102,9 +93,6 @@ export function listDecompositionViolations(d: any): string[] {
   if (typeof d.exerciseId !== 'string' || d.exerciseId.trim() === '') {
     violations.push('exerciseId must be a non-empty string');
   }
-  if (typeof d.version !== 'number' || d.version < 1 || d.version > DECOMPOSITION_VERSION) {
-    violations.push(`version must be between 1 and ${DECOMPOSITION_VERSION}`);
-  }
   if (d.source !== 'gold' && d.source !== 'generated') {
     violations.push("source must be 'gold' or 'generated'");
   }
@@ -112,8 +100,8 @@ export function listDecompositionViolations(d: any): string[] {
     violations.push('steps must be an array');
     return violations;
   }
-  if (d.steps.length < 3 || d.steps.length > 7) {
-    violations.push(`the plan must have 3 to 7 steps, found ${d.steps.length}`);
+  if (d.steps.length < 3 || d.steps.length > 8) {
+    violations.push(`the plan must have 3 to 8 steps, found ${d.steps.length}`);
   }
 
   d.steps.forEach((s: any, i: number) => {
@@ -129,7 +117,10 @@ export function listDecompositionViolations(d: any): string[] {
       violations.push(`step ${n} label must be a non-empty string`);
     }
     if (typeof s.intent !== 'string' || s.intent.trim() === '') {
-      violations.push(`step ${n} intent must be a non-empty string`);
+      violations.push(
+        `step ${n} must carry its specification in a field named exactly "intent"; ` +
+          'a non-empty string, not "spec" or any other synonym'
+      );
     }
     if (s.checkHint !== undefined && typeof s.checkHint !== 'string') {
       violations.push(`step ${n} checkHint must be a string when present`);
@@ -160,8 +151,6 @@ export function listDecompositionViolations(d: any): string[] {
 
 /**
  * Structural gate for both LLM-generated plans and hand-written gold files.
- * Tightening these checks does not change the data shape, so it needs no
- * DECOMPOSITION_VERSION bump.
  */
 export function validateDecomposition(d: any): d is Decomposition {
   return listDecompositionViolations(d).length === 0;

@@ -58,15 +58,29 @@ const decomposeInFlight = new Set<string>();
 // repository, seed the synced copies from the extension's local prompts/
 // dir. Deliberately does not call syncGitRepo(): a re-clone would wipe
 // the seeds.
+//
+// The bundled copy is authoritative and is re-copied whenever the synced
+// one differs. Seeding only when the target was missing left an edited
+// template stranded behind a stale copy from an earlier run: the file in
+// the source tree looked correct while the model kept receiving the old
+// one, and nothing in the tree showed which text was actually in use.
 const SEEDED_TEMPLATES = ['decompose.txt', 'progress_check.txt'];
 function ensureTemplateSeeds(extensionPath: string) {
   for (const name of SEEDED_TEMPLATES) {
     const target = path.join(LOCAL_REPO_PATH, 'prompts', name);
-    if (fs.existsSync(target)) continue;
     const local = path.join(extensionPath, 'prompts', name);
-    if (fs.existsSync(local)) {
+    try {
+      if (!fs.existsSync(local)) continue;
+      if (fs.existsSync(target) && fs.readFileSync(target).equals(fs.readFileSync(local))) {
+        continue;
+      }
       fs.mkdirSync(path.dirname(target), { recursive: true });
       fs.copyFileSync(local, target);
+      log(`[guide] re-seeded prompt template ${name} from the extension bundle`);
+    } catch (e: any) {
+      // Seeding is a dev convenience: a filesystem hiccup here must not take
+      // the guide command down when a usable synced copy may already exist.
+      log(`[guide] could not seed prompt template ${name}: ${e?.message ?? e}`);
     }
   }
 }
