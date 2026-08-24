@@ -788,8 +788,131 @@ ${analysis}
   }
 }
 
+/** How much of a model reply has arrived, for callers that show progress. */
+interface LLMProgress {
+  /** Characters produced by the model so far, reasoning channels included. */
+  chars: number;
+  /** Milliseconds since the request was sent. */
+  elapsedMs: number;
+}
+
+/**
+ * Consume a model reply incrementally so a slow call can report progress.
+ *
+ * Transport-agnostic on purpose: Ollama streams one JSON object per line,
+ * OpenAI-compatible endpoints stream SSE `data:` frames, and a server that
+ * ignores `stream` altogether still answers with one plain JSON body — the
+ * end handler falls back to that shape rather than reporting an empty reply.
+ * Reasoning-only output (`thinking`, `reasoning_content`) counts towards
+ * progress but never towards the returned text, so a model that reasons for
+ * minutes before writing anything still visibly moves.
+ */
+async function streamLLMAPI(
+  body: any,
+  config: LLMConfig,
+  isOpenAIEndpoint: boolean,
+  onProgress: (progress: LLMProgress) => void
+): Promise<string> {
+  const started = Date.now();
+  const resp = await axios.post(
+    config.apiUrl,
+    { ...body, stream: true },
+    {
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
+      responseType: 'stream',
+      timeout: LLM_TIMEOUT_MS
+    }
+  );
+
+  let text = '';
+  let chars = 0;
+  let pending = '';
+  let whole = '';
+  let lastReportMs = 0;
+
+  const takeFrame = (line: string) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    let payload = trimmed;
+    if (isOpenAIEndpoint) {
+      if (!trimmed.startsWith('data:')) return;
+      payload = trimmed.slice('data:'.length).trim();
+      if (payload === '[DONE]') return;
+    }
+    let frame: any;
+    try {
+      frame = JSON.parse(payload);
+    } catch {
+      return; // keep-alives and other non-JSON transport material
+    }
+    const delta = isOpenAIEndpoint ? frame.choices?.[0]?.delta ?? {} : frame;
+    const visible = isOpenAIEndpoint ? delta.content : frame.response;
+    const reasoning = isOpenAIEndpoint
+      ? delta.reasoning_content ?? delta.reasoning
+      : frame.thinking;
+    if (typeof visible === 'string') {
+      text += visible;
+      chars += visible.length;
+    }
+    if (typeof reasoning === 'string') chars += reasoning.length;
+  };
+
+  await new Promise<void>((resolve, reject) => {
+    resp.data.on('data', (chunk: Buffer) => {
+      const piece = chunk.toString('utf8');
+      whole += piece;
+      pending += piece;
+      const lines = pending.split('\n');
+      pending = lines.pop() ?? '';
+      for (const line of lines) takeFrame(line);
+      const elapsedMs = Date.now() - started;
+      // One report a second: enough to look alive, cheap enough to ignore.
+      if (elapsedMs - lastReportMs >= 1000) {
+        lastReportMs = elapsedMs;
+        onProgress({ chars, elapsedMs });
+      }
+    });
+    resp.data.on('end', () => {
+      takeFrame(pending);
+      resolve();
+    });
+    resp.data.on('error', reject);
+  });
+
+  if (!text) {
+    // A server that ignored `stream` answered with one ordinary JSON body.
+    try {
+      const single = JSON.parse(whole);
+      text = single.choices?.[0]?.message?.content ?? single.response ?? '';
+    } catch {
+      // leave text empty; the caller reports the failure below
+    }
+  }
+
+  onProgress({ chars, elapsedMs: Date.now() - started });
+  if (!text) throw new Error('No valid response content received from API.');
+  return text;
+}
+
+/**
+ * One line of reassurance for a long call. Reasoning models can spend
+ * minutes before their first visible character, so the count shown is the
+ * model's total output, not the answer alone.
+ */
+function describeLLMProgress({ chars, elapsedMs }: LLMProgress): string {
+  const seconds = Math.round(elapsedMs / 1000);
+  const clock = seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  return chars > 0
+    ? `${clock} · ${chars.toLocaleString()} characters so far`
+    : `${clock} · waiting for the model to start`;
+}
+
 // LLM Call API, for AI Feedback and Error Helper - Modified for OpenAI format
-async function callLLMAPI(prompt: string, config: LLMConfig): Promise<string> {
+async function callLLMAPI(
+  prompt: string,
+  config: LLMConfig,
+  onProgress?: (progress: LLMProgress) => void
+): Promise<string> {
   // Check if using OpenAI-compatible endpoint
   const isOpenAIEndpoint = config.apiUrl.includes('/chat/completions');
 
@@ -812,6 +935,8 @@ async function callLLMAPI(prompt: string, config: LLMConfig): Promise<string> {
       prompt: prompt
     };
   }
+
+  if (onProgress) return streamLLMAPI(body, config, isOpenAIEndpoint, onProgress);
 
   const resp = await axios.post(
     config.apiUrl,
@@ -1357,17 +1482,22 @@ ${feedback}
         const decomposeCtx: DecomposeContext = { exerciseId, problemDescription, code };
         // Log every exchange to the output channel: during template tuning we
         // need to see exactly what the model was asked and what it answered.
-        const callLLM = async (p: string) => {
-          log(`[guide] prompt → model (${exerciseId}):\n${p}`);
-          try {
-            const raw = await callLLMAPI(p, config);
-            log(`[guide] response ← model (${exerciseId}):\n${raw}`);
-            return raw;
-          } catch (e: any) {
-            log(`[guide] LLM call error (${exerciseId}): ${e?.message ?? e}`);
-            throw e;
-          }
-        };
+        const callLLMWith =
+          (progress?: vscode.Progress<{ message?: string }>) => async (p: string) => {
+            log(`[guide] prompt → model (${exerciseId}):\n${p}`);
+            try {
+              const raw = await callLLMAPI(
+                p,
+                config,
+                progress && ((s) => progress.report({ message: describeLLMProgress(s) }))
+              );
+              log(`[guide] response ← model (${exerciseId}):\n${raw}`);
+              return raw;
+            } catch (e: any) {
+              log(`[guide] LLM call error (${exerciseId}): ${e?.message ?? e}`);
+              throw e;
+            }
+          };
         const generate = async () => {
           if (decomposeInFlight.has(exerciseId)) {
             vscode.window.showInformationMessage(
@@ -1382,7 +1512,7 @@ ${feedback}
                 location: vscode.ProgressLocation.Notification,
                 title: 'CellMate: generating step plan…',
               },
-              () => generateDecomposition(decomposeCtx, callLLM)
+              (progress) => generateDecomposition(decomposeCtx, callLLMWith(progress))
             );
           } finally {
             decomposeInFlight.delete(exerciseId);
@@ -1449,7 +1579,7 @@ ${feedback}
                   code: liveCode,
                   steps: currentPlan.steps,
                 },
-                callLLM
+                callLLMWith()
               );
               GuidePanel.currentPanel?.showProgress(result);
               if (!result) {

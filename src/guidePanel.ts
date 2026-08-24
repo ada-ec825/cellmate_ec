@@ -197,7 +197,7 @@ export class GuidePanel {
     color: var(--vscode-descriptionForeground);
     margin-left: 6px;
   }
-  .intent { font-size: 13px; line-height: 1.5; margin-left: 1.1em; }
+  .intent { font-size: 13px; line-height: 1.5; margin-left: 1.1em; white-space: pre-wrap; }
   .banner {
     margin-top: 12px;
     padding: 10px 12px;

@@ -54,7 +54,7 @@ Write every step as a direct instruction, not a question. The reader may be stru
     {
       "index": 1,
       "label": "<short step name, at most 6 words>",
-      "intent": "<a compact plain-English paragraph, typically 60-150 words, carrying every rule this step needs — long enough to be self-contained, short enough to survive a limited attention span>",
+      "intent": "<what this step must achieve, laid out as short lines rather than one block of prose. Open with a single sentence naming the goal, then put each rule, input, output, edge case and constraint on its own line beginning with \"- \". Separate lines with the two-character JSON escape \\n. Typically 60-150 words in total — long enough to be self-contained, short enough to survive a limited attention span>",
       "checkHint": "<optional: one sentence giving a concrete input/output pair or observable behavior that would show this step is correctly done, e.g. \"parse_amount('1e2') returns None\">",
       "timeShare": <integer: recommended percent of the whole exercise's time for this step>
     }
@@ -63,10 +63,11 @@ Write every step as a direct instruction, not a question. The reader may be stru
 
 **STRICT REQUIREMENTS:**
 - Output raw JSON only: no markdown fences, no commentary before or after, no trailing commas.
-- Never use backslashes inside JSON strings except where JSON itself requires escaping. Write maths in plain words or symbols — "dt", "delta t", "v(0) = 0" — not LaTeX like \Delta or \frac.
+- The only backslash allowed inside a JSON string is the \\n that separates the lines of an intent. Write maths in plain words or symbols — "dt", "delta t", "v(0) = 0" — not LaTeX like \Delta or \frac.
 - Between 3 and 8 steps, always. Merge trivial functions and split rule-heavy ones to stay inside that range; never pad the plan with plumbing steps to reach three, and never drop a required artefact to stay under eight.
 - "index" starts at 1 and increases by 1 with no gaps.
 - Steps are ordered so each step relies only on earlier steps.
+- Format every intent as one short goal sentence followed by "- " bullet lines, one rule per line, separated by \\n. Never return an intent as a single unbroken paragraph: the reader is scanning it under time pressure and a wall of text hides the rule they need. Keep each bullet to one rule, and keep it short enough to read at a glance.
 - The field carrying each step's specification must be named exactly "intent". Do not rename it to "spec", "specification", "description", or any other synonym, and do not drop it.
 - Each intent fully specifies behavior (inputs, outputs, invalid-input results, edge cases, applicable constraints) in plain English, without code, identifiers used as code, or a spelled-out internal algorithm. Exercise-given names, signatures, exact formats, and constants are contract and must appear verbatim where the step needs them.
 - "checkHint" must be plain English plus at most one concrete input/output example.
