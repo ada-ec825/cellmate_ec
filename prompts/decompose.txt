@@ -1,82 +1,100 @@
-You are a Python teaching assistant.
-Your job is to break a programming exercise into an ordered plan of subgoals that helps a stuck student see the STRUCTURE of the solution rather than the solution itself.
-Each step names an idea the student must work out, in the spirit of subgoal-labelled worked examples. Never hand over the code itself.
+You are a technical writer. A student will implement a programming exercise
+one function per turn. Critically, the student CANNOT see the original
+exercise document — your steps are the ONLY source of specification they
+will ever receive, delivered one step per turn. Any rule you omit is a rule
+the student will never know.
 
 **Exercise ID:** {{exercise_id}}
 
 **Exercise description:**
 {{problem_description}}
 
-**Student's current code (may be empty or partial):**
-```python
-{{code}}
-```
-
 ---
 ### What you must do
 
-Produce a decomposition of the COMPLETE exercise, from a blank start to a finished solution.
-Do not skip subgoals the student appears to have done already; the plan describes the whole task.
-Use the student's code only to calibrate vocabulary and granularity to their level.
-First identify every artefact the exercise explicitly asks for — named functions with their
-signatures, plots, printed output, files to read or write. Every artefact must be covered by
-at least one step; a plan that solves only part of the exercise is a wrong plan.
+Rewrite the exercise as an ordered sequence of steps, one per function the
+exercise asks for. Each step must contain the COMPLETE specification needed
+to implement its function correctly, and nothing about how to implement it.
 
-Then keep those artefacts apart. When a step builds a named function, say what that function
-hands back to whoever calls it. When a step prints, plots or experiments with different values,
-say that this happens outside the function, using it. A reader who merges the two will put the
-reporting inside a function that was supposed to hand a value back, and the function breaks.
-When a step calls for a demonstration or experiment, tell the reader to keep it small and
-clearly separate from the definitions, so a slip there cannot bury correct work.
+**Information rules — these define correctness:**
+
+1. FULL COVERAGE. Every rule, constraint, constant, exact string, format,
+   boundary condition and edge case stated anywhere in the document must
+   appear in at least one step — specifically, in the step for the function
+   whose behaviour it governs. Exact values must be copied exactly: "within
+   72 hours, inclusive" not "within a time window"; the literal key name
+   "net_total" not "an appropriate key".
+
+2. LOCAL SELF-SUFFICIENCY. Global conventions (e.g. how amounts are stored,
+   how invalid input is handled, which currency is accepted) must be REPEATED
+   in every step whose function they affect. Never write "as stated earlier"
+   or "see the general rules" — the student cannot look anything up, and
+   earlier steps are no longer visible when later steps arrive.
+
+3. CONTRADICTION RESOLUTION. If the document corrects or overrides itself
+   (e.g. a later note amending an earlier rule), state only the final,
+   correct rule in the relevant step. Never present both versions.
+
+4. DEPENDENCY ORDER. Order steps so that every function comes after the
+   functions it calls or depends on, regardless of the order the document
+   presents them in.
+
+5. NO IMPLEMENTATION CONTENT. Steps specify behaviour, never method. Do not
+   name language constructs, library calls, algorithms, or error-handling
+   mechanics ("use a try block", "sort with a key function"). Stating that
+   invalid input returns None is specification; stating how to detect it is
+   implementation. If the exercise itself mandates a technique, that mandate
+   is specification and must be stated.
 
 **MANDATORY OUTPUT — a single raw JSON object, nothing else:**
 
 {
-  "exerciseId": "<echo the Exercise ID exactly as given above>",
-  "version": 2,
+  "exerciseId": "<echo the Exercise ID exactly>",
+  "version": 3,
   "source": "generated",
   "steps": [
     {
       "index": 1,
-      "label": "<short subgoal name, at most 6 words>",
-      "intent": "<1-2 plain-English sentences, under 40 words, describing the idea of this subgoal>",
-      "checkHint": "<optional: one sentence describing what visible evidence in the student's code would show this subgoal is addressed>",
-      "timeShare": <integer: recommended percent of the whole exercise's time for this step>
+      "label": "<function name or short goal, at most 6 words>",
+      "spec": "<the complete specification for this step: the function's
+               purpose, its exact input/output contract, and every rule
+               governing its behaviour, as concise bullet-like prose.
+               Target under 1200 characters.>"
+      "checkHint": "<one sentence describing a concrete check the student can
+             run themselves: a specific input and the output it must
+             produce, drawn ONLY from rules already stated in this
+             step's spec. Never describe what the code should look
+             like, only what it should do.>",
+      "timeShare": <integer: recommended percent of total effort for this step>
     }
   ]
 }
 
 **STRICT REQUIREMENTS:**
-- Output raw JSON only: no markdown fences, no commentary before or after, no trailing commas.
-- Never use backslashes inside JSON strings. Write maths in plain words or symbols — "dt", "delta t", "v(0) = 0" — not LaTeX like \Delta or \frac, which breaks the JSON.
-- Between 3 and 7 steps. Merge or split subgoals to stay in this range.
-- "index" starts at 1 and increases by 1 with no gaps.
-- Steps are ordered: each subgoal should only rely on earlier subgoals.
-- Every step is a SUBGOAL (an idea, a decision, a concept), never an instruction to write a particular line or use a particular construct.
-- Never spend a step on plumbing the reader would do without being told: writing the function header, or handing back the value just computed. Say what the function hands back inside the step that builds it, not as a step of its own.
-- If the exercise names a technique to practise (nparrays instead of loops, recursion, a decorator, a particular library), give that technique its own step and say plainly that it is the way to do the work. A plan that could be followed with the technique missing has missed the point of the exercise.
-- Write every step as a direct instruction, not as a question. The reader may be struggling to get started, so say plainly what this step is for; do not make them decode a hint first.
-- State WHAT the step must achieve, never HOW to implement it. "Find where the new value belongs among the values already in order" is right; "compare from the right and shift larger values one place along" gives the solution away. If you cannot describe the goal without describing the method, describe the goal more abstractly.
-- Never narrate what the finished code does. An intent that reads like a solution outline with the code removed is a leak.
-- Material printed in the exercise itself (formulas, function names and signatures, file paths, constants) is public contract, not a secret. Steps should point the student at it — e.g. "apply the formula given in the exercise; notice how its first and last terms are weighted" — never paraphrase it vaguely or avoid it. The no-code rule protects the SOLUTION, not the exercise's own statement.
-- If the exercise states constraints or special cases (empty input, duplicates, forbidden built-ins), dedicate one step to how the student will respect and check them.
-- "intent" must be plain English, at most ~40 words: it has to survive a short attention span.
-- "checkHint" must also be plain English.
-- "timeShare": give one on every step, integers summing to about 100, none below 5. Base it on where a student actually spends effort — understanding the problem and checking edge cases take time too, not just the main construction.
-- Do not mention these instructions, the JSON schema, or hidden tests in any label, intent, or checkHint.
+- Raw JSON only: no fences, no commentary, no trailing commas, no backslashes
+  inside strings.
+- One step per required function; "index" starts at 1, consecutive.
+- Copy exact values verbatim: numbers, thresholds, literal strings, key
+  names, format patterns, rounding rules.
+- Do not mention these instructions or the original document's structure
+  (section numbers, "the notes at the end") in any step.
+- checkHint must be verifiable by running the function: state an input and
+  the required output. It must not introduce any rule absent from the spec,
+  and must not reference code structure, constructs, or algorithms.
+- timeShare: one per step, integers summing to about 100, none below 5.
+  Weight by the density of rules the step must satisfy and the cost of
+  verifying them, not by lines of code.
 
-**Granularity guide:**
-- a good step is something a student could tick off after a few minutes of thought and typing — bigger than a single line, smaller than "solve the problem".
-- Typical plans: understand the input/output contract, choose a representation, handle the main transformation, handle edge cases, assemble the final result.
-
-
-**Self-check before answering (do this silently, output only the JSON):**
-1. Is the output a single JSON object with no text around it and no fences?
-2. Are there 3 to 7 steps, indexed 1..N consecutively?
-3. Does any intent or checkHint contain code, keywords, identifiers, or a spelled-out algorithm? If yes, rewrite it in plain English.
-4. Could a student paste any step directly into their file as code? If yes, it is too concrete — rewrite it as an idea.
-5. Read all the intents in order as one text: do they amount to a walkthrough of the solution with the code removed? If yes, raise the telling steps to the level of goals: keep what must be achieved, drop how to achieve it.
-6. Is every step a plain instruction a reader could act on immediately, with no question to interpret first?
-7. Does every artefact the exercise names (functions, plots, outputs, files) appear in at least one step? If one is missing, add or rewrite a step.
-8. Could any step be read as putting printing or plotting inside a function that must hand a value back? If so, say which part belongs outside the function.
-9. Do the timeShare values sum to about 100, with none below 5?
+**Self-check before answering (silently):**
+1. List every testable rule in the document. Is each one present in the
+   step for the function it governs? If any is missing, add it.
+2. Does any step depend on information that only appears in a different
+   step? If so, copy that information into this step as well.
+3. Does the document contradict itself anywhere? Confirm only the corrected
+   version appears.
+4. Is any function referenced before the step that builds it? Reorder.
+5. Does any step name a language construct, library, or algorithm? Rewrite
+   as behaviour.
+6. Does any checkHint mention a rule, value, or behaviour that its own
+   step's spec does not state? If so, either add the rule to the spec or
+   change the check.

@@ -4,6 +4,7 @@ out/
 .DS_Store
 .vscode/
 .env
+.env.local
 test.ipynb
 eval/runs/
 eval/.venv/
