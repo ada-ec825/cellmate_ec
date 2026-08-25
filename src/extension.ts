@@ -788,6 +788,45 @@ ${analysis}
   }
 }
 
+/**
+ * Surface the explanation a failing server put in its body.
+ *
+ * Axios reports only "Request failed with status code 400", which sends
+ * everyone hunting through their own code for a fault the server already
+ * named — "Model 'qwen3.6:35b' was not found" is the whole answer. Under
+ * responseType 'stream' the body arrives as a stream, so it has to be read
+ * back before it can be reported.
+ */
+async function describeHttpError(error: any): Promise<string> {
+  const base = String(error?.message ?? error);
+  const data = error?.response?.data;
+  let body = '';
+  if (data && typeof data.on === 'function') {
+    body = await new Promise<string>((resolve) => {
+      let text = '';
+      data.on('data', (chunk: Buffer) => {
+        text += chunk.toString('utf8');
+      });
+      data.on('end', () => resolve(text));
+      data.on('error', () => resolve(text));
+    });
+  } else if (typeof data === 'string') {
+    body = data;
+  } else if (data) {
+    body = JSON.stringify(data);
+  }
+  if (!body.trim()) return base;
+  let detail = body.trim();
+  try {
+    const parsed = JSON.parse(detail);
+    detail = parsed?.detail ?? parsed?.error?.message ?? parsed?.error ?? parsed?.message ?? detail;
+  } catch {
+    // a plain-text body is already the message
+  }
+  detail = String(detail).replace(/\s+/g, ' ').slice(0, 300);
+  return detail && detail !== base ? `${base} — ${detail}` : base;
+}
+
 /** How much of a model reply has arrived, for callers that show progress. */
 interface LLMProgress {
   /** Characters produced by the model so far, reasoning channels included. */
@@ -814,15 +853,20 @@ async function streamLLMAPI(
   onProgress: (progress: LLMProgress) => void
 ): Promise<string> {
   const started = Date.now();
-  const resp = await axios.post(
-    config.apiUrl,
-    { ...body, stream: true },
+  let resp: any;
+  try {
+    resp = await axios.post(
+      config.apiUrl,
+      { ...body, stream: true },
     {
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
-      responseType: 'stream',
-      timeout: LLM_TIMEOUT_MS
-    }
-  );
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
+        responseType: 'stream',
+        timeout: LLM_TIMEOUT_MS
+      }
+    );
+  } catch (error: any) {
+    throw new Error(await describeHttpError(error));
+  }
 
   let text = '';
   let chars = 0;
@@ -938,18 +982,23 @@ async function callLLMAPI(
 
   if (onProgress) return streamLLMAPI(body, config, isOpenAIEndpoint, onProgress);
 
-  const resp = await axios.post(
-    config.apiUrl,
-    body,
-    {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.apiKey}`
-      },
-      responseType: isOpenAIEndpoint ? 'json' : 'text',
-      timeout: LLM_TIMEOUT_MS
-    }
-  );
+  let resp: any;
+  try {
+    resp = await axios.post(
+      config.apiUrl,
+      body,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${config.apiKey}`
+        },
+        responseType: isOpenAIEndpoint ? 'json' : 'text',
+        timeout: LLM_TIMEOUT_MS
+      }
+    );
+  } catch (error: any) {
+    throw new Error(await describeHttpError(error));
+  }
 
   if (isOpenAIEndpoint) {
     // Handle OpenAI format response

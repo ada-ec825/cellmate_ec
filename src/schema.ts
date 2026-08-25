@@ -84,6 +84,21 @@ export interface TelemetryEvent {
  * a retry, so precision here buys retry success; they also tell a gold
  * file author exactly what to fix.
  */
+/**
+ * Control characters that mean a LaTeX command was eaten by JSON escaping.
+ *
+ * `repairInvalidEscapes` rescues the commands JSON rejects outright, but
+ * "\frac" and "\beta" begin with escapes JSON accepts, so they parse
+ * cleanly into a formfeed or a backspace and corrupt the prose in silence.
+ * A tab is legitimate only as leading indentation, so one anywhere else on
+ * a line is the residue of "\theta" or "\times". Catching these turns a
+ * silently mangled step into one retry.
+ */
+function hasMangledEscape(text: string): boolean {
+  if (/[\f\b\v]/.test(text)) return true;
+  return text.split('\n').some((line) => line.replace(/^[^\S\n]+/, '').includes('\t'));
+}
+
 export function listDecompositionViolations(d: any): string[] {
   const violations: string[] = [];
   if (!d || typeof d !== 'object') {
@@ -115,6 +130,13 @@ export function listDecompositionViolations(d: any): string[] {
     }
     if (typeof s.label !== 'string' || s.label.trim() === '') {
       violations.push(`step ${n} label must be a non-empty string`);
+    }
+    if (typeof s.intent === 'string' && hasMangledEscape(s.intent)) {
+      violations.push(
+        `step ${n} intent contains a control character, which means a LaTeX ` +
+          'command was swallowed by JSON escaping; write maths with Unicode ' +
+          'characters such as Δt, x², ≤ and π instead'
+      );
     }
     if (typeof s.intent !== 'string' || s.intent.trim() === '') {
       violations.push(

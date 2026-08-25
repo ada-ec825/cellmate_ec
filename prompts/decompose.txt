@@ -43,6 +43,12 @@ Use the student's code only to calibrate vocabulary and granularity to their lev
 - If a later part of the exercise overrides or amends an earlier rule, write only the FINAL effective rule into the relevant step, and note briefly that it supersedes an earlier statement. Never let the outdated version survive anywhere in the plan.
 - Leaving a rule out of a step where it applies is the most damaging failure mode of this task.
 
+Your job in every step is to specify what the code must do, not to write it. Where the exercise states a rule mathematically, keep it mathematical: a formula is clearer than a paragraph describing one, and a formula is specification, not code. The line between them is language syntax, not notation. Write
+
+  v(tₖ) = Δt × (a₀/2 + aₖ/2 + a₁ + a₂ + … + aₖ₋₁)
+
+and not "dt multiplied by the sum of half the first element plus half the element at index k plus…", which is the same thing made harder to read; and not "dt * (a[0] / 2 + a[k] / 2 + sum(a[1:k]))", which is the answer. Indices belong in subscripts rather than brackets, a running total belongs in ∑ or an ellipsis rather than a call, and slicing, function calls and assignment have no place in a formula at all.
+
 Write every step as a direct instruction, not a question. The reader may be struggling to get started; say plainly what the step must achieve.
 
 **MANDATORY OUTPUT — a single raw JSON object, nothing else:**
@@ -54,7 +60,7 @@ Write every step as a direct instruction, not a question. The reader may be stru
     {
       "index": 1,
       "label": "<short step name, at most 6 words>",
-      "intent": "<what this step must achieve, laid out as short lines rather than one block of prose. Open with a single sentence naming the goal, then put each rule, input, output, edge case and constraint on its own line beginning with \"- \". Separate lines with the two-character JSON escape \\n. Typically 60-150 words in total — long enough to be self-contained, short enough to survive a limited attention span>",
+      "intent": "<what this step must achieve, laid out as short lines rather than one block of prose. Open with a single sentence naming the goal, then put each rule, input, output, edge case and constraint on its own line beginning with \"- \". Separate lines with the two-character JSON escape \n. Use **bold** for the hardest constraints and `backticks` for names and literal values. Typically 60-150 words in total — long enough to be self-contained, short enough to survive a limited attention span>",
       "checkHint": "<optional: one sentence giving a concrete input/output pair or observable behavior that would show this step is correctly done, e.g. \"parse_amount('1e2') returns None\">",
       "timeShare": <integer: recommended percent of the whole exercise's time for this step>
     }
@@ -63,11 +69,15 @@ Write every step as a direct instruction, not a question. The reader may be stru
 
 **STRICT REQUIREMENTS:**
 - Output raw JSON only: no markdown fences, no commentary before or after, no trailing commas.
-- The only backslash allowed inside a JSON string is the \\n that separates the lines of an intent. Write maths in plain words or symbols — "dt", "delta t", "v(0) = 0" — not LaTeX like \Delta or \frac.
+- The only backslash allowed inside a JSON string is the \n that separates the lines of an intent. Never write LaTeX. A command such as \frac or \theta begins with a sequence JSON reads as an escape, so it silently becomes a formfeed or a tab and destroys the sentence around it with no error raised; the plan is then rejected and regenerated, which costs minutes.
+- Maths notation is the ONE thing you must not copy verbatim. When the exercise itself is written in LaTeX — "$t_k = k \Delta t$", "$a_0, \ldots, a_{n-1}$" — transcribe it into Unicode rather than reproducing it. Every other name, constant and format is still copied exactly as printed.
+- Write maths with Unicode characters instead, which need no escaping at all: Δ δ π θ λ μ σ ∞, subscripts ₀ ₁ ₖ ₙ, superscripts ² ³ ⁿ, and operators ≤ ≥ ≠ ≈ ± × ÷ √ ∑ ∫ → ∈. Write "tₖ = k Δt" for "$t_k = k \Delta t$", "a₀, …, aₙ₋₁" for "$a_0, \ldots, a_{n-1}$", and "v(0) = 0", "x² ≤ 10", "√2". For a fraction use a slash — "a / b", "(a + b) / 2" — never \frac.
+- Mark up an intent with this small Markdown subset and nothing else: **bold** around the two or three phrases carrying the step's hardest constraint, and `backticks` around names, literal values and formats copied from the exercise — function names, dictionary keys, exact strings, timestamp patterns. Backticks quote a name or a value exactly as the exercise prints it, and nothing more. Never put an expression inside them: no calls, no indexing or slicing, no arithmetic, no comparisons, no assignment. A formula is not code and does not take backticks — write it as plain maths in the sentence, with no $ or $$ around it and no \left, \right or other LaTeX.
+- Name a function as `compute_velocity(dt, k, a)` when the step needs its signature. Never write a definition line: `def compute_velocity(dt, k, a):` is the student's first line of code, and a step that contains it has started the work for them. The same goes for `return`, `import` and any other statement — a step never contains a line that could be pasted into a file. `None`, `"USD"`, `net_total` and a signature such as `compute_velocity(dt, k, a)` are contract; `a[0] / 2 + sum(a[1:k])`, `len(values) > 0` and `round(x, 2)` are code, and writing one hands the student the answer instead of the specification. No headings, tables, links or nested lists.
 - Between 3 and 8 steps, always. Merge trivial functions and split rule-heavy ones to stay inside that range; never pad the plan with plumbing steps to reach three, and never drop a required artefact to stay under eight.
 - "index" starts at 1 and increases by 1 with no gaps.
 - Steps are ordered so each step relies only on earlier steps.
-- Format every intent as one short goal sentence followed by "- " bullet lines, one rule per line, separated by \\n. Never return an intent as a single unbroken paragraph: the reader is scanning it under time pressure and a wall of text hides the rule they need. Keep each bullet to one rule, and keep it short enough to read at a glance.
+- Format every intent as one short goal sentence followed by "- " bullet lines, one rule per line, separated by \n. Never return an intent as a single unbroken paragraph: the reader is scanning it under time pressure and a wall of text hides the rule they need. Keep each bullet to one rule, and keep it short enough to read at a glance.
 - The field carrying each step's specification must be named exactly "intent". Do not rename it to "spec", "specification", "description", or any other synonym, and do not drop it.
 - Each intent fully specifies behavior (inputs, outputs, invalid-input results, edge cases, applicable constraints) in plain English, without code, identifiers used as code, or a spelled-out internal algorithm. Exercise-given names, signatures, exact formats, and constants are contract and must appear verbatim where the step needs them.
 - "checkHint" must be plain English plus at most one concrete input/output example.
@@ -80,7 +90,7 @@ Write every step as a direct instruction, not a question. The reader may be stru
 3. Rule audit: walk your silent list of exercise rules. Does every rule appear, concretely restated, in every step whose work it governs? If a rule is missing somewhere it applies, add it there now.
 4. Override audit: if the exercise contains a clarification, erratum, or later section that changes an earlier rule, does every affected step state only the final effective rule, with no outdated version surviving anywhere?
 5. Isolation test: read each step alone, imagining you cannot see the exercise or any other step. Could a student implement this step's artefact correctly from this text? If anything essential is missing, copy it in.
-6. Leak test: does any intent or checkHint contain code, pseudocode, or the internal sequence of operations of a solution? Behavior and contract are required; the algorithm is not. Rewrite offending parts at the level of what must be achieved.
+6. Leak test: could a student copy anything in an intent or checkHint straight into their editor and have it run? A formula in maths notation is specification and belongs — vₖ, ∑, Δt, a₀/2 are all fine. Python syntax is the leak: bracket indexing or slicing such as a[1:k], calls such as sum(...) or len(...), and anything inside backticks that is not a plain name, literal or signature. Rewrite those as maths, not as prose.
 7. Does every artefact the exercise names (functions, plots, outputs, files) appear in at least one step?
 8. Could any step be read as putting printing or plotting inside a function that must hand a value back? If so, say which part belongs outside the function.
 9. Bloat check: does any step restate rules that do not govern its work? Remove them.

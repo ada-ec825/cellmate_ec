@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { escapeHtml, renderIntent } from './intentMarkup';
 import { Decomposition } from './schema';
 import { ProgressCheckResult, StepVerdict } from './stepCheck';
 
@@ -141,7 +142,7 @@ export class GuidePanel {
             : '';
         return `<li class="step${stateClass}${currentClass}">
           <div class="label"><span class="marker">${marker}</span>Step ${s.index}: ${escapeHtml(s.label)} ${share}</div>
-          <div class="intent">${escapeHtml(s.intent)}</div>
+          <div class="intent">${renderIntent(s.intent)}</div>
           ${note}
         </li>`;
       })
@@ -197,7 +198,18 @@ export class GuidePanel {
     color: var(--vscode-descriptionForeground);
     margin-left: 6px;
   }
-  .intent { font-size: 13px; line-height: 1.5; margin-left: 1.1em; white-space: pre-wrap; }
+  .intent { font-size: 13px; line-height: 1.5; margin-left: 1.1em; }
+  .intent p { margin: 0 0 0.4em; }
+  .intent ul { margin: 0.2em 0 0.4em; padding-left: 1.2em; }
+  .intent li { margin: 0.15em 0; }
+  .intent strong { font-weight: 600; color: var(--vscode-foreground); }
+  .intent code {
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 0.92em;
+    padding: 0 0.3em;
+    border-radius: 3px;
+    background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.18));
+  }
   .banner {
     margin-top: 12px;
     padding: 10px 12px;
@@ -258,10 +270,3 @@ ${stepsHtml}
 }
 
 /** Escape text for safe interpolation into the webview HTML. */
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}

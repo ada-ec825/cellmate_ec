@@ -136,6 +136,47 @@ test('accepts an eight-step plan', () => {
   assert.equal(r.decomposition.steps.length, 8);
 });
 
+test('keeps LaTeX commands out of JSON escaping', () => {
+  // "\times" and "\frac" begin with escapes JSON accepts, so before the
+  // guard they parsed into a tab and a formfeed and silently ate a letter.
+  const raw = String.raw`{"steps":[
+    {"index":1,"label":"A","intent":"v = \Delta t \times (\frac{1}{2}a_0)"},
+    {"index":2,"label":"B","intent":"plain"},
+    {"index":3,"label":"C","intent":"plain"}]}`;
+  const r = parseDecomposition(raw, 'ex');
+  assert.equal(r.ok, true, r.reason);
+  assert.equal(r.decomposition.steps[0].intent, 'v = \\Delta t \\times (\\frac{1}{2}a_0)');
+});
+
+test('leaves newline separators, \\uXXXX and escaped backslashes alone', () => {
+  const raw = String.raw`{"steps":[
+    {"index":1,"label":"A","intent":"goal\n- one\n- two"},
+    {"index":2,"label":"B","intent":"caf\u00e9 value"},
+    {"index":3,"label":"C","intent":"path C:\\tmp here"}]}`;
+  const r = parseDecomposition(raw, 'ex');
+  assert.equal(r.ok, true, r.reason);
+  assert.equal(r.decomposition.steps[0].intent, 'goal\n- one\n- two');
+  assert.equal(r.decomposition.steps[1].intent, 'caf\u00e9 value');
+  assert.equal(r.decomposition.steps[2].intent, 'path C:\\tmp here');
+});
+
+test('rejects an intent left holding a swallowed LaTeX command', () => {
+  // Checked on the parsed string, so build one directly: a JSON round-trip
+  // would re-escape the control character and the LaTeX guard would undo it.
+  const steps = makeSteps(3);
+  steps[0].intent = 'scale by \u0009imes two'; // what "\times" used to become
+  steps[2].intent = 'half is \u000crac{1}{2}'; // and "\frac"
+  const v = listDecompositionViolations(makeGold(steps));
+  assert.ok(v.some((m) => /step 1 intent contains a control character/.test(m)), v.join('; '));
+  assert.ok(v.some((m) => /step 3 intent contains a control character/.test(m)), v.join('; '));
+});
+
+test('allows a leading tab as indentation', () => {
+  const steps = makeSteps(3);
+  steps[0].intent = 'goal line\n\tcontinued here';
+  assert.deepEqual(listDecompositionViolations(makeGold(steps)), []);
+});
+
 test('accepts a step whose specification arrives as "spec"', () => {
   // qwen3.6 via ChatESE renames the field; rejecting it costs a whole
   // regeneration, so the parser moves the synonym onto intent.

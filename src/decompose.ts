@@ -149,6 +149,25 @@ export function extractJsonObject(raw: string): string | null {
  * strings, and JSON.parse rejects those escapes. Valid escape sequences
  * (\" \\ \/ \b \f \n \r \t \uXXXX) are consumed atomically and preserved.
  */
+/**
+ * Keep LaTeX commands out of JSON's escape rules.
+ *
+ * Every JSON escape is a single character (" \\ / b f n r t) or u followed by
+ * four hex digits, so a backslash followed by two or more letters can only be
+ * a LaTeX command. Left alone, "\\frac" and "\\theta" parse cleanly into a
+ * formfeed and a tab and destroy the sentence around them without raising
+ * anything — the failure repairInvalidEscapes cannot see, because that text
+ * was valid JSON. Doubling the backslash keeps the command as readable prose.
+ * Already-escaped backslashes and \\uXXXX are consumed first so neither is
+ * touched twice.
+ */
+function protectLatexCommands(jsonText: string): string {
+  return jsonText.replace(
+    /\\\\|\\u[0-9a-fA-F]{4}|\\([a-zA-Z]{2,})/g,
+    (match, command) => (command ? `\\\\${command}` : match)
+  );
+}
+
 function repairInvalidEscapes(jsonText: string): string {
   return jsonText.replace(
     /\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4})|\\/g,
@@ -171,12 +190,13 @@ export function parseDecomposition(raw: string, exerciseId: string): ParseDecomp
     return { ok: false, reason: 'no JSON object found in model output' };
   }
 
+  const guarded = protectLatexCommands(jsonText);
   let data: any;
   try {
-    data = JSON.parse(jsonText);
+    data = JSON.parse(guarded);
   } catch (e: any) {
     try {
-      data = JSON.parse(repairInvalidEscapes(jsonText));
+      data = JSON.parse(repairInvalidEscapes(guarded));
     } catch {
       return { ok: false, reason: `invalid JSON: ${e.message}` };
     }
