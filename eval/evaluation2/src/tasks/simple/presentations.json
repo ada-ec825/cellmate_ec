@@ -1,0 +1,71 @@
+{
+  "version": "presentations",
+  "numberOfStages": 6,
+  "sourceDocumentWords": 406,
+  "arms": {
+    "equal_chunks": [
+      {
+        "title": "Amounts",
+        "text": "Implement parse_amount(s). Store every amount as integer cents: 12.30 becomes 1230, 3 becomes 300, and -2.00 becomes -200. Inputs use ordinary decimal notation with at most two fractional digits. Return None for malformed or non-string input without raising or printing.",
+        "words": 40
+      },
+      {
+        "title": "Records",
+        "text": "Implement parse_record(line). Parse exactly five | separated fields: TYPE, RECORD_ID, ORDER_ID, AMOUNT, TIMESTAMP. Type is case-insensitive ORDER or PAYMENT and stored uppercase. Trim both identifiers and reject an empty result. For an order, record ID and order ID must be equal. Record IDs are unique. Use parse_amount; reject a negative order but retain a negative payment as a refund. Parse YYYY-MM-DD HH:MM into a naive datetime. Return None silently for an invalid field. Otherwise return exactly type, record_id, order_id, amount, and timestamp.",
+        "words": 82
+      },
+      {
+        "title": "Loading",
+        "text": "Implement load_records(text). Parse each line with parse_record, silently skip invalid rows, and preserve source order. Empty or non-string input returns an empty list. Do not mutate inputs, print, or store global state.",
+        "words": 34
+      },
+      {
+        "title": "Refunds",
+        "text": "Implement compute_refunds(records). A refund is a PAYMENT with a negative integer-cent amount. Return the positive sum of all refunds. A refund counts even without a matching order. Non-negative payments and orders contribute nothing. Return 0 when there are no refunds.",
+        "words": 40
+      },
+      {
+        "title": "Matching",
+        "text": "Implement match_payments(records). Produce one result for every ORDER in order-record source order. Associate non-negative payments by order_id. A payment qualifies from the order timestamp through exactly 72 hours later, including both endpoints. If several qualify, choose the earliest timestamp and retain source order for a tie. Refunds never match. Return exactly order_id, status, and amount. Status may use any capitalization of matched or unmatched. A matched result uses the selected payment amount; an unmatched result uses 0.",
+        "words": 77
+      },
+      {
+        "title": "Summary",
+        "text": "Implement build_summary(matches, refund_total). Interpret status case-insensitively. Return exactly total_orders, matched_count, net_total, and unmatched_ids. total_orders is len(matches). Count matched results. net_total is their amount sum minus refund_total. Sort unmatched order IDs lexicographically. Empty matches gives zero counts and an empty ID list.",
+        "words": 41
+      }
+    ],
+    "project_steps": [
+      {
+        "title": "Step 1 of 6 — Implement parse_amount(s)",
+        "text": "Convert an ordinary decimal amount string to integer cents: 12.30 becomes 1230, 3 becomes 300, and -2.00 becomes -200. Inputs use at most two fractional digits. Return None for malformed or non-string input without raising or printing. Preserve negative values because a negative PAYMENT represents a refund; negative orders are rejected in Step 2.",
+        "words": 54
+      },
+      {
+        "title": "Step 2 of 6 — Implement parse_record(line)",
+        "text": "Parse exactly five | separated fields: TYPE, RECORD_ID, ORDER_ID, AMOUNT, TIMESTAMP. Type is case-insensitive ORDER or PAYMENT and stored uppercase. Trim both identifiers and reject an empty result. For an order, record ID and order ID must be equal. Record IDs are unique. Use parse_amount; reject a negative order but retain a negative payment. Parse YYYY-MM-DD HH:MM into a naive datetime. Return None silently for an invalid field. Otherwise return exactly type, record_id, order_id, amount, and timestamp.",
+        "words": 77
+      },
+      {
+        "title": "Step 3 of 6 — Implement load_records(text)",
+        "text": "Parse each line with parse_record, silently skip every invalid row, and preserve source order. Return an empty list for empty or non-string input. Do not mutate inputs, print, or store global state.",
+        "words": 34
+      },
+      {
+        "title": "Step 4 of 6 — Implement compute_refunds(records)",
+        "text": "A refund is a PAYMENT with a negative integer-cent amount. Return the positive sum of all refunds. A refund counts even without a matching order. Non-negative payments and orders contribute nothing. Return 0 when there are no refunds and do not mutate records.",
+        "words": 43
+      },
+      {
+        "title": "Step 5 of 6 — Implement match_payments(records)",
+        "text": "Produce one result for every ORDER in order-record source order. Associate non-negative payments by order_id. A payment qualifies from the order timestamp through exactly 72 hours later, including both endpoints. If several qualify, choose the earliest timestamp and retain source order for a tie. Refunds never match. Return a dictionary per order with exactly order_id, status, and amount. Status may use any capitalization of matched or unmatched. A matched result uses the selected payment amount; an unmatched result uses 0.",
+        "words": 80
+      },
+      {
+        "title": "Step 6 of 6 — Implement build_summary(matches, refund_total)",
+        "text": "Read every result by order_id, status, and amount, interpreting status case-insensitively. Return exactly total_orders, matched_count, net_total, and unmatched_ids. total_orders is len(matches). Count matched results. Sum their amounts and subtract refund_total for net_total. Sort unmatched order IDs lexicographically. Empty matches gives zero counts and an empty ID list.",
+        "words": 47
+      }
+    ]
+  }
+}

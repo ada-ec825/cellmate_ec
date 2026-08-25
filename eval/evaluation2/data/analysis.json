@@ -1,0 +1,310 @@
+{
+  "model": "gpt-4o-mini-2024-07-18",
+  "design": "equal chunks / project steps x note retained / cleared",
+  "sessions": 300,
+  "bootstrap": {
+    "resamples": 10000,
+    "unit": "independent session"
+  },
+  "tasks": [
+    {
+      "task": "simple",
+      "sessions": 100,
+      "byArm": {
+        "equal_note": {
+          "n": 25,
+          "meanFinalHidden": 0.9,
+          "meanFinalHiddenBootstrap95": [
+            0.865455,
+            0.930909
+          ],
+          "completed": 0,
+          "visibleOnlyStops": 14,
+          "meanTotalRounds": 16,
+          "meanPreRepairHidden": 0.723636,
+          "repeatedFailedRepairRate": 0.76,
+          "noteClears": 0
+        },
+        "equal_note_clear": {
+          "n": 25,
+          "meanFinalHidden": 0.918182,
+          "meanFinalHiddenBootstrap95": [
+            0.876364,
+            0.949091
+          ],
+          "completed": 0,
+          "visibleOnlyStops": 21,
+          "meanTotalRounds": 12.76,
+          "meanPreRepairHidden": 0.7,
+          "repeatedFailedRepairRate": 0.656805,
+          "noteClears": 68
+        },
+        "steps_note": {
+          "n": 25,
+          "meanFinalHidden": 0.987273,
+          "meanFinalHiddenBootstrap95": [
+            0.974545,
+            0.996364
+          ],
+          "completed": 20,
+          "visibleOnlyStops": 3,
+          "meanTotalRounds": 9.04,
+          "meanPreRepairHidden": 0.754545,
+          "repeatedFailedRepairRate": 0.407895,
+          "noteClears": 0
+        },
+        "steps_note_clear": {
+          "n": 25,
+          "meanFinalHidden": 0.987273,
+          "meanFinalHiddenBootstrap95": [
+            0.978182,
+            0.994545
+          ],
+          "completed": 18,
+          "visibleOnlyStops": 5,
+          "meanTotalRounds": 8.52,
+          "meanPreRepairHidden": 0.787273,
+          "repeatedFailedRepairRate": 0.428571,
+          "noteClears": 42
+        }
+      },
+      "contrasts": {
+        "stepsEffectNoClear": {
+          "estimate": 0.087273,
+          "bootstrap95": [
+            0.052727,
+            0.123636
+          ]
+        },
+        "stepsEffectClear": {
+          "estimate": 0.069091,
+          "bootstrap95": [
+            0.038182,
+            0.110909
+          ]
+        },
+        "clearEffectEqual": {
+          "estimate": 0.018182,
+          "bootstrap95": [
+            -0.032727,
+            0.0655
+          ]
+        },
+        "clearEffectSteps": {
+          "estimate": 0,
+          "bootstrap95": [
+            -0.012727,
+            0.014545
+          ]
+        },
+        "interaction": {
+          "estimate": -0.018182,
+          "bootstrap95": [
+            -0.067273,
+            0.034545
+          ]
+        }
+      }
+    },
+    {
+      "task": "normal",
+      "sessions": 100,
+      "byArm": {
+        "equal_note": {
+          "n": 25,
+          "meanFinalHidden": 0.886154,
+          "meanFinalHiddenBootstrap95": [
+            0.861538,
+            0.907692
+          ],
+          "completed": 0,
+          "visibleOnlyStops": 0,
+          "meanTotalRounds": 24,
+          "meanPreRepairHidden": 0.750769,
+          "repeatedFailedRepairRate": 0.571111,
+          "noteClears": 0
+        },
+        "equal_note_clear": {
+          "n": 25,
+          "meanFinalHidden": 0.864615,
+          "meanFinalHiddenBootstrap95": [
+            0.84,
+            0.886154
+          ],
+          "completed": 0,
+          "visibleOnlyStops": 0,
+          "meanTotalRounds": 24,
+          "meanPreRepairHidden": 0.743077,
+          "repeatedFailedRepairRate": 0.686667,
+          "noteClears": 135
+        },
+        "steps_note": {
+          "n": 25,
+          "meanFinalHidden": 0.972308,
+          "meanFinalHiddenBootstrap95": [
+            0.952308,
+            0.989231
+          ],
+          "completed": 17,
+          "visibleOnlyStops": 0,
+          "meanTotalRounds": 15.96,
+          "meanPreRepairHidden": 0.903077,
+          "repeatedFailedRepairRate": 0.449799,
+          "noteClears": 0
+        },
+        "steps_note_clear": {
+          "n": 25,
+          "meanFinalHidden": 0.949231,
+          "meanFinalHiddenBootstrap95": [
+            0.918462,
+            0.976923
+          ],
+          "completed": 13,
+          "visibleOnlyStops": 0,
+          "meanTotalRounds": 16.96,
+          "meanPreRepairHidden": 0.923077,
+          "repeatedFailedRepairRate": 0.576642,
+          "noteClears": 92
+        }
+      },
+      "contrasts": {
+        "stepsEffectNoClear": {
+          "estimate": 0.086154,
+          "bootstrap95": [
+            0.056923,
+            0.116923
+          ]
+        },
+        "stepsEffectClear": {
+          "estimate": 0.084615,
+          "bootstrap95": [
+            0.047692,
+            0.12
+          ]
+        },
+        "clearEffectEqual": {
+          "estimate": -0.021538,
+          "bootstrap95": [
+            -0.053846,
+            0.010769
+          ]
+        },
+        "clearEffectSteps": {
+          "estimate": -0.023077,
+          "bootstrap95": [
+            -0.058462,
+            0.010769
+          ]
+        },
+        "interaction": {
+          "estimate": -0.001538,
+          "bootstrap95": [
+            -0.050769,
+            0.044615
+          ]
+        }
+      }
+    },
+    {
+      "task": "hard",
+      "sessions": 100,
+      "byArm": {
+        "equal_note": {
+          "n": 25,
+          "meanFinalHidden": 0.418182,
+          "meanFinalHiddenBootstrap95": [
+            0.367273,
+            0.469091
+          ],
+          "completed": 0,
+          "visibleOnlyStops": 0,
+          "meanTotalRounds": 24,
+          "meanPreRepairHidden": 0.236364,
+          "repeatedFailedRepairRate": 0.586667,
+          "noteClears": 0
+        },
+        "equal_note_clear": {
+          "n": 25,
+          "meanFinalHidden": 0.476364,
+          "meanFinalHiddenBootstrap95": [
+            0.430909,
+            0.521818
+          ],
+          "completed": 0,
+          "visibleOnlyStops": 0,
+          "meanTotalRounds": 24,
+          "meanPreRepairHidden": 0.276364,
+          "repeatedFailedRepairRate": 0.535556,
+          "noteClears": 135
+        },
+        "steps_note": {
+          "n": 25,
+          "meanFinalHidden": 0.758182,
+          "meanFinalHiddenBootstrap95": [
+            0.729091,
+            0.787273
+          ],
+          "completed": 0,
+          "visibleOnlyStops": 0,
+          "meanTotalRounds": 24,
+          "meanPreRepairHidden": 0.747273,
+          "repeatedFailedRepairRate": 0.711111,
+          "noteClears": 0
+        },
+        "steps_note_clear": {
+          "n": 25,
+          "meanFinalHidden": 0.76,
+          "meanFinalHiddenBootstrap95": [
+            0.72,
+            0.798182
+          ],
+          "completed": 0,
+          "visibleOnlyStops": 0,
+          "meanTotalRounds": 24,
+          "meanPreRepairHidden": 0.770909,
+          "repeatedFailedRepairRate": 0.606667,
+          "noteClears": 135
+        }
+      },
+      "contrasts": {
+        "stepsEffectNoClear": {
+          "estimate": 0.34,
+          "bootstrap95": [
+            0.281818,
+            0.398182
+          ]
+        },
+        "stepsEffectClear": {
+          "estimate": 0.283636,
+          "bootstrap95": [
+            0.223636,
+            0.343636
+          ]
+        },
+        "clearEffectEqual": {
+          "estimate": 0.058182,
+          "bootstrap95": [
+            -0.009091,
+            0.125455
+          ]
+        },
+        "clearEffectSteps": {
+          "estimate": 0.001818,
+          "bootstrap95": [
+            -0.047273,
+            0.049136
+          ]
+        },
+        "interaction": {
+          "estimate": -0.056364,
+          "bootstrap95": [
+            -0.138182,
+            0.025455
+          ]
+        }
+      }
+    }
+  ],
+  "conclusion": "Project steps improve final hidden-test accuracy across all three task difficulties; note clearing and its interaction with presentation are not stable.",
+  "claimBoundary": "LLM-agent mechanism experiment; not an estimate of effects on human students or people with ADHD."
+}
