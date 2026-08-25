@@ -262,7 +262,7 @@ function noteInstruction(maximumCharacters, version = 'note', partsRepeat = fals
       'Write only these two keys: rules and checks. The harness adds read-only status and todo fields after grading.',
       'Each short source rule in the current task part has an ID such as P2-L3.',
       'rules: an array of source ID strings, ordered most important first. Use only IDs from the current task part or inherit IDs from the preceding note. The harness carries and displays the authoritative text for each accepted ID, drops unsupported IDs, and drops lowest-priority IDs from the end if the expanded note exceeds the limit.',
-      'checks: up to three executable observations, each written as one Python assert statement. Example: "assert parse_amount(\'1e2\') is None". Use only a public function, literal arguments, and ==, !=, is, or is not.',
+      'checks: up to three executable observations, each written as one Python assert statement of at most 1000 characters. Example: "assert parse_amount(\'1e2\') is None". Use ==, !=, is, or is not. Start from public task functions; signed numeric literals, date/datetime/timedelta/Decimal constructors, nested public task calls, and literal integer/string indexing of returned lists or dictionaries are allowed. Variables, slices, arbitrary attributes, comprehensions, and other calls are not allowed.',
       'A check asks what the current code does. OBSERVED_PASS does not prove that the behaviour is required by the task. Never copy a check into rules unless a visible task line states the same rule.',
       'Checks expire quickly. Resubmit a useful passing check to keep it; drop checks that failed or are no longer useful.',
       'status and todo are produced only from official visible tests. Do not write or override them.',
@@ -320,19 +320,53 @@ function noteInstruction(maximumCharacters, version = 'note', partsRepeat = fals
   return rules.join('\n');
 }
 
+function firstJsonObject(text) {
+  const source = String(text ?? '');
+  let start = 0;
+  while (/\s/.test(source[start] ?? '')) start += 1;
+
+  const fence = source.slice(start).match(/^```(?:json)?[ \t]*(?:\r?\n|$)/i);
+  if (fence) {
+    start += fence[0].length;
+    while (/\s/.test(source[start] ?? '')) start += 1;
+  }
+  if (source[start] !== '{') return null;
+
+  const delimiters = [];
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < source.length; index += 1) {
+    const character = source[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+    if (character === '"') {
+      inString = true;
+      continue;
+    }
+    if (character === '{' || character === '[') {
+      delimiters.push(character);
+      continue;
+    }
+    if (character !== '}' && character !== ']') continue;
+    const expected = character === '}' ? '{' : '[';
+    if (delimiters.pop() !== expected) return null;
+    if (delimiters.length === 0) return source.slice(start, index + 1);
+  }
+  return null;
+}
+
 function parseNote(raw, maximumCharacters, version = 'note', maximumWords = 300) {
   const source = String(raw ?? '');
   const marker = source.match(/^NOTE:\s*/im);
   let full = '';
   if (version === 'source-note') {
     const remainder = (marker ? source.slice(marker.index + marker[0].length) : source).trimStart();
-    const fenced = remainder.match(/^```(?:json)?\s*\n([\s\S]*?)^```/m);
-    if (fenced) {
-      full = fenced[1].trim();
-    } else {
-      const pythonFence = remainder.search(/^```python\s*$/m);
-      full = (pythonFence >= 0 ? remainder.slice(0, pythonFence) : remainder).trim();
-    }
+    const jsonObject = firstJsonObject(remainder);
+    full = (jsonObject ?? remainder).trim();
   } else if (marker && version === 'structured-note') {
     const remainder = source.slice(marker.index + marker[0].length);
     const fenceIndex = remainder.search(/^```/m);
@@ -742,7 +776,7 @@ async function resolveNote({ protocol, resolution, raw, callPath, identity, seed
     return {
       ...parsed, note: canonicalJson(normalised.value).trim(), truncated: adjusted,
       compressionApplied: adjusted, compressionSucceeded: true, compressionHardCapped: false,
-      validationRetried: false, validationValid: true, validationErrors: normalised.corrections,
+      validationRetried: false, validationValid: Boolean(submitted), validationErrors: normalised.corrections,
       studentCalls: 0, mechanicalFailure: null,
     };
   }
@@ -1175,7 +1209,7 @@ if (require.main === module) {
 
 module.exports = {
   ARMS, CLEAR_ARMS, compactFeedback, completionCapRetryPrompt, loadProtocol, mergeCandidate,
-  noteCompressionPrompt, noteInstruction, parseNote,
+  firstJsonObject, noteCompressionPrompt, noteInstruction, parseNote,
   noteClearApplied, preflight, repairPrompt, runSession, scheduledNoteClearRounds,
   sessionSchedule, stagePrompt, summarise,
 };

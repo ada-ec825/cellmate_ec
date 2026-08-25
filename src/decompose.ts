@@ -103,6 +103,20 @@ function normaliseStep(step: any): any {
   return { ...rest, intent };
 }
 
+/**
+ * Escape a double quote that a backtick marks as literal text.
+ *
+ * Steps quote names in backticks, and where the exercise prints a name with
+ * quotes of its own the model writes `"type"` into a JSON string without
+ * escaping either quote, ending the string early and costing a whole
+ * regeneration. A quote with a backtick against it is text, not a delimiter.
+ * Only reached once plainer repairs have already failed, so it cannot turn a
+ * well-formed reply into a broken one.
+ */
+function protectQuotedLiterals(jsonText: string): string {
+  return jsonText.replace(/`"|"`/g, (match) => match.replace('"', '\\"'));
+}
+
 /** Outcome of parsing one LLM response into a Decomposition. */
 export type ParseDecompositionResult =
   | { ok: true; decomposition: Decomposition }
@@ -191,15 +205,24 @@ export function parseDecomposition(raw: string, exerciseId: string): ParseDecomp
   }
 
   const guarded = protectLatexCommands(jsonText);
+  // Each fallback is strictly more aggressive than the last, and none runs
+  // until the plainer reading has already failed.
   let data: any;
-  try {
-    data = JSON.parse(guarded);
-  } catch (e: any) {
+  let firstError: any = null;
+  for (const candidate of [
+    guarded,
+    repairInvalidEscapes(guarded),
+    protectQuotedLiterals(repairInvalidEscapes(guarded)),
+  ]) {
     try {
-      data = JSON.parse(repairInvalidEscapes(guarded));
-    } catch {
-      return { ok: false, reason: `invalid JSON: ${e.message}` };
+      data = JSON.parse(candidate);
+      break;
+    } catch (e: any) {
+      firstError = firstError ?? e;
     }
+  }
+  if (data === undefined) {
+    return { ok: false, reason: `invalid JSON: ${firstError?.message ?? firstError}` };
   }
 
   const candidate: Decomposition = {
