@@ -16,8 +16,8 @@ DATA = json.loads((ROOT / "data" / "analysis.json").read_text())
 OUTPUT = ROOT / "results.png"
 TASK_LABELS = {"simple": "Simple", "normal": "Normal", "hard": "Hard"}
 ARMS = [
-    ("equal_note", "Equal chunks", "#777777", ""),
-    ("equal_note_clear", "Equal + clear", "#BBBBBB", "//"),
+    ("plain_note", "Plain", "#777777", ""),
+    ("plain_note_clear", "Plain + clear", "#BBBBBB", "//"),
     ("steps_note", "Steps", "#2369A8", ""),
     ("steps_note_clear", "Steps + clear", "#8DB9DE", "//"),
 ]

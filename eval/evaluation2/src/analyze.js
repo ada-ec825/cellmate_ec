@@ -7,11 +7,17 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const DATA = path.join(ROOT, 'data');
 const TASKS = ['simple', 'normal', 'hard'];
-const ARMS = ['equal_note', 'equal_note_clear', 'steps_note', 'steps_note_clear'];
+const ARMS = ['plain_note', 'plain_note_clear', 'steps_note', 'steps_note_clear'];
+
+const LEGACY_ARMS = {
+  equal_note: 'plain_note',
+  equal_note_clear: 'plain_note_clear',
+};
 
 function readRows(task) {
   return fs.readFileSync(path.join(DATA, `${task}.jsonl`), 'utf8')
-    .split('\n').filter(Boolean).map(JSON.parse);
+    .split('\n').filter(Boolean).map(JSON.parse)
+    .map((row) => ({ ...row, arm: LEGACY_ARMS[row.arm] ?? row.arm }));
 }
 function mean(values) { return values.reduce((sum, value) => sum + value, 0) / values.length; }
 function percentile(values, p) {
@@ -33,12 +39,12 @@ function randomGenerator(seed) {
 }
 function contrasts(values) {
   return {
-    stepsEffectNoClear: values.steps_note - values.equal_note,
-    stepsEffectClear: values.steps_note_clear - values.equal_note_clear,
-    clearEffectEqual: values.equal_note_clear - values.equal_note,
+    stepsEffectNoClear: values.steps_note - values.plain_note,
+    stepsEffectClear: values.steps_note_clear - values.plain_note_clear,
+    clearEffectPlain: values.plain_note_clear - values.plain_note,
     clearEffectSteps: values.steps_note_clear - values.steps_note,
     interaction: (values.steps_note_clear - values.steps_note) -
-      (values.equal_note_clear - values.equal_note),
+      (values.plain_note_clear - values.plain_note),
   };
 }
 
@@ -101,7 +107,7 @@ function analyzeTask(task, bootstrapSeed) {
 function main() {
   const output = {
     model: 'gpt-4o-mini-2024-07-18',
-    design: 'equal chunks / project steps x note retained / cleared',
+    design: 'plain source-order parts / project steps x note retained / cleared',
     sessions: 300,
     bootstrap: { resamples: 10_000, unit: 'independent session' },
     tasks: TASKS.map((task, index) => analyzeTask(task, 824001 + index)),

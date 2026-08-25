@@ -2,36 +2,63 @@
   "version": "presentations",
   "numberOfStages": 6,
   "arms": {
-    "equal_chunks": [
+    "plain": [
       {
-        "title": "Background and global conventions",
-        "text": "Implement an order-payment reconciliation tool. Store all amounts as integer cents and process only USD records. Silently skip invalid records. After conversion, amount magnitude cannot exceed 1,000,000 cents. Timestamps may use YYYY-MM-DD HH:MM or YYYY-MM-DD HH:MM:SS, and no other format. Trim identifiers. Every ORDER_ID must start with exact prefix ORD-.",
-        "words": 50
+        "title": "Part 1 of 6 — Background and global conventions",
+        "words": 83,
+        "text": "Implement a reconciliation tool for an e-commerce settlement team. These rules apply throughout the tool:\n\n- Store every amount as integer cents and process only `USD` records.\n- Silently skip invalid records; never raise or print for bad input.\n- An amount whose absolute value exceeds `1,000,000` cents (`$10,000.00`) is invalid.\n- A timestamp may use either `YYYY-MM-DD HH:MM` or `YYYY-MM-DD HH:MM:SS`, with valid calendar values. Other formats are invalid.\n- Trim both identifiers. Every `ORDER_ID` must start with the exact prefix `ORD-`."
       },
       {
-        "title": "Data and release-wide rules",
-        "text": "Each line is TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP. TYPE is case-insensitive ORDER or PAYMENT and stored uppercase. IDs remain non-empty. Amounts allow digits, one decimal point, optional leading minus, and up to three fractional digits; reject scientific notation and round a third digit half-up. Negative orders are invalid and negative payments are refunds. Duplicate record IDs keep the first valid occurrence. Refunds count only when their order exists. Final unmatched order IDs are unique. Final net_total cannot be negative. The final summary includes exact key refund_total.",
-        "words": 82
+        "title": "Part 2 of 6 — Data and release-wide rules",
+        "words": 122,
+        "text": "Each line has six `|`-separated fields:\n\n```text\nTYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP\n```\n\n`TYPE` is case-insensitive `ORDER` or `PAYMENT` and is stored uppercase. IDs must remain non-empty after trimming. Amounts contain digits and at most one decimal point, with an optional leading minus sign. Scientific notation is invalid. At most three fractional digits are accepted; round a third digit to cents using round-half-up. Negative orders are invalid and negative payments are refunds. Duplicate record IDs keep the first valid occurrence.\n\nOnly refunds whose `order_id` belongs to an existing order count toward the refund total. Final unmatched order IDs must be unique. Final `net_total` cannot be negative and is reported as `0` when the calculation is below zero. The final summary includes a key named exactly `refund_total`."
       },
       {
-        "title": "Summary report",
-        "text": "build_summary(matches, refund_total) returns exactly total_orders, matched_count, refund_total, net_total, and unmatched_ids. Count status exactly lowercase matched. net_total is matched amounts minus refund_total with a zero lower bound. unmatched_ids is a deduplicated ascending lexicographic list.",
-        "words": 33
+        "title": "Part 3 of 6 — Summary report",
+        "words": 41,
+        "text": "`build_summary(matches, refund_total)` returns exactly five keys: `total_orders`, `matched_count`, `refund_total`, `net_total`, and `unmatched_ids`. Count results whose status is exactly lowercase `matched`. `net_total` is matched payment amounts minus `refund_total`, with the zero lower bound stated earlier. `unmatched_ids` is a deduplicated ascending lexicographic list."
       },
       {
-        "title": "Payment matching",
-        "text": "match_payments returns one result per order. A non-refund payment initially qualifies from the order time through exactly 72 hours later, subject to the release clarification. Choose the earliest timestamp and retained source order for a tie. Refunds never match. Return exactly order_id, status, amount, with lowercase matched or unmatched and unmatched amount 0.",
-        "words": 53
+        "title": "Part 4 of 6 — Payment matching",
+        "words": 70,
+        "text": "`match_payments(records)` returns one result per order in retained order-record order. A non-refund payment initially qualifies from the order timestamp through exactly 72 hours later, subject to the release clarification in Part 6. If several qualify, choose the earliest timestamp and break an exact tie by retained source order. Refunds never match. Each result has exactly `order_id`, `status`, and `amount`; status is lowercase `matched` or `unmatched`, and unmatched amount is `0`."
       },
       {
-        "title": "Parsing, loading, and refunds",
-        "text": "parse_amount applies all amount rules. parse_record applies the six-field, ID, currency, timestamp, and negative-order rules and returns exactly type, record_id, order_id, amount, currency, timestamp, or None. load_records skips invalid rows and keeps the first valid duplicate record ID. compute_refunds returns the positive sum of negative payments whose order exists. No function mutates input or stores global state.",
-        "words": 57
+        "title": "Part 5 of 6 — Parsing, loading, and refunds",
+        "words": 92,
+        "text": "`parse_amount(s)` applies all amount syntax, rounding, and limit rules; negative values remain negative because payment refunds need them. Apply the `1,000,000` limit after conversion to cents. `parse_record(line)` applies the six-field format, ID, currency, timestamp, and negative-order rules and returns a dictionary with exactly `type`, `record_id`, `order_id`, `amount`, `currency`, and `timestamp`, or `None`. `load_records(text)` silently skips invalid rows, preserves input order, and keeps the first valid duplicate record ID. `compute_refunds(records)` returns the positive sum of qualifying negative payment amounts under the existing-order rule.\n\nFunctions do not mutate input objects or store global state."
       },
       {
-        "title": "Release clarification",
-        "text": "The released matching window changes the earlier endpoint: a payment must occur strictly less than 72 hours after the order. A payment at exactly 72 hours is outside the window. The order timestamp itself remains included. No other rule changes.",
-        "words": 40
+        "title": "Part 6 of 6 — Release clarification",
+        "words": 43,
+        "text": "The released matching window changes the endpoint stated in Part 4: a payment must occur **strictly less than 72 hours** after the order. A payment at exactly 72 hours is outside the window. The order timestamp itself remains included. No other rule changes."
+      }
+    ],
+    "plain_5parts": [
+      {
+        "title": "Part 1 of 5 — Background and global conventions",
+        "words": 83,
+        "text": "Implement a reconciliation tool for an e-commerce settlement team. These rules apply throughout the tool:\n\n- Store every amount as integer cents and process only `USD` records.\n- Silently skip invalid records; never raise or print for bad input.\n- An amount whose absolute value exceeds `1,000,000` cents (`$10,000.00`) is invalid.\n- A timestamp may use either `YYYY-MM-DD HH:MM` or `YYYY-MM-DD HH:MM:SS`, with valid calendar values. Other formats are invalid.\n- Trim both identifiers. Every `ORDER_ID` must start with the exact prefix `ORD-`."
+      },
+      {
+        "title": "Part 2 of 5 — Data and release-wide rules",
+        "words": 122,
+        "text": "Each line has six `|`-separated fields:\n\n```text\nTYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP\n```\n\n`TYPE` is case-insensitive `ORDER` or `PAYMENT` and is stored uppercase. IDs must remain non-empty after trimming. Amounts contain digits and at most one decimal point, with an optional leading minus sign. Scientific notation is invalid. At most three fractional digits are accepted; round a third digit to cents using round-half-up. Negative orders are invalid and negative payments are refunds. Duplicate record IDs keep the first valid occurrence.\n\nOnly refunds whose `order_id` belongs to an existing order count toward the refund total. Final unmatched order IDs must be unique. Final `net_total` cannot be negative and is reported as `0` when the calculation is below zero. The final summary includes a key named exactly `refund_total`."
+      },
+      {
+        "title": "Part 3 of 5 — Summary report and payment matching",
+        "words": 111,
+        "text": "`build_summary(matches, refund_total)` returns exactly five keys: `total_orders`, `matched_count`, `refund_total`, `net_total`, and `unmatched_ids`. Count results whose status is exactly lowercase `matched`. `net_total` is matched payment amounts minus `refund_total`, with the zero lower bound stated earlier. `unmatched_ids` is a deduplicated ascending lexicographic list.\n\n`match_payments(records)` returns one result per order in retained order-record order. A non-refund payment initially qualifies from the order timestamp through exactly 72 hours later, subject to the release clarification in Part 5. If several qualify, choose the earliest timestamp and break an exact tie by retained source order. Refunds never match. Each result has exactly `order_id`, `status`, and `amount`; status is lowercase `matched` or `unmatched`, and unmatched amount is `0`."
+      },
+      {
+        "title": "Part 4 of 5 — Parsing, loading, and refunds",
+        "words": 92,
+        "text": "`parse_amount(s)` applies all amount syntax, rounding, and limit rules; negative values remain negative because payment refunds need them. Apply the `1,000,000` limit after conversion to cents. `parse_record(line)` applies the six-field format, ID, currency, timestamp, and negative-order rules and returns a dictionary with exactly `type`, `record_id`, `order_id`, `amount`, `currency`, and `timestamp`, or `None`. `load_records(text)` silently skips invalid rows, preserves input order, and keeps the first valid duplicate record ID. `compute_refunds(records)` returns the positive sum of qualifying negative payment amounts under the existing-order rule.\n\nFunctions do not mutate input objects or store global state."
+      },
+      {
+        "title": "Part 5 of 5 — Release clarification",
+        "words": 43,
+        "text": "The released matching window changes the endpoint stated in Part 3: a payment must occur **strictly less than 72 hours** after the order. A payment at exactly 72 hours is outside the window. The order timestamp itself remains included. No other rule changes."
       }
     ],
     "project_steps": [

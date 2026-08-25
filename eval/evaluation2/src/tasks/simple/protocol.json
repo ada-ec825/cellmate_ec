@@ -4,10 +4,10 @@
   "designSource": "method.md",
   "task": "reconciliation",
   "model": {"spec": "openai-responses:gpt-4o-mini-2024-07-18", "snapshot": "gpt-4o-mini-2024-07-18"},
-  "arms": ["equal_note", "equal_note_clear", "steps_note", "steps_note_clear"],
+  "arms": ["plain_note", "plain_note_clear", "steps_note", "steps_note_clear"],
   "cellDefinitions": {
-    "equal_note": {"presentation": "equal_chunks", "noteClear": false},
-    "equal_note_clear": {"presentation": "equal_chunks", "noteClear": true},
+    "plain_note": {"presentation": "plain", "noteClear": false},
+    "plain_note_clear": {"presentation": "plain", "noteClear": true},
     "steps_note": {"presentation": "project_steps", "noteClear": false},
     "steps_note_clear": {"presentation": "project_steps", "noteClear": true}
   },
@@ -37,6 +37,6 @@
     "visibleTests": "tasks/simple/test_visible.py",
     "hiddenTests": "tasks/simple/test_hidden.py"
   },
-  "rules": {"completeNoteReplacesPreviousNoteEveryRound": true, "noteUsesAtomicSourceRules": true, "hardNoteWordLimit": 300, "maximumTotalRounds": 24},
+  "rules": {"completeNoteReplacesPreviousNoteEveryRound": true, "noteUsesAtomicSourceRules": true, "hardNoteWordLimit": 300, "maximumTotalRounds": 24, "repair": true},
   "formalRun": {"requiredRunId": "formal-simple-100", "expectedSessions": 100, "maximumStudentCalls": 4800}
 }

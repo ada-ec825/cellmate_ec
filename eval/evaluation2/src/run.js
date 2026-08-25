@@ -15,7 +15,7 @@ const RUNS = path.join(__dirname, '..', 'runs');
 const DEFAULT_PROTOCOL = path.join(__dirname, 'tasks', 'normal', 'protocol.json');
 const MODEL_SNAPSHOT = 'gpt-4o-mini-2024-07-18';
 const FUNCTIONS = ['parse_amount', 'parse_record', 'load_records', 'match_payments', 'compute_refunds', 'build_summary'];
-const ARMS = ['equal_note', 'equal_note_clear', 'steps_note', 'steps_note_clear'];
+const ARMS = ['plain_note', 'plain_note_clear', 'steps_note', 'steps_note_clear'];
 const CLEAR_ARMS = ARMS;
 const TASK_FUNCTIONS = {
   reconciliation: FUNCTIONS,
@@ -175,18 +175,19 @@ function loadProtocol(filename, runId = null) {
       protocol.numPredict !== 1800 || protocol.maximumFinalRepairRounds !== expected.repairs ||
       (protocol.maximumCompletionCapRetries ?? 0) !== (expected.capRetries ?? 0) ||
       protocol.maximumTransportAttempts !== 3 ||
+      protocol.rules?.repair !== true ||
       protocol.formalRun?.expectedSessions !== expected.sessions ||
       protocol.formalRun?.maximumStudentCalls !== expected.calls) {
     throw new Error('protocol settings do not match this experiment');
   }
   const expectedCells = probabilisticClear ? {
-    equal_note: { presentation: 'equal_chunks', noteClear: false },
-    equal_note_clear: { presentation: 'equal_chunks', noteClear: true },
+    plain_note: { presentation: 'plain', noteClear: false },
+    plain_note_clear: { presentation: 'plain', noteClear: true },
     steps_note: { presentation: 'project_steps', noteClear: false },
     steps_note_clear: { presentation: 'project_steps', noteClear: true },
   } : {
-    equal_note: { presentation: 'equal_chunks', noteWipe: false },
-    equal_note_wipe: { presentation: 'equal_chunks', noteWipe: true },
+    plain_note: { presentation: 'plain', noteWipe: false },
+    plain_note_wipe: { presentation: 'plain', noteWipe: true },
     steps_note: { presentation: 'project_steps', noteWipe: false },
     steps_note_wipe: { presentation: 'project_steps', noteWipe: true },
   };
@@ -195,7 +196,7 @@ function loadProtocol(filename, runId = null) {
   }
   if (expected.smoke) {
     if (protocol.smokeGate?.requiredStepsNoteCompletions !== 2 ||
-        protocol.smokeGate?.requiredEqualNoteCompletions !== 1 ||
+        protocol.smokeGate?.requiredPlainNoteCompletions !== 1 ||
         protocol.smokeGate?.minimumStepsNoteMedianRounds !== expected.smokeMinRounds ||
         protocol.smokeGate?.maximumStepsNoteMedianRounds !== expected.smokeMaxRounds ||
         protocol.smokeGate?.maximumMechanicalFailures !== 0 ||
@@ -212,7 +213,7 @@ function loadProtocol(filename, runId = null) {
   const assets = Object.fromEntries(Object.entries(protocol.assets).map(([key, relative]) => [key, readRoot(relative)]));
   const presentations = JSON.parse(assets.presentations);
   if (presentations.version !== expected.presentationVersion || presentations.numberOfStages !== expected.stages ||
-      presentations.arms?.equal_chunks?.length !== expected.stages ||
+      presentations.arms?.plain?.length !== expected.stages ||
       presentations.arms?.project_steps?.length !== expected.stages) {
     throw new Error('presentation material does not match the protocol');
   }
@@ -527,7 +528,7 @@ function stagePrompt({
   repeatParts = false, absoluteRound = stage, maximumTotalRounds = numberOfStages,
   readingPass = 1, totalReadingPasses = 1,
 }) {
-  const label = presentation === 'equal_chunks' ? 'equal source-order part' : 'project step';
+  const label = String(presentation).startsWith('plain') ? 'plain source-order part' : 'project step';
   const noteFirst = true;
   const noteOutputRule = noteInstructionVersion === 'source-note'
     ? `First write NOTE: followed by one valid JSON object with only rules and checks. Do not use a JSON markdown fence. Stay within ${maximumNoteWords} words.`
@@ -595,6 +596,11 @@ function compactFeedback(result, requirementMap = {}, repeatedFailedCode = false
   }).join('\n');
 }
 
+function repairCandidateAccepted(rules, currentVisible, candidateVisible) {
+  if (rules?.repair !== true) return true;
+  return candidateVisible.fraction >= currentVisible.fraction;
+}
+
 function repairPrompt({
   repairRound, maximum, code, feedback, note, maximumNoteCharacters,
   numberOfStages = 5, interfaceLines = null, noteInstructionVersion = 'note',
@@ -603,7 +609,7 @@ function repairPrompt({
   absoluteRound = null, maximumTotalRounds = null, readingPass = null,
   totalReadingPasses = null, partIndex = null,
 }) {
-  const label = presentation === 'equal_chunks' ? 'equal source-order part' : 'project step';
+  const label = String(presentation).startsWith('plain') ? 'plain source-order part' : 'project step';
   const noteFirst = true;
   const noteOutputRule = noteInstructionVersion === 'source-note'
     ? `First write NOTE: followed by one valid JSON object with only rules and checks. Do not use a JSON markdown fence. Stay within ${maximumNoteWords} words.`
@@ -829,17 +835,25 @@ async function resolveNote({ protocol, resolution, raw, callPath, identity, seed
 async function runSession({ protocol, presentations, assets, resolution, arm, seed, callPath, executionId }) {
   const definition = protocol.cellDefinitions[arm];
   const presentation = definition.presentation;
+  const numberOfStages = definition.numberOfStages ?? protocol.numberOfStages;
   const functionNames = protocol.functionNames ?? FUNCTIONS;
   const interfaceLines = protocol.stableInterfaceLines ?? null;
   const repeatParts = protocol.rules?.repeatPartsAfterFirstPass === true;
-  const maximumTotalRounds = protocol.numberOfStages + protocol.maximumFinalRepairRounds;
-  const totalReadingPasses = Math.ceil(maximumTotalRounds / protocol.numberOfStages);
+  const maximumFinalRepairRounds = definition.maximumFinalRepairRounds ??
+    ((protocol.rules?.maximumTotalRounds ??
+      (numberOfStages + protocol.maximumFinalRepairRounds)) - numberOfStages);
+  const maximumTotalRounds = numberOfStages + maximumFinalRepairRounds;
+  if (!Number.isInteger(numberOfStages) || numberOfStages < 1 ||
+      presentations.arms[presentation]?.length !== numberOfStages || maximumFinalRepairRounds < 0) {
+    throw new Error(`invalid per-arm stage or round configuration for ${arm}`);
+  }
+  const totalReadingPasses = Math.ceil(maximumTotalRounds / numberOfStages);
   let code = assets.starter;
   let note = '';
   let mechanicalFailures = 0;
   const requirementMap = JSON.parse(assets.requirementTestMap);
   const stageRows = [];
-  for (let stage = 1; stage <= protocol.numberOfStages; stage += 1) {
+  for (let stage = 1; stage <= numberOfStages; stage += 1) {
     const installment = presentations.arms[presentation][stage - 1];
     const noteBeforeClear = note;
     const clearApplied = noteClearApplied(protocol, definition, seed, stage);
@@ -848,7 +862,7 @@ async function runSession({ protocol, presentations, assets, resolution, arm, se
       presentation, installment, stage, code, note,
       maximumNoteCharacters: protocol.maximumNoteCharacters,
       maximumNoteWords: protocol.maximumNoteWords ?? 300,
-      numberOfStages: protocol.numberOfStages, interfaceLines,
+      numberOfStages, interfaceLines,
       noteInstructionVersion: protocol.noteInstructionVersion,
       repeatParts, absoluteRound: stage, maximumTotalRounds,
       readingPass: 1, totalReadingPasses,
@@ -895,22 +909,29 @@ async function runSession({ protocol, presentations, assets, resolution, arm, se
   const preRepairHidden = await grade(code, assets.hiddenTests);
   const repairRows = [];
   let repeatedFailedCode = false;
-  for (let repairRound = 1; repairRound <= protocol.maximumFinalRepairRounds; repairRound += 1) {
+  let previousRepairRejected = false;
+  for (let repairRound = 1; repairRound <= maximumFinalRepairRounds; repairRound += 1) {
     const currentVisible = await grade(code, assets.visibleTests);
     if (currentVisible.fraction === 1) break;
-    const absoluteRound = protocol.numberOfStages + repairRound;
-    const readingPass = Math.floor((absoluteRound - 1) / protocol.numberOfStages) + 1;
-    const partIndex = ((absoluteRound - 1) % protocol.numberOfStages) + 1;
+    const absoluteRound = numberOfStages + repairRound;
+    const readingPass = Math.floor((absoluteRound - 1) / numberOfStages) + 1;
+    const partIndex = ((absoluteRound - 1) % numberOfStages) + 1;
     const installment = repeatParts ? presentations.arms[presentation][partIndex - 1] : null;
     const noteBeforeClear = note;
     const clearApplied = noteClearApplied(protocol, definition, seed, absoluteRound);
     if (clearApplied) note = '';
+    const baseFeedback = compactFeedback(
+      currentVisible, requirementMap, repeatedFailedCode, protocol.noteInstructionVersion,
+    );
+    const feedback = previousRepairRejected
+      ? `IMPORTANT: The previous repair was rejected because it reduced the visible-test score. The retained code below is the last non-regressing version. Make a narrower change and preserve its passing behavior.\n${baseFeedback}`
+      : baseFeedback;
     const prompt = repairPrompt({
-      repairRound, maximum: protocol.maximumFinalRepairRounds, code,
-      feedback: compactFeedback(currentVisible, requirementMap, repeatedFailedCode, protocol.noteInstructionVersion), note,
+      repairRound, maximum: maximumFinalRepairRounds, code,
+      feedback, note,
       maximumNoteCharacters: protocol.maximumNoteCharacters,
       maximumNoteWords: protocol.maximumNoteWords ?? 300,
-      numberOfStages: protocol.numberOfStages, interfaceLines,
+      numberOfStages, interfaceLines,
       noteInstructionVersion: protocol.noteInstructionVersion,
       repeatParts, presentation, installment, absoluteRound, maximumTotalRounds,
       readingPass, totalReadingPasses, partIndex,
@@ -922,10 +943,13 @@ async function runSession({ protocol, presentations, assets, resolution, arm, se
       identity: { executionId, arm, generationSeed: seed, phase: 'final_repair', repairRound },
     });
     if (response.mechanicalFailure) mechanicalFailures += 1;
-    const merged = mergeCandidate(code, response.raw, functionNames);
+    const codeBeforeRepair = code;
+    const merged = mergeCandidate(codeBeforeRepair, response.raw, functionNames);
     const thisReplyRepeatedFailedCode = merged.candidateFunctions.length > 0 && merged.applied.length === 0;
-    code = merged.code;
-    const visible = await grade(code, assets.visibleTests);
+    const candidateVisible = await grade(merged.code, assets.visibleTests);
+    const repairAccepted = repairCandidateAccepted(protocol.rules, currentVisible, candidateVisible);
+    code = repairAccepted ? merged.code : codeBeforeRepair;
+    const visible = repairAccepted ? candidateVisible : currentVisible;
     const hidden = await grade(code, assets.hiddenTests);
     const parsedNote = await resolveNote({
       protocol, resolution, raw: response.raw, callPath, seed: callSeed,
@@ -936,9 +960,17 @@ async function runSession({ protocol, presentations, assets, resolution, arm, se
     if (parsedNote.mechanicalFailure) mechanicalFailures += 1;
     note = parsedNote.note;
     repairRows.push({
-      repairRound, appliedFunctions: merged.applied, extractionSource: merged.extractionSource,
+      repairRound,
+      appliedFunctions: repairAccepted ? merged.applied : [],
+      candidateAppliedFunctions: merged.applied,
+      extractionSource: merged.extractionSource,
       visibleFraction: visible.fraction, hiddenFraction: hidden.fraction,
       repeatedFailedCode: thisReplyRepeatedFailedCode, codeSha256: sha256(code),
+      repairRule: protocol.rules?.repair === true ? 'repair' : null,
+      repairAccepted,
+      repairRejectedReason: repairAccepted ? null : 'visible_score_decreased',
+      candidateVisibleFraction: candidateVisible.fraction,
+      candidateCodeSha256: sha256(merged.code),
       metadata: response.metadata, transportAttempts: response.transportAttempts,
       mechanicalFailure: response.mechanicalFailure, absoluteRound,
       readingPass: repeatParts ? readingPass : null,
@@ -958,6 +990,7 @@ async function runSession({ protocol, presentations, assets, resolution, arm, se
       noteValidationErrors: parsedNote.validationErrors ?? [],
     });
     repeatedFailedCode = thisReplyRepeatedFailedCode;
+    previousRepairRejected = !repairAccepted;
   }
   const finalVisible = await grade(code, assets.visibleTests);
   const finalHidden = await grade(code, assets.hiddenTests);
@@ -968,7 +1001,7 @@ async function runSession({ protocol, presentations, assets, resolution, arm, se
     generationSeed: seed, stageRows, repairRows,
     preRepairVisible: preRepairVisible.fraction, preRepairHidden: preRepairHidden.fraction,
     finalVisible: finalVisible.fraction, finalHidden: finalHidden.fraction,
-    completed: finalHidden.fraction === 1, totalRounds: protocol.numberOfStages + repairRows.length,
+    completed: finalHidden.fraction === 1, totalRounds: numberOfStages + repairRows.length,
     repairRoundsUsed: repairRows.length, mechanicalFailures,
     finalCodeSha256: sha256(code), finalCode: code,
   };
@@ -1077,7 +1110,7 @@ function summarise(protocol, rows) {
   if (protocol.smokeGate) {
     const completedStepsRows = rows.filter((row) => row.arm === 'steps_note' && row.completed);
     const stepsCompleted = completedStepsRows.length;
-    const equalCompleted = rows.filter((row) => row.arm === 'equal_note' && row.completed).length;
+    const plainCompleted = rows.filter((row) => row.arm === 'plain_note' && row.completed).length;
     const stepsMedianRounds = median(completedStepsRows.map((row) => row.totalRounds));
     const clearRows = rows.filter((row) => noteClearEnabled(protocol.cellDefinitions[row.arm]));
     const actualClearRounds = (row) => [
@@ -1097,8 +1130,8 @@ function summarise(protocol, rows) {
     summary.smokeGate = {
       stepsNoteCompletions: stepsCompleted,
       requiredStepsNoteCompletions: protocol.smokeGate.requiredStepsNoteCompletions,
-      equalNoteCompletions: equalCompleted,
-      requiredEqualNoteCompletions: protocol.smokeGate.requiredEqualNoteCompletions,
+      plainNoteCompletions: plainCompleted,
+      requiredPlainNoteCompletions: protocol.smokeGate.requiredPlainNoteCompletions,
       stepsNoteMedianRounds: stepsMedianRounds,
       requiredStepsNoteRoundRange: [
         protocol.smokeGate.minimumStepsNoteMedianRounds,
@@ -1107,7 +1140,7 @@ function summarise(protocol, rows) {
       clearCountsValid, clearScheduleValid,
       mechanicalFailures,
       passed: summary.completeGrid && stepsCompleted >= protocol.smokeGate.requiredStepsNoteCompletions &&
-        equalCompleted >= protocol.smokeGate.requiredEqualNoteCompletions &&
+        plainCompleted >= protocol.smokeGate.requiredPlainNoteCompletions &&
         stepsMedianRounds >= protocol.smokeGate.minimumStepsNoteMedianRounds &&
         stepsMedianRounds <= protocol.smokeGate.maximumStepsNoteMedianRounds &&
         clearCountsValid && mechanicalFailures <= protocol.smokeGate.maximumMechanicalFailures,
@@ -1211,5 +1244,5 @@ module.exports = {
   ARMS, CLEAR_ARMS, compactFeedback, completionCapRetryPrompt, loadProtocol, mergeCandidate,
   firstJsonObject, noteCompressionPrompt, noteInstruction, parseNote,
   noteClearApplied, preflight, repairPrompt, runSession, scheduledNoteClearRounds,
-  sessionSchedule, stagePrompt, summarise,
+  repairCandidateAccepted, sessionSchedule, stagePrompt, summarise,
 };

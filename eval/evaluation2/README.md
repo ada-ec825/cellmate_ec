@@ -2,16 +2,17 @@
 
 ## Question
 
-Does reorganising a long programming specification into implementation steps help an LLM student compared with mechanically equal text chunks? Does clearing the student's short note change that effect?
+Does reorganising a long programming specification into implementation steps help an LLM student compared with source-order plain-text parts? Does clearing the student's short note change that effect?
 
 ## Design
 
 - Model: `gpt-4o-mini-2024-07-18`
 - Three reconciliation tasks: simple, normal, and hard
-- Four conditions: equal chunks / steps, each with the note retained / cleared
+- Four conditions: plain source-order parts / steps, each with the note retained / cleared
 - Clear probability: 0.25 after the first round; only the note is removed
 - 25 independent sessions per condition per task; 300 total
 - Six reading rounds followed by up to 18 repair rounds
+- The protocol rule `repair: true` makes repair updates transactional: a candidate whose visible-test score is lower than the retained score is rejected, and the preceding code remains active.
 - Primary outcome: final hidden-test accuracy
 
 ## Results
@@ -41,7 +42,7 @@ src/method.md            experiment rules
 src/tasks/{simple,normal,hard}/
   task.md                original specification
   steps.md               human-readable step guide
-  presentations.json     exact equal chunks and steps shown to the model
+  presentations.json     exact plain parts and steps shown to the model
   protocol.json          run settings
   starter.py             initial code
   reference.py           reference solution

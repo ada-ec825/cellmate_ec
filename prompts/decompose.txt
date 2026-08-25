@@ -59,7 +59,7 @@ Write every step as a direct instruction, not a question. The reader may be stru
     {
       "index": 1,
       "label": "<short step name, at most 6 words>",
-      "intent": "<what this step must achieve, laid out as short lines rather than one block of prose. Open with a single sentence naming the goal, then put each rule, input, output, edge case and constraint on its own line beginning with \"- \". Separate lines with the two-character JSON escape \n. Use **bold** for the hardest constraints and `backticks` for names and literal values. Typically 60-150 words in total — long enough to be self-contained, short enough to survive a limited attention span>",
+      "intent": "<what this step must achieve, laid out as short lines rather than one block of prose. Open with a single sentence naming the goal, then put each rule, input, output, edge case and constraint on its own line beginning with \"- \". Separate lines with the two-character JSON escape \n. Use **bold** for the hardest constraints and `backticks` for names and literal values. Typically no more than 120 words in total — long enough to be self-contained, short enough to survive a limited attention span>",
       "checkHint": "<optional: one sentence giving a concrete input/output pair or observable behavior that would show this step is correctly done, e.g. \"to_minutes('3:60') returns None\">",
       "timeShare": <integer: recommended percent of the whole exercise's time for this step>
     }
