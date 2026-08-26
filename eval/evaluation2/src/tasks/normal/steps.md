@@ -1,27 +1,84 @@
-# Project steps
+# Luna guide used by the normal-task model comparison
 
-Readable copy of the six project steps used in the experiment.
+This is a local copy of Evaluation 1's `formal_luna_28` guide. The experiment
+shows only the text under each step; the time shares below are provenance
+metadata and are not added to the student prompt.
 
-## Step 1 of 6 — Implement parse_amount(s)
+## Step 1 of 6 — Parse monetary amounts
 
-Convert an amount string to an integer number of cents, so 12.30 becomes 1230. The input must be a string containing only digits and at most one decimal point, with an optional leading minus sign; scientific notation and every other numeric notation are invalid. One or two fractional digits are scaled normally. A third fractional digit is rounded to cents using round-half-up, including for negative values; more than three fractional digits is invalid. Return None for malformed, non-string, or non-finite input. Negative amounts remain negative at this stage because a negative PAYMENT represents a refund, while a negative ORDER is rejected in the next step.
+Recommended time share: 15%
 
-## Step 2 of 6 — Implement parse_record(line)
+Implement `parse_amount(s)` so valid decimal text becomes integer cents.
+- A non-string input returns `None`.
+- Valid text contains digits, at most one decimal point, and an optional leading minus sign only.
+- Scientific notation and every other numeric notation are invalid and return `None`.
+- More than three fractional digits is invalid and returns `None`.
+- Round a third fractional digit to cents using **round-half-up**, preserving the sign.
+- Return the result as an integer number of cents.
+- Invalid input returns `None` without raising, printing, mutating input, or using global state.
 
-Parse one line containing exactly six | separated fields in this order: TYPE, RECORD_ID, ORDER_ID, AMOUNT, CURRENCY, TIMESTAMP. TYPE is case-insensitive ORDER or PAYMENT and is stored uppercase. Trim both identifiers and reject the line if either becomes empty. An ORDER requires equal record and order IDs and cannot have a negative amount; a negative PAYMENT is valid. Apply all parse_amount rules to AMOUNT. CURRENCY must be exactly USD after trimming. TIMESTAMP must use the exact format 2024-03-15 14:30 and represents UTC without conversion. Return None for any invalid field without raising or printing. Otherwise return an ordinary dictionary, never a tuple, with exactly type, record_id, order_id, amount, currency, and timestamp. Read fields by key name, for example record["type"]. amount is integer cents and timestamp is a naive Python datetime.
+## Step 2 of 6 — Parse individual records
 
-## Step 3 of 6 — Implement load_records(text)
+Recommended time share: 20%
 
-Parse the input one line at a time with parse_record and preserve retained source order. Silently skip every invalid line. Compare record IDs after trimming. For a repeated record ID, retain the first valid occurrence and skip later valid occurrences; an invalid occurrence does not reserve that ID. Return an empty list for non-string or empty input. Do not mutate inputs, print output, or store global state.
+Implement `parse_record(line)` to return one valid parsed-record dictionary or `None`.
+- The line must have exactly six `|`-separated fields in `TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP` order.
+- `TYPE` is case-insensitive `ORDER` or `PAYMENT`, then stored uppercase.
+- Trim both identifiers; they must be non-empty, and an `ORDER` requires equal `RECORD_ID` and `ORDER_ID`.
+- Currency is trimmed and must be exactly `USD`.
+- Parse `AMOUNT` with `parse_amount(s)`; a negative `ORDER` is invalid, while a negative `PAYMENT` is a refund.
+- `TIMESTAMP` must exactly match `2024-03-15 14:30` format, use valid calendar values, and become a naive `datetime` representing UTC without timezone conversion.
+- Return an ordinary dictionary with exactly `type`, `record_id`, `order_id`, `amount`, `currency`, and `timestamp`; invalid fields return `None` silently.
+- Do not mutate input, print, or use global state.
 
-## Step 4 of 6 — Implement compute_refunds(records)
+## Step 3 of 6 — Load valid records
 
-A refund is any PAYMENT record whose integer-cent amount is negative. Return the positive sum of the absolute amounts of all refunds. A refund counts even when no order has the same order ID. Non-negative payments and ORDER records contribute nothing, and no refund returns 0. Do not mutate records or store global state.
+Recommended time share: 15%
 
-## Step 5 of 6 — Implement match_payments(records)
+Implement `load_records(text)` to produce the retained parsed records in source-line order.
+- Parse every input line with `parse_record(line)`.
+- Silently skip lines that cannot be parsed or do not satisfy the format; do not raise or print warnings.
+- If the same trimmed `RECORD_ID` occurs more than once, retain the first valid occurrence and skip later valid occurrences.
+- An invalid occurrence does not reserve its record ID.
+- Return records as ordinary dictionaries with exactly `type`, `record_id`, `order_id`, `amount`, `currency`, and `timestamp`.
+- Amounts remain integer cents, currencies are `USD`, and timestamps are naive UTC `datetime` values.
+- Do not mutate an input object or use global state.
 
-Produce one result for every ORDER, following retained order-record order. Associate non-negative PAYMENT records by order_id. A payment qualifies only when its timestamp is at or after the order timestamp and no later than exactly 72 hours afterward; both endpoints are included. If several payments qualify, choose the earliest timestamp and break an exact timestamp tie by retained source order. Negative payments are refunds and never match. Each result is an ordinary dictionary, never a tuple, with exactly order_id, status, and amount. Read fields by key name, for example result["order_id"]. Status is exactly lowercase matched or unmatched. A matched result uses the chosen payment amount; an unmatched result uses amount 0.
+## Step 4 of 6 — Match payments to orders
 
-## Step 6 of 6 — Implement build_summary(matches, refund_total)
+Recommended time share: 20%
 
-Every item in matches is the result dictionary from Step 5, never a tuple; read order_id, status, and amount by their exact key names. Return a dictionary with exactly four keys. total_orders is len(matches). matched_count counts results whose status is exactly lowercase matched. net_total follows the released rule: sum the amounts of matched results and subtract the positive refund_total; this overrides the earlier draft that excluded refunds. unmatched_ids contains the already-trimmed order_id from every result whose status is exactly lowercase unmatched, sorted in ascending lexicographic order. With empty matches, the counts are 0, unmatched_ids is empty, and net_total still subtracts refund_total.
+Implement `match_payments(records)` with one result for every order.
+- Read parsed records through dictionary keys; records are ordinary dictionaries and retained source order is significant.
+- For each order, consider only non-negative `PAYMENT` records with the same `order_id`.
+- A payment qualifies when its naive UTC timestamp is at or after the order timestamp and at or before exactly 72 hours after it; both endpoints are included.
+- Negative payments are refunds and never qualify as matched payments.
+- Choose the qualifying payment with the earliest timestamp; break exact timestamp ties by retained source order.
+- Return results in retained order-record order, each an ordinary dictionary with exactly `order_id`, `status`, and `amount`.
+- Status is exactly lowercase `matched` or `unmatched`; unmatched amounts are `0`.
+- Amounts are integer cents, and the function does not mutate inputs, print, or use global state.
+
+## Step 5 of 6 — Compute refund totals
+
+Recommended time share: 10%
+
+Implement `compute_refunds(records)` to calculate the positive refund total in cents.
+- Read each parsed record by dictionary keys.
+- Include every negative `PAYMENT` amount, even when no order with its `order_id` exists.
+- Add the absolute value of each included negative amount.
+- Ignore orders and non-negative payments.
+- Return `0` when there are no refunds.
+- Return the total as an integer number of cents without mutating inputs, printing, raising for valid parsed records, or using global state.
+
+## Step 6 of 6 — Build the final summary
+
+Recommended time share: 20%
+
+Implement `build_summary(matches, refund_total)` as the final reconciliation summary.
+- Every item in `matches` is an ordinary result dictionary with exactly `order_id`, `status`, and `amount`.
+- Return one ordinary dictionary with exactly `total_orders`, `matched_count`, `net_total`, and `unmatched_ids`.
+- `total_orders` is the number of order results in `matches`.
+- `matched_count` is the number of results whose status is exactly `matched`.
+- **`net_total` is the sum of matched payment amounts minus the positive `refund_total`; this overrides the earlier rule excluding refunds.**
+- `unmatched_ids` contains unmatched order IDs in ascending lexicographic order, using the already-trimmed IDs from parsed records.
+- Monetary values are integer cents; do not mutate inputs, print, or use global state.

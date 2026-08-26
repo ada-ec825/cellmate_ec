@@ -8,11 +8,12 @@ const path = require('path');
 const { extractCode } = require('./lib/extract.js');
 const { functionBlocks, mergeUnlocked } = require('./lib/functions.js');
 const { clientFromSpec, inspectResolvedModel, resolveModelSpec } = require('./lib/model.js');
-const { evaluateAssertions, grade, testNames } = require('./lib/grader.js');
+const { evaluateAssertions, grade, gradeLogical, testNames } = require('./lib/grader.js');
+const { scorePairedUnseenTests, validatePairedReference } = require('./lib/unseen-tests.js');
 
 const ROOT = __dirname;
 const RUNS = path.join(__dirname, '..', 'runs');
-const DEFAULT_PROTOCOL = path.join(__dirname, 'tasks', 'normal', 'protocol.json');
+const DEFAULT_PROTOCOL = null;
 const MODEL_SNAPSHOT = 'gpt-4o-mini-2024-07-18';
 const FUNCTIONS = ['parse_amount', 'parse_record', 'load_records', 'match_payments', 'compute_refunds', 'build_summary'];
 const ARMS = ['plain_note', 'plain_note_clear', 'steps_note', 'steps_note_clear'];
@@ -116,6 +117,11 @@ function parseArgs(argv) {
   }
   if (!Number.isInteger(result.concurrency) || result.concurrency < 1 || result.concurrency > 8) {
     throw new Error('--concurrency must be an integer from 1 to 8');
+  }
+  if (!result.protocol) {
+    throw new Error(
+      'this is the shared session engine; use run_formal_note_comparison.js for the retained experiment',
+    );
   }
   if (!result.preflightOnly && (!result.runId || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/.test(result.runId))) {
     throw new Error('use --preflight-only or --run-id SAFE_VALUE');
@@ -526,7 +532,7 @@ function stagePrompt({
   numberOfStages = 5, interfaceLines = null, noteInstructionVersion = 'note',
   maximumNoteWords = 300,
   repeatParts = false, absoluteRound = stage, maximumTotalRounds = numberOfStages,
-  readingPass = 1, totalReadingPasses = 1,
+  readingPass = 1, totalReadingPasses = 1, noteEnabled = true,
 }) {
   const label = String(presentation).startsWith('plain') ? 'plain source-order part' : 'project step';
   const noteFirst = true;
@@ -541,7 +547,9 @@ function stagePrompt({
     repeatParts
       ? `You are a novice Python student completing one project over at most ${maximumTotalRounds} rounds.`
       : `You are a novice Python student completing one project over ${numberOfStages} reading rounds.`,
-    noteInstruction(maximumNoteCharacters, noteInstructionVersion, repeatParts, maximumNoteWords),
+    noteEnabled
+      ? noteInstruction(maximumNoteCharacters, noteInstructionVersion, repeatParts, maximumNoteWords)
+      : 'There is no note area in this condition. No prose memory is retained between rounds; only cumulative code remains available.',
     repeatParts
       ? `READING PASS ${readingPass} OF ${totalReadingPasses}; PART ${stage} OF ${numberOfStages}; OVERALL ROUND ${absoluteRound} OF ${maximumTotalRounds}. You can see only the current ${label}; other parts are unavailable in this round.`
       : `This is round ${stage} of ${numberOfStages}. You can see only the current ${label}; previous and future specification prose is unavailable.`,
@@ -552,20 +560,24 @@ function stagePrompt({
     '',
     '--- Stable public interface ---', stableInterface(interfaceLines),
     '',
-    '--- Note saved from the preceding round ---',
-    noteInstructionVersion === 'source-note' ? sourceNoteForPrompt(note) : note || '(empty)',
-    '',
+    ...(noteEnabled ? [
+      '--- Note saved from the preceding round ---',
+      noteInstructionVersion === 'source-note' ? sourceNoteForPrompt(note) : note || '(empty)',
+      '',
+    ] : []),
     `--- Current ${label}: ${installment.title} ---`,
     noteInstructionVersion === 'source-note' ? annotatedSource(installment.text, stage) : installment.text,
     '',
     '--- Current cumulative code ---', '```python', code.trim(), '```',
     '',
-    ...(noteFirst ? [
+    ...(noteEnabled && noteFirst ? [
       noteOutputRule,
-      'Then return only complete definitions of functions you changed in one Python code block. Never repeat an unchanged function. Do not include tests, examples, or prints.',
-    ] : [
+      'Immediately after the NOTE JSON, return exactly one Python code block containing complete definitions of public functions. Both outputs are mandatory on every round; a reply missing either one is rejected in full. Even if no change is needed, include at least one complete public function definition. Do not include tests, examples, or prints.',
+    ] : noteEnabled ? [
       'Return only complete definitions of functions you changed in one Python code block. Never repeat an unchanged function. Do not include tests, examples, or prints.',
       `After the code block, write one line beginning NOTE: with at most ${maximumNoteCharacters} characters for the next round.`,
+    ] : [
+      'Return exactly one Python code block containing at least one complete public function definition. A reply without a Python code block is rejected in full. Do not write a note, tests, examples, prints, or prose outside the code block.',
     ]),
   ].join('\n');
 }
@@ -607,7 +619,7 @@ function repairPrompt({
   maximumNoteWords = 300,
   repeatParts = false, presentation = null, installment = null,
   absoluteRound = null, maximumTotalRounds = null, readingPass = null,
-  totalReadingPasses = null, partIndex = null,
+  totalReadingPasses = null, partIndex = null, noteEnabled = true,
 }) {
   const label = String(presentation).startsWith('plain') ? 'plain source-order part' : 'project step';
   const noteFirst = true;
@@ -622,7 +634,9 @@ function repairPrompt({
     repeatParts
       ? `You are a novice Python student completing one project over at most ${maximumTotalRounds} rounds.`
       : `All ${numberOfStages} reading parts have now been shown and will not reappear.`,
-    noteInstruction(maximumNoteCharacters, noteInstructionVersion, repeatParts, maximumNoteWords),
+    noteEnabled
+      ? noteInstruction(maximumNoteCharacters, noteInstructionVersion, repeatParts, maximumNoteWords)
+      : 'There is no note area in this condition. No prose memory is retained between rounds; only cumulative code and official visible-test feedback remain available.',
     repeatParts
       ? `READING PASS ${readingPass} OF ${totalReadingPasses}; PART ${partIndex} OF ${numberOfStages}; OVERALL ROUND ${absoluteRound} OF ${maximumTotalRounds}. You can see only the current ${label}; other parts are unavailable in this round.`
       : `This is repair round ${repairRound} of ${maximum}. Use the cumulative code and complete visible assertion feedback.`,
@@ -632,20 +646,24 @@ function repairPrompt({
     '',
     '--- Stable public interface ---', stableInterface(interfaceLines),
     '',
-    '--- Saved note ---', noteInstructionVersion === 'source-note' ? sourceNoteForPrompt(note) : note || '(empty)',
-    '',
+    ...(noteEnabled ? [
+      '--- Saved note ---', noteInstructionVersion === 'source-note' ? sourceNoteForPrompt(note) : note || '(empty)',
+      '',
+    ] : []),
     ...(repeatParts ? [`--- Current ${label}: ${installment.title} ---`,
       noteInstructionVersion === 'source-note' ? annotatedSource(installment.text, partIndex) : installment.text, ''] : []),
     '--- Current cumulative code ---', '```python', code.trim(), '```',
     '',
     '--- Visible pytest feedback ---', feedback,
     '',
-    ...(noteFirst ? [
+    ...(noteEnabled && noteFirst ? [
       noteOutputRule,
-      'Then return only complete definitions of functions you changed in one Python code block. Preserve passing behaviour and make a concrete repair.',
-    ] : [
+      'Immediately after the NOTE JSON, return exactly one Python code block containing complete definitions of public functions. Both outputs are mandatory; a reply missing either one is rejected in full. Preserve passing behaviour and make a concrete repair.',
+    ] : noteEnabled ? [
       'Return only complete definitions of functions you changed in one Python code block. Preserve passing behaviour and make a concrete repair.',
       `After the code block, write one line beginning NOTE: with at most ${maximumNoteCharacters} characters.`,
+    ] : [
+      'Return exactly one Python code block containing at least one complete public function definition. A reply without a Python code block is rejected in full. Preserve passing behaviour and make a concrete repair; do not write a note or prose outside the code block.',
     ]),
   ].join('\n');
 }
@@ -660,74 +678,160 @@ function safeTransportError(error) {
   };
 }
 
-function completionCapRetryPrompt(prompt) {
+function pythonOutputBlocks(raw) {
+  const blocks = [];
+  const pattern = /```(?:python|py)\s*\r?\n([\s\S]*?)```/gi;
+  let match;
+  while ((match = pattern.exec(String(raw ?? ''))) !== null) {
+    blocks.push({ code: match[1], start: match.index, end: pattern.lastIndex });
+  }
+  return blocks;
+}
+
+function validateRoundOutput(raw, { noteEnabled = true, functionNames = FUNCTIONS } = {}) {
+  const source = String(raw ?? '');
+  const errors = [];
+  let noteEnd = -1;
+  if (noteEnabled) {
+    const marker = source.match(/^NOTE:\s*/im);
+    if (!marker) {
+      errors.push('missing NOTE: marker');
+    } else {
+      const remainderStart = marker.index + marker[0].length;
+      const noteJson = firstJsonObject(source.slice(remainderStart).trimStart());
+      const parsed = sourceNoteObject(noteJson);
+      if (!noteJson || !parsed || JSON.stringify(Object.keys(parsed).sort()) !== JSON.stringify(['checks', 'rules'])) {
+        errors.push('NOTE must be one valid JSON object with exactly rules and checks');
+      } else if (!Array.isArray(parsed.rules) || !Array.isArray(parsed.checks)) {
+        errors.push('NOTE rules and checks must both be arrays');
+      } else {
+        const noteStart = source.indexOf(noteJson, remainderStart);
+        noteEnd = noteStart + noteJson.length;
+      }
+    }
+  }
+  const blocks = pythonOutputBlocks(source);
+  if (blocks.length !== 1) errors.push(`expected exactly one Python code block; found ${blocks.length}`);
+  if (blocks.length === 1) {
+    if (noteEnabled && blocks[0].start < noteEnd) errors.push('Python code block must appear after NOTE JSON');
+    const publicFunctions = [...functionBlocks(blocks[0].code).keys()]
+      .filter((name) => functionNames.includes(name));
+    if (publicFunctions.length === 0) errors.push('Python code block has no complete public function definition');
+  }
+  return { valid: errors.length === 0, errors };
+}
+
+function completionCapRetryPrompt(prompt, noteEnabled = true) {
   return [
     prompt,
     '',
     '--- SAME-ROUND FORMAT RETRY ---',
     'Your preceding reply was rejected because it reached the output limit after repeating code. No code or note from that rejected reply was retained.',
-    'Return a concise replacement for this same experimental round. Write NOTE first, then exactly one Python code block.',
+    noteEnabled
+      ? 'Return a concise replacement for this same experimental round. Write NOTE JSON first, then exactly one Python code block; both are mandatory.'
+      : 'Return a concise replacement for this same experimental round as exactly one Python code block. There is no note area.',
     'Include each changed public function at most once. If only one function needs repair, return only that function. Never repeat a function definition.',
   ].join('\n');
 }
 
-async function callStudent({ protocol, resolution, prompt, seed, callPath, identity, temperature }) {
+function roundFormatRetryPrompt(prompt, validation, noteEnabled = true) {
+  return [
+    prompt,
+    '',
+    '--- SAME-ROUND REQUIRED-OUTPUT RETRY ---',
+    'Your preceding reply was rejected in full and neither its code nor its note was retained.',
+    `Problems: ${validation.errors.join('; ')}.`,
+    noteEnabled
+      ? 'Return exactly two things in this order: (1) NOTE: followed by one valid JSON object with exactly rules and checks arrays; (2) exactly one ```python code block containing at least one complete public function definition.'
+      : 'Return exactly one ```python code block containing at least one complete public function definition. There is no note area.',
+    'Do not stop after the first required item. Do not add tests, examples, prints, or prose after the required output.',
+  ].join('\n');
+}
+
+async function callStudent({ protocol, resolution, prompt, seed, callPath, identity, temperature,
+  formatPolicy = null }) {
   const maximumCapRetries = protocol.maximumCompletionCapRetries ?? 0;
+  const maximumFormatRetries = formatPolicy ? (protocol.maximumRoundFormatRetries ?? 0) : 0;
   let requestPrompt = prompt;
   let totalStudentCalls = 0;
   let lastError = null;
-  for (let capRetry = 0; capRetry <= maximumCapRetries; capRetry += 1) {
-    let retryAfterCap = false;
+  let capRetry = 0;
+  let formatRetry = 0;
+  while (true) {
+    let response = null;
     for (let attempt = 1; attempt <= protocol.maximumTransportAttempts; attempt += 1) {
       totalStudentCalls += 1;
       appendLine(callPath, {
         ...identity, event: 'request_started', startedAt: new Date().toISOString(),
-        attempt, completionCapRetry: capRetry, seed, temperature, promptSha256: sha256(requestPrompt),
+        attempt, completionCapRetry: capRetry, roundFormatRetry: formatRetry,
+        seed, temperature, promptSha256: sha256(requestPrompt),
       });
       try {
-        const response = await clientFromSpec(protocol.model.spec, {
+        response = await clientFromSpec(protocol.model.spec, {
           temperature, seed, numPredict: protocol.numPredict, timeoutMs: 300_000,
         }, resolution).askDetailed(requestPrompt);
         appendLine(callPath, {
           ...identity, event: 'response_received', receivedAt: new Date().toISOString(),
-          attempt, completionCapRetry: capRetry, raw: response.text, metadata: response.metadata,
+          attempt, completionCapRetry: capRetry, roundFormatRetry: formatRetry,
+          raw: response.text, metadata: response.metadata,
         });
-        const capped = response.metadata?.finishReason === 'length' ||
-          response.metadata?.finishReason === 'max_output_tokens' ||
-          Number(response.metadata?.completionTokens) >= protocol.numPredict;
-        if (capped && capRetry < maximumCapRetries) {
-          appendLine(callPath, {
-            ...identity, event: 'completion_cap_retry_scheduled', scheduledAt: new Date().toISOString(),
-            completionCapRetry: capRetry + 1, rejectedRawSha256: sha256(response.text),
-          });
-          requestPrompt = completionCapRetryPrompt(prompt);
-          retryAfterCap = true;
-          break;
-        }
-        return {
-          raw: capped ? '' : response.text,
-          metadata: response.metadata,
-          transportAttempts: totalStudentCalls,
-          studentCalls: totalStudentCalls,
-          completionCapRetries: capRetry,
-          mechanicalFailure: capped ? 'completion_cap_reached_after_same_round_retry_reply_not_merged' : null,
-        };
+        break;
       } catch (error) {
         lastError = safeTransportError(error);
         appendLine(callPath, {
           ...identity, event: 'response_error', receivedAt: new Date().toISOString(),
-          attempt, completionCapRetry: capRetry, error: lastError,
+          attempt, completionCapRetry: capRetry, roundFormatRetry: formatRetry, error: lastError,
         });
         if (attempt < protocol.maximumTransportAttempts) await sleep(250 * (2 ** (attempt - 1)));
       }
     }
-    if (retryAfterCap) continue;
+    if (!response) {
+      return {
+        raw: '', metadata: null, transportAttempts: totalStudentCalls, studentCalls: totalStudentCalls,
+        completionCapRetries: capRetry, roundFormatRetries: formatRetry,
+        formatValidationErrors: [], mechanicalFailure: lastError,
+      };
+    }
+    const capped = response.metadata?.finishReason === 'length' ||
+      response.metadata?.finishReason === 'max_output_tokens' ||
+      Number(response.metadata?.completionTokens) >= protocol.numPredict;
+    if (capped && capRetry < maximumCapRetries) {
+      capRetry += 1;
+      appendLine(callPath, {
+        ...identity, event: 'completion_cap_retry_scheduled', scheduledAt: new Date().toISOString(),
+        completionCapRetry: capRetry, roundFormatRetry: formatRetry,
+        rejectedRawSha256: sha256(response.text),
+      });
+      requestPrompt = completionCapRetryPrompt(prompt, formatPolicy?.noteEnabled ?? true);
+      continue;
+    }
+    if (capped) {
+      return {
+        raw: '', metadata: response.metadata, transportAttempts: totalStudentCalls,
+        studentCalls: totalStudentCalls, completionCapRetries: capRetry,
+        roundFormatRetries: formatRetry, formatValidationErrors: [],
+        mechanicalFailure: 'completion_cap_reached_after_same_round_retry_reply_not_merged',
+      };
+    }
+    const validation = formatPolicy ? validateRoundOutput(response.text, formatPolicy) : { valid: true, errors: [] };
+    if (!validation.valid && formatRetry < maximumFormatRetries) {
+      formatRetry += 1;
+      appendLine(callPath, {
+        ...identity, event: 'round_format_retry_scheduled', scheduledAt: new Date().toISOString(),
+        completionCapRetry: capRetry, roundFormatRetry: formatRetry,
+        validationErrors: validation.errors, rejectedRawSha256: sha256(response.text),
+      });
+      requestPrompt = roundFormatRetryPrompt(prompt, validation, formatPolicy.noteEnabled);
+      continue;
+    }
     return {
-      raw: '', metadata: null, transportAttempts: totalStudentCalls, studentCalls: totalStudentCalls,
-      completionCapRetries: capRetry, mechanicalFailure: lastError,
+      raw: validation.valid ? response.text : '', metadata: response.metadata,
+      transportAttempts: totalStudentCalls, studentCalls: totalStudentCalls,
+      completionCapRetries: capRetry, roundFormatRetries: formatRetry,
+      formatValidationErrors: validation.errors,
+      mechanicalFailure: validation.valid ? null : 'required_round_output_missing_after_same_round_retries',
     };
   }
-  throw new Error('unreachable completion-cap retry state');
 }
 
 function noteCompressionPrompt(note, maximumCharacters, attempt = 1, version = 'note', maximumWords = 300) {
@@ -834,7 +938,10 @@ async function resolveNote({ protocol, resolution, raw, callPath, identity, seed
 
 async function runSession({ protocol, presentations, assets, resolution, arm, seed, callPath, executionId }) {
   const definition = protocol.cellDefinitions[arm];
+  const usePairedUnseenTests =
+    protocol.testPolicy?.aggregation === 'paired_semantic_tests_all_case_variants_must_pass';
   const presentation = definition.presentation;
+  const noteEnabled = definition.noteEnabled ?? true;
   const numberOfStages = definition.numberOfStages ?? protocol.numberOfStages;
   const functionNames = protocol.functionNames ?? FUNCTIONS;
   const interfaceLines = protocol.stableInterfaceLines ?? null;
@@ -865,34 +972,55 @@ async function runSession({ protocol, presentations, assets, resolution, arm, se
       numberOfStages, interfaceLines,
       noteInstructionVersion: protocol.noteInstructionVersion,
       repeatParts, absoluteRound: stage, maximumTotalRounds,
-      readingPass: 1, totalReadingPasses,
+      readingPass: 1, totalReadingPasses, noteEnabled,
     });
     const callSeed = hashInt(`${protocol.generationSeedSalt}|${presentation}|${seed}|stage|${stage}`);
     const response = await callStudent({
       protocol, resolution, prompt, seed: callSeed, callPath, temperature: protocol.temperature,
       identity: { executionId, arm, generationSeed: seed, phase: 'reading_stage', stage },
+      formatPolicy: protocol.rules?.requireRoundCode === true
+        ? { noteEnabled, functionNames }
+        : null,
     });
     if (response.mechanicalFailure) mechanicalFailures += 1;
     const merged = mergeCandidate(code, response.raw, functionNames);
     code = merged.code;
-    const visible = await grade(code, assets.visibleTests);
-    const hidden = await grade(code, assets.hiddenTests);
-    const parsedNote = await resolveNote({
-      protocol, resolution, raw: response.raw, callPath, seed: callSeed,
-      identity: { executionId, arm, generationSeed: seed, phase: 'reading_stage', stage },
-      currentPart: installment.text, currentPartIndex: stage, precedingNote: note, functionNames,
-      code, visible, requirementMap, revealVisible: false,
-    });
+    const visible = usePairedUnseenTests ? null : await grade(code, assets.visibleTests);
+    const hidden = usePairedUnseenTests ? null : await grade(code, assets.hiddenTests);
+    const testScore = usePairedUnseenTests
+      ? await gradeLogical(code, assets.unseenTests, protocol.testPolicy.logicalTestCount)
+      : scorePairedUnseenTests(visible, hidden, requirementMap);
+    const parsedNote = noteEnabled
+      ? await resolveNote({
+        protocol, resolution, raw: response.raw, callPath, seed: callSeed,
+        identity: { executionId, arm, generationSeed: seed, phase: 'reading_stage', stage },
+        currentPart: installment.text, currentPartIndex: stage, precedingNote: note, functionNames,
+        code, visible, requirementMap, revealVisible: false,
+      })
+      : {
+        note: '', full: '', found: false, truncated: false,
+        compressionApplied: false, compressionSucceeded: false, compressionHardCapped: false,
+        validationRetried: false, validationValid: null, validationErrors: [],
+        studentCalls: 0, mechanicalFailure: null,
+      };
     if (parsedNote.mechanicalFailure) mechanicalFailures += 1;
     note = parsedNote.note;
     stageRows.push({
       stage, readingPass: 1, partIndex: stage, installmentTitle: installment.title,
       installmentWords: installment.words, appliedFunctions: merged.applied,
-      extractionSource: merged.extractionSource, visibleFraction: visible.fraction,
-      hiddenFraction: hidden.fraction, codeSha256: sha256(code), metadata: response.metadata,
+      extractionSource: merged.extractionSource,
+      ...(usePairedUnseenTests ? {
+        testPassed: testScore.passed, testTotal: testScore.total, testFraction: testScore.fraction,
+      } : {
+        visibleFraction: visible.fraction, hiddenFraction: hidden.fraction,
+      }),
+      codeSha256: sha256(code), metadata: response.metadata,
       transportAttempts: response.transportAttempts, mechanicalFailure: response.mechanicalFailure,
       studentCalls: response.studentCalls + parsedNote.studentCalls,
       completionCapRetries: response.completionCapRetries,
+      roundFormatRetries: response.roundFormatRetries ?? 0,
+      roundFormatValidationErrors: response.formatValidationErrors ?? [],
+      noteEnabled,
       noteBeforeClear, noteClearApplied: clearApplied, noteAfterStage: note,
       noteBeforeClearWords: wordCount(noteBeforeClear), noteAfterStageWords: wordCount(note),
       noteFound: parsedNote.found, noteTruncated: parsedNote.truncated,
@@ -905,8 +1033,11 @@ async function runSession({ protocol, presentations, assets, resolution, arm, se
     });
   }
 
-  const preRepairVisible = await grade(code, assets.visibleTests);
-  const preRepairHidden = await grade(code, assets.hiddenTests);
+  const preRepairVisible = usePairedUnseenTests ? null : await grade(code, assets.visibleTests);
+  const preRepairHidden = usePairedUnseenTests ? null : await grade(code, assets.hiddenTests);
+  const preRepairTest = usePairedUnseenTests
+    ? await gradeLogical(code, assets.unseenTests, protocol.testPolicy.logicalTestCount)
+    : scorePairedUnseenTests(preRepairVisible, preRepairHidden, requirementMap);
   const repairRows = [];
   let repeatedFailedCode = false;
   let previousRepairRejected = false;
@@ -934,13 +1065,16 @@ async function runSession({ protocol, presentations, assets, resolution, arm, se
       numberOfStages, interfaceLines,
       noteInstructionVersion: protocol.noteInstructionVersion,
       repeatParts, presentation, installment, absoluteRound, maximumTotalRounds,
-      readingPass, totalReadingPasses, partIndex,
+      readingPass, totalReadingPasses, partIndex, noteEnabled,
     });
     const callSeed = hashInt(`${protocol.generationSeedSalt}|${presentation}|${seed}|repair|${repairRound}`);
     const response = await callStudent({
       protocol, resolution, prompt, seed: callSeed, callPath,
       temperature: repeatedFailedCode ? protocol.repeatRepairTemperature : protocol.temperature,
       identity: { executionId, arm, generationSeed: seed, phase: 'final_repair', repairRound },
+      formatPolicy: protocol.rules?.requireRoundCode === true
+        ? { noteEnabled, functionNames }
+        : null,
     });
     if (response.mechanicalFailure) mechanicalFailures += 1;
     const codeBeforeRepair = code;
@@ -951,12 +1085,19 @@ async function runSession({ protocol, presentations, assets, resolution, arm, se
     code = repairAccepted ? merged.code : codeBeforeRepair;
     const visible = repairAccepted ? candidateVisible : currentVisible;
     const hidden = await grade(code, assets.hiddenTests);
-    const parsedNote = await resolveNote({
-      protocol, resolution, raw: response.raw, callPath, seed: callSeed,
-      identity: { executionId, arm, generationSeed: seed, phase: 'final_repair', repairRound },
-      currentPart: installment?.text ?? '', currentPartIndex: partIndex, precedingNote: note, functionNames,
-      code, visible, requirementMap, revealVisible: true,
-    });
+    const parsedNote = noteEnabled
+      ? await resolveNote({
+        protocol, resolution, raw: response.raw, callPath, seed: callSeed,
+        identity: { executionId, arm, generationSeed: seed, phase: 'final_repair', repairRound },
+        currentPart: installment?.text ?? '', currentPartIndex: partIndex, precedingNote: note, functionNames,
+        code, visible, requirementMap, revealVisible: true,
+      })
+      : {
+        note: '', full: '', found: false, truncated: false,
+        compressionApplied: false, compressionSucceeded: false, compressionHardCapped: false,
+        validationRetried: false, validationValid: null, validationErrors: [],
+        studentCalls: 0, mechanicalFailure: null,
+      };
     if (parsedNote.mechanicalFailure) mechanicalFailures += 1;
     note = parsedNote.note;
     repairRows.push({
@@ -979,6 +1120,9 @@ async function runSession({ protocol, presentations, assets, resolution, arm, se
       installmentWords: repeatParts ? installment.words : null,
       studentCalls: response.studentCalls + parsedNote.studentCalls,
       completionCapRetries: response.completionCapRetries,
+      roundFormatRetries: response.roundFormatRetries ?? 0,
+      roundFormatValidationErrors: response.formatValidationErrors ?? [],
+      noteEnabled,
       noteBeforeClear, noteClearApplied: clearApplied, noteAfterRound: note,
       noteBeforeClearWords: wordCount(noteBeforeClear), noteAfterRoundWords: wordCount(note),
       noteFound: parsedNote.found, noteTruncated: parsedNote.truncated,
@@ -992,16 +1136,37 @@ async function runSession({ protocol, presentations, assets, resolution, arm, se
     repeatedFailedCode = thisReplyRepeatedFailedCode;
     previousRepairRejected = !repairAccepted;
   }
-  const finalVisible = await grade(code, assets.visibleTests);
-  const finalHidden = await grade(code, assets.hiddenTests);
+  const finalVisible = repairRows.length === 0 ? preRepairVisible
+    : usePairedUnseenTests ? null : await grade(code, assets.visibleTests);
+  const finalHidden = repairRows.length === 0 ? preRepairHidden
+    : usePairedUnseenTests ? null : await grade(code, assets.hiddenTests);
+  const finalTest = repairRows.length === 0 ? preRepairTest
+    : usePairedUnseenTests
+      ? await gradeLogical(code, assets.unseenTests, protocol.testPolicy.logicalTestCount)
+      : scorePairedUnseenTests(finalVisible, finalHidden, requirementMap);
   return {
-    arm, presentation, noteClear: noteClearEnabled(definition),
+    arm, presentation, noteEnabled, noteClear: noteClearEnabled(definition),
     noteClearProbability: noteClearEnabled(definition) ? (protocol.noteClearProbability ?? null) : null,
     scheduledNoteClearRounds: scheduledNoteClearRounds(protocol, definition, seed),
     generationSeed: seed, stageRows, repairRows,
-    preRepairVisible: preRepairVisible.fraction, preRepairHidden: preRepairHidden.fraction,
-    finalVisible: finalVisible.fraction, finalHidden: finalHidden.fraction,
-    completed: finalHidden.fraction === 1, totalRounds: numberOfStages + repairRows.length,
+    ...(usePairedUnseenTests ? {
+      preRepairTestPassed: preRepairTest.passed,
+      preRepairTestTotal: preRepairTest.total,
+      preRepairTestFraction: preRepairTest.fraction,
+      finalTestPassed: finalTest.passed,
+      finalTestTotal: finalTest.total,
+      finalTestFraction: finalTest.fraction,
+      testVisibility: 'unseen',
+      testAggregation: 'paired_semantic_tests_all_case_variants_must_pass',
+      completed: finalTest.passed === finalTest.total,
+    } : {
+      preRepairVisible: preRepairVisible.fraction,
+      preRepairHidden: preRepairHidden.fraction,
+      finalVisible: finalVisible.fraction,
+      finalHidden: finalHidden.fraction,
+      completed: finalHidden.fraction === 1,
+    }),
+    totalRounds: numberOfStages + repairRows.length,
     repairRoundsUsed: repairRows.length, mechanicalFailures,
     finalCodeSha256: sha256(code), finalCode: code,
   };
@@ -1013,9 +1178,13 @@ async function preflight(frozen) {
   const starterVisible = await grade(frozen.assets.starter, frozen.assets.visibleTests);
   const starterHidden = await grade(frozen.assets.starter, frozen.assets.hiddenTests);
   if (referenceVisible.fraction !== 1 || referenceHidden.fraction !== 1) throw new Error('reference must pass both suites');
+  const requirementMap = JSON.parse(frozen.assets.requirementTestMap);
+  const referenceTest = validatePairedReference(
+    referenceVisible, referenceHidden, requirementMap,
+  );
+  const starterTest = scorePairedUnseenTests(starterVisible, starterHidden, requirementMap);
   if (starterVisible.fraction !== 0) throw new Error('starter unexpectedly passes a visible function cluster');
   if (starterHidden.fraction >= 1) throw new Error('starter unexpectedly passes the complete hidden suite');
-  const requirementMap = JSON.parse(frozen.assets.requirementTestMap);
   const visibleNames = testNames(referenceVisible);
   const hiddenNames = testNames(referenceHidden);
   if (Object.values(requirementMap).some((item) => !visibleNames.includes(item.visibleTest))) {
@@ -1033,10 +1202,10 @@ async function preflight(frozen) {
   }
   return {
     studentModelCalls: 0,
-    referenceVisible: referenceVisible.fraction,
-    referenceHidden: referenceHidden.fraction,
-    starterVisible: starterVisible.fraction,
-    starterHidden: starterHidden.fraction,
+    logicalUnseenTests: referenceTest.total,
+    underlyingCaseVariants: referenceTest.caseVariantTotal,
+    referenceTest: referenceTest.fraction,
+    starterTest: starterTest.fraction,
     sourceDocumentWords: frozen.presentations.sourceDocumentWords,
     presentationWords: Object.fromEntries(Object.entries(frozen.presentations.arms)
       .map(([key, rows]) => [key, rows.map((item) => item.words)])),
@@ -1070,8 +1239,8 @@ function summarise(protocol, rows) {
       sessions: selected.length,
       completed: completed.length,
       completionRate: selected.length ? completed.length / selected.length : null,
-      meanPreRepairHidden: mean(selected.map((row) => row.preRepairHidden)),
-      meanFinalHidden: mean(selected.map((row) => row.finalHidden)),
+      meanPreRepairTest: mean(selected.map((row) => row.preRepairTestFraction)),
+      meanFinalTest: mean(selected.map((row) => row.finalTestFraction)),
       meanTotalRoundsAmongCompleted: mean(completed.map((row) => row.totalRounds)),
       meanRepairRounds: mean(selected.map((row) => row.repairRoundsUsed)),
       noteCaptureRate: mean(selected.flatMap((row) => row.stageRows.map((item) => item.noteFound ? 1 : 0))),
@@ -1092,8 +1261,8 @@ function summarise(protocol, rows) {
     arms: Object.fromEntries(protocol.arms.map((arm) => {
       const row = rows.find((item) => item.arm === arm && item.generationSeed === seed);
       return [arm, row ? {
-        completed: row.completed, preRepairHidden: row.preRepairHidden,
-        finalHidden: row.finalHidden, totalRounds: row.totalRounds,
+        completed: row.completed, preRepairTestFraction: row.preRepairTestFraction,
+        finalTestFraction: row.finalTestFraction, totalRounds: row.totalRounds,
       } : null];
     })),
   }));
@@ -1219,7 +1388,7 @@ async function main(argv = process.argv.slice(2)) {
       completedKeys.add(key);
       appendLine(callPath, { event: 'session_completed', executionId, arm: item.arm, generationSeed: item.seed, completedAt: new Date().toISOString() });
       if (rows.length % 10 === 0 || rows.length === schedule.length) {
-        process.stderr.write(`[${frozen.protocol.task} ${rows.length}/${schedule.length}] completed; latest=${item.arm} hidden=${row.finalHidden.toFixed(3)}\n`);
+        process.stderr.write(`[${frozen.protocol.task} ${rows.length}/${schedule.length}] completed; latest=${item.arm} test=${row.finalTestFraction.toFixed(3)}\n`);
       }
     }
   }
@@ -1244,5 +1413,6 @@ module.exports = {
   ARMS, CLEAR_ARMS, compactFeedback, completionCapRetryPrompt, loadProtocol, mergeCandidate,
   firstJsonObject, noteCompressionPrompt, noteInstruction, parseNote,
   noteClearApplied, preflight, repairPrompt, runSession, scheduledNoteClearRounds,
-  repairCandidateAccepted, sessionSchedule, stagePrompt, summarise,
+  repairCandidateAccepted, roundFormatRetryPrompt, sessionSchedule, stagePrompt, summarise,
+  validateRoundOutput,
 };

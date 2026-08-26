@@ -1,82 +1,58 @@
-# Three-task long-document evaluation
+# Evaluation 2: six-round note versus no-note experiment
 
-## Question
+This directory retains the completed Simple, Normal, and Hard experiments that
+compare plain task parts with six-step guides under note-enabled and no-note
+conditions. Older clear, repair, smoke, and 12-round designs are stored in
+`eval_archive/evaluation2/`.
 
-Does reorganising a long programming specification into implementation steps help an LLM student compared with source-order plain-text parts? Does clearing the student's short note change that effect?
+## Retained design
 
-## Design
+- Student models: GPT-4o-mini and GPT-5.6-Luna.
+- Four cells per model and task: `plain_note`, `plain_no_note`, `guide_note`,
+  and `guide_no_note`.
+- 25 fixed seeds per cell: 200 clean sessions per task, 600 in total.
+- Exactly six presentation/coding rounds; no repair rounds.
+- Tests are never shown to the student. The 52 case variants are scored as 26
+  paired logical requirements.
+- Mechanically invalid attempts are discarded and retried under the same cell
+  and seed; they are not accepted result rows.
 
-- Model: `gpt-4o-mini-2024-07-18`
-- Three reconciliation tasks: simple, normal, and hard
-- Four conditions: plain source-order parts / steps, each with the note retained / cleared
-- Clear probability: 0.25 after the first round; only the note is removed
-- 25 independent sessions per condition per task; 300 total
-- Six reading rounds followed by up to 18 repair rounds
-- The protocol rule `repair: true` makes repair updates transactional: a candidate whose visible-test score is lower than the retained score is rejected, and the preceding code remains active.
-- Primary outcome: final hidden-test accuracy
+The retained run directories are:
 
-## Results
+- `runs/formal-simple-best-luna6-note-vs-no-note-6round-2models-200-20260826`
+- `runs/formal-normal-luna28-note-vs-no-note-6round-2models-200-20260825`
+- `runs/formal-hard-best-luna6-note-vs-no-note-6round-2models-200-luna5000-20260826`
 
-| Task | Equal | Equal + clear | Steps | Steps + clear |
-|---|---:|---:|---:|---:|
-| Simple | 90.0% | 91.8% | 98.7% | 98.7% |
-| Normal | 88.6% | 86.5% | 97.2% | 94.9% |
-| Hard | 41.8% | 47.6% | 75.8% | 76.0% |
+Each run contains its frozen protocol and presentations, raw call log, accepted
+results, health audit, summary, and completion hashes. Transformation or
+migration receipts are retained where applicable.
 
-Steps improved accuracy in all six within-task comparisons. The 95% independent-session bootstrap intervals for these six effects were all above zero. Clear itself had no stable effect, and all three clear-by-presentation interaction intervals included zero.
+## Runtime and inputs
 
-Strict hidden-suite completion counts were 0/0/20/18 on the simple task, 0/0/17/13 on the normal task, and 0/0/0/0 on the hard task, in the same condition order as the table. The hard task hit the 24-round ceiling in every session. Forty-three simple-task sessions stopped after the visible suite passed while hidden accuracy remained below 100%, so round counts are not used as the main comparison.
+`src/run_formal_note_comparison.js` is the formal experiment orchestrator and
+`src/run.js` is its shared per-session engine. `src/lib/` contains extraction,
+model, sandbox, and paired-test logic. `src/tasks/{simple,normal,hard}/`
+contains the task assets, selected guide, frozen presentations, and active
+protocol.
 
-![Final hidden-test accuracy](results.png)
+The active protocols are:
 
-The result supports an LLM-agent information-organisation mechanism. It is not an estimate of effects on human students or people with ADHD.
+- `tasks/simple/protocol.best-luna6-note-vs-no-note.json`
+- `tasks/normal/protocol.luna28-note-vs-no-note.json`
+- `tasks/hard/protocol.best-luna6-note-vs-no-note.json`
 
-## Contents
+## Validate the retained inputs
 
-```text
-data/                    compact session data and reproducible analysis
-src/run.js               shared experiment runner
-src/analyze.js           analysis and bootstrap intervals
-src/plot.py              figure generation
-src/method.md            experiment rules
-src/tasks/{simple,normal,hard}/
-  task.md                original specification
-  steps.md               human-readable step guide
-  presentations.json     exact plain parts and steps shown to the model
-  protocol.json          run settings
-  starter.py             initial code
-  reference.py           reference solution
-  test_visible.py        feedback tests
-  test_hidden.py         final tests
-  requirements.json      rule-to-test map
-```
-
-Raw API transcripts, rate-limit recovery files, pilot runs, and redundant manifests are intentionally excluded.
-
-## Reproduce the analysis
+From `eval/evaluation2/src`:
 
 ```bash
-cd eval/evaluation2/src
-node analyze.js
-MPLCONFIGDIR=/tmp/cellmate-matplotlib python3 plot.py
-```
-
-## Re-run the experiment
-
-Requirements: Node.js, Python, `pytest`, `pytest-json-report`, and an OpenAI API key.
-
-```bash
-cd eval/evaluation2/src
 npm install
-python3 -m pip install pytest pytest-json-report
-
-node run.js --protocol tasks/simple/protocol.json --preflight-only
-node run.js --protocol tasks/normal/protocol.json --preflight-only
-node run.js --protocol tasks/hard/protocol.json --preflight-only
-
-node run.js --protocol tasks/simple/protocol.json --run-id formal-simple-100 --concurrency 1
-node run.js --protocol tasks/normal/protocol.json --run-id formal-normal-100 --concurrency 1
-node run.js --protocol tasks/hard/protocol.json --run-id formal-hard-100 --concurrency 1
+npm test
+node run_formal_note_comparison.js --protocol tasks/simple/protocol.best-luna6-note-vs-no-note.json --preflight-only
+node run_formal_note_comparison.js --protocol tasks/normal/protocol.luna28-note-vs-no-note.json --preflight-only
+node run_formal_note_comparison.js --protocol tasks/hard/protocol.best-luna6-note-vs-no-note.json --preflight-only
 ```
 
-Set `OPENAI_API_KEY` in the environment before running. New raw outputs are written to `eval/evaluation2/runs/`; the included compact results in `data/` are not overwritten.
+Formal protocols pin their original run IDs. To collect a fresh independent
+replication, copy an active protocol, assign a new `formalRun.requiredRunId`,
+and pass that same ID with `--run-id`. API calls require `OPENAI_API_KEY`.

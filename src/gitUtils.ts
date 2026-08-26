@@ -11,6 +11,24 @@ export const GIT_REPO_URL = 'https://github.com/teachnology/promptfolio.git';
 export const LOCAL_REPO_PATH = path.join(os.tmpdir(), 'promptfolio_repo');
 
 /**
+ * Prompts shipped inside the extension, consulted when the synced repository
+ * has no copy of a template.
+ *
+ * Templates used to be copied into the clone at LOCAL_REPO_PATH. That put
+ * untracked files inside a git working tree that syncGitRepo() will delete and
+ * re-clone whenever a pull fails, so using any feature that syncs could remove
+ * the guide's templates; and while a copy survived, an edited template sat
+ * unused behind it. Reading from the bundle instead means nothing is written,
+ * nothing can be wiped, and nothing can go stale. A template published to the
+ * repository still wins, because the repository is tried first.
+ */
+let bundledPromptsDir: string | null = null;
+
+export function setBundledPromptsDir(dir: string): void {
+  bundledPromptsDir = dir;
+}
+
+/**
  * Check if a directory is a valid git repository
  */
 export async function isValidRepo(dir: string): Promise<boolean> {
@@ -49,8 +67,14 @@ export async function syncGitRepo(): Promise<void> {
  */
 export async function getPromptContent(promptId: string): Promise<string> {
   const promptPath = path.join(LOCAL_REPO_PATH, 'prompts', `${promptId}.txt`);
-  if (!fs.existsSync(promptPath)) throw new Error(`Prompt file ${promptId}.txt not found`);
-  return fs.readFileSync(promptPath, 'utf8');
+  if (fs.existsSync(promptPath)) return fs.readFileSync(promptPath, 'utf8');
+
+  if (bundledPromptsDir) {
+    const bundledPath = path.join(bundledPromptsDir, `${promptId}.txt`);
+    if (fs.existsSync(bundledPath)) return fs.readFileSync(bundledPath, 'utf8');
+  }
+
+  throw new Error(`Prompt file ${promptId}.txt not found`);
 }
 
 /**

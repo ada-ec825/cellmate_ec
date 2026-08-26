@@ -16,6 +16,7 @@ import { GuidePanel, GuidePanelHooks } from './guidePanel';
 import {
   syncGitRepo,
   getPromptContent,
+  setBundledPromptsDir,
   getTestFiles,
   listLocalExercises,
   listLocalTemplates,
@@ -54,36 +55,6 @@ const decompositionCache = new Map<string, Decomposition>();
 // (billed) request; block it instead.
 const decomposeInFlight = new Set<string>();
 
-// Dev convenience: until the guide templates are published to the prompt
-// repository, seed the synced copies from the extension's local prompts/
-// dir. Deliberately does not call syncGitRepo(): a re-clone would wipe
-// the seeds.
-//
-// The bundled copy is authoritative and is re-copied whenever the synced
-// one differs. Seeding only when the target was missing left an edited
-// template stranded behind a stale copy from an earlier run: the file in
-// the source tree looked correct while the model kept receiving the old
-// one, and nothing in the tree showed which text was actually in use.
-const SEEDED_TEMPLATES = ['decompose.txt', 'progress_check.txt'];
-function ensureTemplateSeeds(extensionPath: string) {
-  for (const name of SEEDED_TEMPLATES) {
-    const target = path.join(LOCAL_REPO_PATH, 'prompts', name);
-    const local = path.join(extensionPath, 'prompts', name);
-    try {
-      if (!fs.existsSync(local)) continue;
-      if (fs.existsSync(target) && fs.readFileSync(target).equals(fs.readFileSync(local))) {
-        continue;
-      }
-      fs.mkdirSync(path.dirname(target), { recursive: true });
-      fs.copyFileSync(local, target);
-      log(`[guide] re-seeded prompt template ${name} from the extension bundle`);
-    } catch (e: any) {
-      // Seeding is a dev convenience: a filesystem hiccup here must not take
-      // the guide command down when a usable synced copy may already exist.
-      log(`[guide] could not seed prompt template ${name}: ${e?.message ?? e}`);
-    }
-  }
-}
 
 // LLM API configuration interface
 interface LLMConfig {
@@ -1212,6 +1183,10 @@ async function insertMarkdownCellBelow(notebook: vscode.NotebookDocument, cellIn
 }
 
 export function activate(ctx: vscode.ExtensionContext) {
+  // Templates ship with the extension; the synced repository overrides them
+  // when it carries a copy. Nothing is written into the clone.
+  setBundledPromptsDir(path.join(ctx.extensionPath, 'prompts'));
+
   setExtensionContext(ctx);
   initState(ctx);
   initTelemetry(ctx);
@@ -1260,17 +1235,14 @@ export function activate(ctx: vscode.ExtensionContext) {
           items.push(guideItem);
         }
 
-        const item = new vscode.NotebookCellStatusBarItem(
-          '$(zap) 🧠 AI Feedback',
-          vscode.NotebookCellStatusBarAlignment.Right
-        );
-        item.priority = 100;
-        item.command = {
-          command: 'CellMate.sendNotebookCell',
-          title: 'Send to AI',
-          arguments: [cell]
-        };
-        items.push(item);
+        // The inherited AI Feedback button is no longer offered on the cell.
+        // It requires a hidden test suite for the cell's exercise id, and
+        // throws when the synced repository has none -- which is the case for
+        // every exercise this project's guide work uses. Rather than show a
+        // control that fails on the exercises actually in front of a student,
+        // the entry point is withdrawn. The command itself stays registered,
+        // so the feature remains available from the Command Palette on
+        // exercises that do have tests.
       }
       if (cell.document.languageId === 'markdown') {
         const speechItem = new vscode.NotebookCellStatusBarItem(
@@ -1514,7 +1486,6 @@ ${feedback}
           );
         }
 
-        ensureTemplateSeeds(ctx.extensionPath);
 
         // State and telemetry are auxiliary: if their storage hiccups, log
         // and carry on — a lost trace must never take the guide down with it.

@@ -20,6 +20,25 @@ async function grade(code, testSource) {
   return runTests({ code, testSource, pythonPath: PYTHON, timeoutMs: 90_000, isolation: 'process' });
 }
 
+async function gradeLogical(code, testSource, logicalTestCount) {
+  if (!Number.isSafeInteger(logicalTestCount) || logicalTestCount <= 0) {
+    throw new TypeError('logicalTestCount must be a positive safe integer');
+  }
+  const result = await grade(code, testSource);
+  if (result.total === logicalTestCount) return result;
+  if (result.total === 0 && ['error', 'no_code'].includes(result.outcome)) {
+    return {
+      ...result,
+      solved: false,
+      total: logicalTestCount,
+      passed: 0,
+      fraction: 0,
+      logicalScoreNormalization: 'uncollectable_student_code_counted_as_all_logical_tests_failed',
+    };
+  }
+  return result;
+}
+
 async function evaluateAssertions(code, assertions, functionNames) {
   if (!Array.isArray(assertions) || assertions.length === 0) return [];
   const checks = assertions.slice(0, 3).map((item) => String(item).trim());
@@ -149,4 +168,4 @@ function testNames(result) {
     .map((item) => String(item.nodeid ?? '').split('::').at(-1));
 }
 
-module.exports = { evaluateAssertions, grade, testNames };
+module.exports = { evaluateAssertions, grade, gradeLogical, testNames };

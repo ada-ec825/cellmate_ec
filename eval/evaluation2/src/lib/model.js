@@ -56,8 +56,8 @@ function openAIResponsesPayload(model, prompt, { temperature = 0.7, numPredict }
   return {
     model,
     input: prompt,
-    temperature,
     store: false,
+    ...(Number.isFinite(temperature) ? { temperature } : {}),
     ...(numPredict !== undefined ? { max_output_tokens: numPredict } : {}),
   };
 }
@@ -137,7 +137,7 @@ function openWebUISettings() {
 
 function descriptorFor({ backend, model, endpoint, credentialReferenceName }) {
   const transportPayloadSemantics = backend === 'openai-responses'
-    ? 'POST input to the OpenAI Responses API with explicit temperature, max_output_tokens and store=false; the API exposes no sampling seed field'
+    ? 'POST input to the OpenAI Responses API with max_output_tokens and store=false; temperature is included only when configured because some models do not support it; the API exposes no sampling seed field'
     : backend === 'openai'
     ? 'POST one user message to the OpenAI Chat Completions API with explicit temperature, seed, max_tokens, stream=false and store=false'
     : 'POST an Ollama-compatible generate payload with explicit decoding options; optional think and num_predict are recorded by each run';
