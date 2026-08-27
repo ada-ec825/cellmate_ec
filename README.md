@@ -50,12 +50,44 @@ Detailed experiment instructions are in
 
 ## Requirements
 
-- VS Code 1.75 or later
-- Node.js 20 or later and npm
-- VS Code Python extension
-- Jupyter notebook support in VS Code
-- An LLM endpoint and API key for AI features
-- Python 3.14 and the locked requirements in each evaluation directory
+- To use a packaged extension: VS Code 1.75 or later, the VS Code Python and
+  Jupyter extensions, and an LLM endpoint with an API key. Node.js is not
+  required.
+- To run or build from source: Node.js 20 or later and npm, in addition to the
+  requirements above.
+- To reproduce the evaluations: Python 3.14 and the locked requirements in the
+  relevant evaluation directory.
+
+## Install a packaged VSIX
+
+Download the VSIX matching the target machine from the repository's
+[GitHub Releases](https://github.com/ada-ec825/cellmate_ec/releases):
+
+| Target machine | VSIX target |
+|---|---|
+| Apple Silicon macOS | `darwin-arm64` |
+| 64-bit Linux | `linux-x64` |
+| 64-bit Windows | `win32-x64` |
+
+Intel macOS, ARM Linux, and ARM Windows packages are not currently built.
+VSIX files are target-specific because the speech dependency contains a native
+binary.
+
+In VS Code:
+
+1. Open the Extensions view.
+2. Open the `...` menu and select **Install from VSIX...**.
+3. Select the downloaded VSIX and reload VS Code when prompted.
+
+The same installation can be performed from a terminal with the VS Code CLI:
+
+```bash
+code --install-extension /path/to/cellmate-<version>-<target>.vsix
+```
+
+After installation, install or enable the VS Code Python and Jupyter
+extensions, open a notebook, and configure the CellMate settings described
+below.
 
 ## Install and run from source
 
@@ -70,7 +102,8 @@ Open the repository in VS Code and press `F5`. The tracked
 `.vscode/launch.json` starts an Extension Development Host using the compiled
 `out/extension.js` entry point.
 
-Configure the following settings in the Development Host:
+Configure the following settings in the VS Code window where CellMate is
+running. For source development, this is the Extension Development Host:
 
 ```json
 {
