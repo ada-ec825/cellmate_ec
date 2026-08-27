@@ -1,36 +1,42 @@
 import * as vscode from 'vscode';
+import { escapeHtml, renderIntent } from './intentMarkup';
 import { Decomposition } from './schema';
+import { ProgressCheckResult, StepVerdict } from './stepCheck';
 
 /**
  * Side effects the panel raises but does not own. The command layer wires
- * these to state persistence, telemetry and regeneration, keeping the
- * panel a dumb view of one decomposition.
+ * these to the progress-check engine, state persistence and telemetry,
+ * keeping the panel a dumb view of one decomposition.
  */
 export interface GuidePanelHooks {
-  /** A further step became visible; `step` is the new 1-based count. */
-  onStepRevealed?(step: number): void;
-  /** The student restarted the guide from step 1. */
-  onReset?(): void;
+  /** The student asked for a progress check against their current code. */
+  onCheckProgress?(): void;
   /** The student asked for a fresh decomposition. */
   onRegenerate?(): void;
 }
 
 /**
- * Webview panel that reveals a decomposition one step at a time.
- * Shows labels and intents only — never code, and not checkHint either
- * (that field belongs to step_check, not to the student).
+ * Webview panel showing the whole decomposition at once — the plan IS the
+ * help, so nothing is hidden or gated. A progress check marks each step
+ * (· unchecked, ✓ addressed, △ needs attention) and shows one short
+ * remark; verdicts are advisory and never block anything. Shows labels,
+ * intents and time shares only — never code, and not checkHint either
+ * (that field belongs to the checker, not to the student).
  */
 export class GuidePanel {
   public static currentPanel: GuidePanel | undefined;
 
   private readonly panel: vscode.WebviewPanel;
   private decomposition: Decomposition;
-  private revealed: number;
   private hooks: GuidePanelHooks;
+  /** Latest check verdicts; null until the first check of this plan. */
+  private verdicts: StepVerdict[] | null = null;
+  private feedback: string | null = null;
+  private checking = false;
 
   public static createOrShow(
     decomposition: Decomposition,
-    initialRevealed = 1,
+    _initialStep = 1, // deprecated, ignored: all steps are always visible
     hooks: GuidePanelHooks = {}
   ): GuidePanel {
     const column = vscode.ViewColumn.Two;
@@ -38,7 +44,7 @@ export class GuidePanel {
     if (GuidePanel.currentPanel) {
       GuidePanel.currentPanel.panel.reveal(column);
       GuidePanel.currentPanel.hooks = hooks;
-      GuidePanel.currentPanel.setDecomposition(decomposition, initialRevealed);
+      GuidePanel.currentPanel.setDecomposition(decomposition);
       return GuidePanel.currentPanel;
     }
 
@@ -48,19 +54,17 @@ export class GuidePanel {
       column,
       { enableScripts: true, retainContextWhenHidden: true }
     );
-    GuidePanel.currentPanel = new GuidePanel(panel, decomposition, initialRevealed, hooks);
+    GuidePanel.currentPanel = new GuidePanel(panel, decomposition, hooks);
     return GuidePanel.currentPanel;
   }
 
   private constructor(
     panel: vscode.WebviewPanel,
     decomposition: Decomposition,
-    initialRevealed: number,
     hooks: GuidePanelHooks
   ) {
     this.panel = panel;
     this.decomposition = decomposition;
-    this.revealed = this.clampRevealed(initialRevealed);
     this.hooks = hooks;
 
     this.update();
@@ -68,17 +72,12 @@ export class GuidePanel {
     this.panel.onDidDispose(() => this.dispose(), null);
     this.panel.webview.onDidReceiveMessage((message: { command: string }) => {
       switch (message.command) {
-        case 'next':
-          if (this.revealed < this.decomposition.steps.length) {
-            this.revealed++;
-            this.hooks.onStepRevealed?.(this.revealed);
+        case 'check':
+          if (!this.checking) {
+            this.checking = true;
             this.update();
+            this.hooks.onCheckProgress?.();
           }
-          break;
-        case 'reset':
-          this.revealed = 1;
-          this.hooks.onReset?.();
-          this.update();
           break;
         case 'regenerate':
           this.hooks.onRegenerate?.();
@@ -89,15 +88,28 @@ export class GuidePanel {
     });
   }
 
-  /** Replace the plan (e.g. after regeneration) and re-render. */
-  public setDecomposition(decomposition: Decomposition, revealed = 1): void {
+  /** Replace the plan (e.g. after regeneration); clears all check marks. */
+  public setDecomposition(decomposition: Decomposition, _revealed = 1): void {
     this.decomposition = decomposition;
-    this.revealed = this.clampRevealed(revealed);
+    this.verdicts = null;
+    this.feedback = null;
+    this.checking = false;
     this.update();
   }
 
-  private clampRevealed(n: number): number {
-    return Math.min(Math.max(1, n), this.decomposition.steps.length);
+  /**
+   * The wiring calls this when a progress check finishes. A null result
+   * (fail-open path) keeps existing marks and shows a soft notice.
+   */
+  public showProgress(result: ProgressCheckResult | null): void {
+    this.checking = false;
+    if (result) {
+      this.verdicts = result.verdicts;
+      this.feedback = result.feedback;
+    } else {
+      this.feedback = 'Could not check this time — carry on.';
+    }
+    this.update();
   }
 
   private update(): void {
@@ -107,20 +119,42 @@ export class GuidePanel {
 
   private render(): string {
     const d = this.decomposition;
-    const allRevealed = this.revealed >= d.steps.length;
+    const doneCount = this.verdicts
+      ? this.verdicts.filter((v) => v.status === 'done').length
+      : 0;
+    // The frontier — first step not cleanly done — gets the highlight.
+    const frontier = this.verdicts
+      ? this.verdicts.findIndex((v) => v.status !== 'done')
+      : 0;
 
     const stepsHtml = d.steps
-      .map((s) => {
-        if (s.index > this.revealed) {
-          return `<li class="step locked">Step ${s.index} &#128274;</li>`;
-        }
-        const current = s.index === this.revealed ? ' current' : '';
-        return `<li class="step${current}">
-          <div class="label">Step ${s.index}: ${escapeHtml(s.label)}</div>
-          <div class="intent">${escapeHtml(s.intent)}</div>
+      .map((s, i) => {
+        const status = this.verdicts?.[i]?.status;
+        const stateClass = status === 'done' ? ' done' : status === 'issue' ? ' flagged' : '';
+        const currentClass = i === frontier ? ' current' : '';
+        const marker = status === 'done' ? '&#10003;' : status === 'issue' ? '&#9888;' : '&#183;';
+        const note = this.verdicts?.[i]?.note
+          ? `<div class="note">${escapeHtml(this.verdicts[i].note!)}</div>`
+          : '';
+        const share =
+          typeof s.timeShare === 'number'
+            ? `<span class="share-label">~${Math.round(s.timeShare)}% of your time</span>`
+            : '';
+        return `<li class="step${stateClass}${currentClass}">
+          <div class="label"><span class="marker">${marker}</span>Step ${s.index}: ${escapeHtml(s.label)} ${share}</div>
+          <div class="intent">${renderIntent(s.intent)}</div>
+          ${note}
         </li>`;
       })
       .join('\n');
+
+    const banner = this.feedback
+      ? `<div class="banner">&#128172; ${escapeHtml(this.feedback)}</div>`
+      : '';
+
+    const progressNote = this.verdicts
+      ? `${doneCount}/${d.steps.length} steps addressed`
+      : `${d.steps.length} steps`;
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -147,13 +181,44 @@ export class GuidePanel {
     background: var(--vscode-editor-hoverHighlightBackground);
   }
   .step.current { border-left-color: var(--vscode-textLink-foreground); }
-  .step.locked {
-    color: var(--vscode-descriptionForeground);
-    background: none;
-    border-left-style: dashed;
+  .step.done { opacity: 0.75; }
+  .step.done .marker { color: var(--vscode-charts-green, #4caf50); }
+  .step.flagged .marker { color: var(--vscode-editorWarning-foreground, #e0a93b); }
+  .note {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--vscode-editorWarning-foreground, #e0a93b);
+    margin: 3px 0 0 1.1em;
   }
+  .marker { display: inline-block; width: 1.1em; font-weight: 700; }
   .label { font-weight: 600; margin-bottom: 4px; }
-  .intent { font-size: 13px; line-height: 1.5; }
+  .share-label {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--vscode-descriptionForeground);
+    margin-left: 6px;
+  }
+  .intent { font-size: 13px; line-height: 1.5; margin-left: 1.1em; }
+  .intent p { margin: 0 0 0.4em; }
+  .intent ul { margin: 0.2em 0 0.4em; padding-left: 1.2em; }
+  .intent li { margin: 0.15em 0; }
+  .intent strong { font-weight: 600; color: var(--vscode-foreground); }
+  .intent code {
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 0.92em;
+    padding: 0 0.3em;
+    border-radius: 3px;
+    background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.18));
+  }
+  .banner {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border-left: 3px solid var(--vscode-textLink-foreground);
+    background: var(--vscode-editor-hoverHighlightBackground);
+    font-size: 13px;
+    line-height: 1.5;
+  }
   .buttons { margin-top: 14px; display: flex; gap: 8px; }
   button {
     background: var(--vscode-button-background);
@@ -174,19 +239,21 @@ export class GuidePanel {
   <div class="header">
     Exercise <b>${escapeHtml(d.exerciseId)}</b>
     &middot; plan source: ${escapeHtml(d.source)}
-    &middot; ${this.revealed}/${d.steps.length} steps shown
+    &middot; ${progressNote}
   </div>
   <ol class="steps">
 ${stepsHtml}
   </ol>
+  ${banner}
   <div class="buttons">
-    <button id="next" ${allRevealed ? 'disabled' : ''}>Show next step</button>
-    <button id="reset" class="secondary">Start over</button>
+    <button id="check" ${this.checking ? 'disabled' : ''}>${
+      this.checking ? 'Checking&#8230;' : 'Check my progress'
+    }</button>
     <button id="regenerate" class="secondary">Regenerate</button>
   </div>
   <script>
     const vscode = acquireVsCodeApi();
-    for (const id of ['next', 'reset', 'regenerate']) {
+    for (const id of ['check', 'regenerate']) {
       document.getElementById(id).addEventListener('click', () => {
         vscode.postMessage({ command: id });
       });
@@ -203,10 +270,3 @@ ${stepsHtml}
 }
 
 /** Escape text for safe interpolation into the webview HTML. */
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}

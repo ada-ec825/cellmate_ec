@@ -14,9 +14,10 @@ const {
   fillDecomposeTemplate,
   generateDecomposition,
 } = require('../out/decompose.js');
+const { listDecompositionViolations } = require('../out/schema.js');
 const { LOCAL_REPO_PATH } = require('../out/gitUtils.js');
 
-/** Build a valid 3..7-step plan the parser should accept. */
+/** Build a valid 3..8-step plan the parser should accept. */
 function makeSteps(n) {
   return Array.from({ length: n }, (_, i) => ({
     index: i + 1,
@@ -67,12 +68,11 @@ test('returns null for an unbalanced (truncated) object', () => {
 
 // ── parseDecomposition: happy path ─────────────────────────────────
 
-test('accepts a valid plan and stamps exerciseId/version/source', () => {
+test('accepts a valid plan and stamps exerciseId/source', () => {
   const raw =
     'Sure!\n```json\n' +
     JSON.stringify({
       exerciseId: 'echoed-wrong',
-      version: 99,
       source: 'gold',
       steps: makeSteps(3),
     }) +
@@ -81,7 +81,6 @@ test('accepts a valid plan and stamps exerciseId/version/source', () => {
   assert.equal(r.ok, true);
   // Fields the extension owns are stamped, not trusted from the echo.
   assert.equal(r.decomposition.exerciseId, 'count_words');
-  assert.equal(r.decomposition.version, 1);
   assert.equal(r.decomposition.source, 'generated');
   assert.equal(r.decomposition.steps.length, 3);
 });
@@ -119,43 +118,106 @@ test('rejects a missing steps array', () => {
   // surfaces as a step-count problem rather than a type problem.
   const r = parseDecomposition('{"plan": []}', 'ex');
   assert.equal(r.ok, false);
-  assert.match(r.reason, /3 to 7 steps, found 0/);
+  assert.match(r.reason, /3 to 8 steps, found 0/);
 });
 
 test('rejects too few and too many steps, reporting the count', () => {
   const few = parseDecomposition(JSON.stringify({ steps: makeSteps(2) }), 'ex');
-  const many = parseDecomposition(JSON.stringify({ steps: makeSteps(8) }), 'ex');
+  const many = parseDecomposition(JSON.stringify({ steps: makeSteps(9) }), 'ex');
   assert.equal(few.ok, false);
-  assert.match(few.reason, /3 to 7 steps, found 2/);
+  assert.match(few.reason, /3 to 8 steps, found 2/);
   assert.equal(many.ok, false);
-  assert.match(many.reason, /3 to 7 steps, found 8/);
+  assert.match(many.reason, /3 to 8 steps, found 9/);
 });
 
-test('rejects code traces in an intent', () => {
-  for (const leaky of [
-    'just return x here',
-    'Return the final list to the caller', // keyword check is case-insensitive
-    'write def solve first',
-    'you should import math',
-    'use ``` to format',
-    'call `text.split()` on the input', // inline code span
-    'set counter = 0 before the loop', // assignment operator
-    'loop with for word in words', // Python-style loop header
-  ]) {
-    const steps = makeSteps(3);
-    steps[1].intent = leaky;
-    const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
-    assert.equal(r.ok, false, `intent should be rejected: "${leaky}"`);
-    assert.match(r.reason, /step 2 intent contains code/); // names the step
-  }
+test('accepts an eight-step plan', () => {
+  const r = parseDecomposition(JSON.stringify({ steps: makeSteps(8) }), 'ex');
+  assert.equal(r.ok, true, r.reason);
+  assert.equal(r.decomposition.steps.length, 8);
 });
 
-test('rejects code traces in a checkHint', () => {
+test('keeps LaTeX commands out of JSON escaping', () => {
+  // "\times" and "\frac" begin with escapes JSON accepts, so before the
+  // guard they parsed into a tab and a formfeed and silently ate a letter.
+  const raw = String.raw`{"steps":[
+    {"index":1,"label":"A","intent":"v = \Delta t \times (\frac{1}{2}a_0)"},
+    {"index":2,"label":"B","intent":"plain"},
+    {"index":3,"label":"C","intent":"plain"}]}`;
+  const r = parseDecomposition(raw, 'ex');
+  assert.equal(r.ok, true, r.reason);
+  assert.equal(r.decomposition.steps[0].intent, 'v = \\Delta t \\times (\\frac{1}{2}a_0)');
+});
+
+test('leaves newline separators, \\uXXXX and escaped backslashes alone', () => {
+  const raw = String.raw`{"steps":[
+    {"index":1,"label":"A","intent":"goal\n- one\n- two"},
+    {"index":2,"label":"B","intent":"caf\u00e9 value"},
+    {"index":3,"label":"C","intent":"path C:\\tmp here"}]}`;
+  const r = parseDecomposition(raw, 'ex');
+  assert.equal(r.ok, true, r.reason);
+  assert.equal(r.decomposition.steps[0].intent, 'goal\n- one\n- two');
+  assert.equal(r.decomposition.steps[1].intent, 'caf\u00e9 value');
+  assert.equal(r.decomposition.steps[2].intent, 'path C:\\tmp here');
+});
+
+test('rejects an intent left holding a swallowed LaTeX command', () => {
+  // Checked on the parsed string, so build one directly: a JSON round-trip
+  // would re-escape the control character and the LaTeX guard would undo it.
   const steps = makeSteps(3);
-  steps[2].checkHint = 'Sets total = 0 before the loop.';
+  steps[0].intent = 'scale by \u0009imes two'; // what "\times" used to become
+  steps[2].intent = 'half is \u000crac{1}{2}'; // and "\frac"
+  const v = listDecompositionViolations(makeGold(steps));
+  assert.ok(v.some((m) => /step 1 intent contains a control character/.test(m)), v.join('; '));
+  assert.ok(v.some((m) => /step 3 intent contains a control character/.test(m)), v.join('; '));
+});
+
+test('allows a leading tab as indentation', () => {
+  const steps = makeSteps(3);
+  steps[0].intent = 'goal line\n\tcontinued here';
+  assert.deepEqual(listDecompositionViolations(makeGold(steps)), []);
+});
+
+test('accepts a step whose specification arrives as "spec"', () => {
+  // qwen3.6 via ChatESE renames the field; rejecting it costs a whole
+  // regeneration, so the parser moves the synonym onto intent.
+  const steps = makeSteps(3).map(({ intent, ...rest }) => ({ ...rest, spec: intent }));
+  const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
+  assert.equal(r.ok, true, r.reason);
+  assert.equal(r.decomposition.steps[0].intent, 'Think about what this part of the task needs.');
+  assert.equal(r.decomposition.steps[0].spec, undefined);
+});
+
+test('keeps a real intent when a synonym is also present', () => {
+  const steps = makeSteps(3).map((s) => ({ ...s, spec: 'the wrong one' }));
+  const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
+  assert.equal(r.ok, true, r.reason);
+  assert.equal(r.decomposition.steps[0].intent, 'Think about what this part of the task needs.');
+});
+
+test('names the intent field when no synonym is recognised', () => {
+  const steps = makeSteps(3).map(({ intent, ...rest }) => ({ ...rest, blurb: intent }));
   const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
   assert.equal(r.ok, false);
-  assert.match(r.reason, /step 3 checkHint contains code/);
+  assert.match(r.reason, /named exactly "intent"/);
+});
+
+test('never rejects prose for looking like code', () => {
+  // The validator checks structure only. Contract quoting, math, keywords,
+  // even signature snippets must all pass; leakage review happens in the
+  // offline audit, not at parse time.
+  for (const ok of [
+    'The function compute_velocity(dt, k, a) should return one velocity value.',
+    'Assume v(0) = 0, exactly as the exercise states.',
+    'Read the values from data/acc.dat before you import any plotting library.',
+    'Write def compute_velocity(dt, k, a) exactly as the exercise names it.',
+    'Decide what the function hands back for an empty input.',
+  ]) {
+    const steps = makeSteps(3);
+    steps[1].intent = ok;
+    steps[2].checkHint = ok;
+    const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
+    assert.equal(r.ok, true, `should be accepted: "${ok}"`);
+  }
 });
 
 test('accepts plain-English prose that merely sounds imperative', () => {
@@ -185,7 +247,7 @@ test('rejects empty or whitespace-only label and intent', () => {
   blankIntent[2].intent = '';
   const r2 = parseDecomposition(JSON.stringify({ steps: blankIntent }), 'ex');
   assert.equal(r2.ok, false);
-  assert.match(r2.reason, /step 3 intent/);
+  assert.match(r2.reason, /step 3 must carry its specification/);
 });
 
 test('rejects a non-string checkHint', () => {
@@ -198,12 +260,12 @@ test('rejects a non-string checkHint', () => {
 
 test('names every violation at once, not just the first', () => {
   const steps = makeSteps(3);
-  steps[0].intent = 'just return x here'; // code trace
+  steps[0].intent = '   '; // blank intent
   steps[1].label = '   '; // blank label
   steps[2].checkHint = 42; // wrong type
   const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
   assert.equal(r.ok, false);
-  assert.match(r.reason, /step 1 intent contains code/);
+  assert.match(r.reason, /step 1 must carry its specification/);
   assert.match(r.reason, /step 2 label must be a non-empty string/);
   assert.match(r.reason, /step 3 checkHint must be a string/);
 });
@@ -361,4 +423,52 @@ test('engine does not retry transport errors', async () => {
   assert.equal(r.attempts, 1);
   assert.match(r.reason, /LLM call failed: boom/);
   assert.equal(llm.prompts.length, 1); // exactly one call, no retry
+});
+
+// ── timeShare (schema v2) ──────────────────────────────────────────
+// Exercised through listDecompositionViolations directly: gold files skip
+// the parser, so the validator must hold these rules on its own.
+
+/** A gold-file-shaped object. */
+function makeGold(steps) {
+  return { exerciseId: 'ex', source: 'gold', steps };
+}
+
+/** Attach the given shares to a fresh 3-step plan. */
+function stepsWithShares(shares) {
+  return makeSteps(shares.length).map((s, i) =>
+    shares[i] === undefined ? s : { ...s, timeShare: shares[i] }
+  );
+}
+
+test('accepts a v1 gold plan without timeShare (compatibility)', () => {
+  const v = listDecompositionViolations(makeGold(makeSteps(3)));
+  assert.deepEqual(v, []);
+});
+
+test('accepts a full set of timeShares summing to 100', () => {
+  const v = listDecompositionViolations(makeGold(stepsWithShares([20, 30, 50])));
+  assert.deepEqual(v, []);
+});
+
+test('rejects timeShare on only some steps', () => {
+  const v = listDecompositionViolations(makeGold(stepsWithShares([50, undefined, undefined])));
+  assert.ok(v.some((m) => /every step or on none/.test(m)), v.join('; '));
+});
+
+test('rejects shares that do not sum to roughly 100', () => {
+  const v = listDecompositionViolations(makeGold(stepsWithShares([50, 50, 30])));
+  assert.ok(v.some((m) => /sum to roughly 100, found 130/.test(m)), v.join('; '));
+});
+
+test('rejects a share below 5 percent', () => {
+  const v = listDecompositionViolations(makeGold(stepsWithShares([2, 49, 49])));
+  assert.ok(v.some((m) => /step 1 timeShare must be a number between 5 and 100/.test(m)), v.join('; '));
+});
+
+test('parses timeShare through from model output', () => {
+  const steps = stepsWithShares([25, 25, 50]);
+  const r = parseDecomposition(JSON.stringify({ steps }), 'ex');
+  assert.equal(r.ok, true);
+  assert.equal(r.decomposition.steps[2].timeShare, 50);
 });

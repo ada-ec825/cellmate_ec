@@ -1,0 +1,33 @@
+{
+  "expectedSessions": 200,
+  "cleanSessions": 200,
+  "uniqueSessionKeys": 200,
+  "cellCounts": {
+    "4omini": {
+      "plain_note": 25,
+      "plain_no_note": 25,
+      "guide_note": 25,
+      "guide_no_note": 25
+    },
+    "luna": {
+      "plain_note": 25,
+      "plain_no_note": 25,
+      "guide_note": 25,
+      "guide_no_note": 25
+    }
+  },
+  "allCellsComplete": true,
+  "cleanResultMechanicalFailures": 0,
+  "transportErrors": 0,
+  "discardedMechanicalSessionAttempts": 2,
+  "roundFormatRetries": 337,
+  "clearScheduleMismatches": [],
+  "roundViolations": [],
+  "repairRegressions": [],
+  "noteTreatmentViolations": [],
+  "formatIntegrityViolations": [],
+  "testSchemaViolations": [],
+  "testScoreViolations": [],
+  "independentRescoreMismatches": [],
+  "passed": true
+}

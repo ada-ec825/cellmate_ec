@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_hard_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse and Load Records",
+      "intent": "Implement `load_records(text)` to process the input text and return cleaned records as valid dictionaries.\n- Each line in the text consists of six `|`-separated fields: `TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP`.\n- **Silently skip** any invalid records; do not raise errors or print messages.\n- Store only `USD` records, trimming both `record_id` and `order_id`.\n- The valid `type` is case-insensitive `ORDER` or `PAYMENT`, stored uppercase.\n- **Trim all identifiers**; every `ORDER_ID` must start with `ORD-`.\n- Amounts must be in integer cents with rules: digits, an optional leading minus sign, no scientific notation, and at most one decimal point.\n- At most three fractional digits allowed; **round** three fractional digits to nearest cent using round-half-up.\n- A positive amount exceeding `1,000,000` cents is invalid.\n- `record_id` and `order_id` must be non-empty after trimming.\n- **Duplicate `record_id`**: retain the first valid occurrence.\n- Return a list of valid records as dictionaries with keys: `type`, `record_id`, `order_id`, `amount`, `currency`, `timestamp`.",
+      "checkHint": "Given input text with invalid and duplicate records, `load_records` returns only the valid subset with unique record IDs.",
+      "timeShare": 25
+    },
+    {
+      "index": 2,
+      "label": "Parse Amounts",
+      "intent": "Develop `parse_amount(s)` to interpret and validate payment amounts, including conversion to cents.\n- Input `s` is a string representation of an amount, in `USD`, as digits with at most one decimal point and an optional leading minus sign.\n- Convert valid amounts to integer cents, rounding three fractional digits **using round-half-up**.\n- Amounts with non-valid characters or formats are invalid and **must be silently skipped**.\n- Ignore amounts whose absolute value exceeds `1,000,000` cents after cent conversion.",
+      "checkHint": "`parse_amount('100.005')` correctly rounds and returns `10001` in cents.",
+      "timeShare": 15
+    },
+    {
+      "index": 3,
+      "label": "Compute Refunds",
+      "intent": "Implement `compute_refunds(records)` to calculate the total refund amount.\n- Use the list of dictionaries that `load_records` returns as `records`, each representing a valid record.\n- Refunds are negative `PAYMENT` amounts with a corresponding `ORDER_ID` in `records`.\n- Sum only qualified negative amounts where their `order_id` belongs to a current order in `records`.\n- Return the positive sum as `refund_total`.",
+      "checkHint": "If refunds total to -$20.00, then `compute_refunds` should return `2000`.",
+      "timeShare": 10
+    },
+    {
+      "index": 4,
+      "label": "Match Payments to Orders",
+      "intent": "Create `match_payments(records)` to match payments against orders.\n- The function should return a list of dictionaries containing `order_id`, `status`, and `amount`.\n- A `PAYMENT` is matched if it occurs strictly less than 72 hours after the corresponding `ORDER`, superseding a 72-hour inclusion announcement.\n- Keep records in their ordering; refunds do not match.\n- Status is `matched` if a payment meets the criteria; otherwise it is `unmatched`.\n- A `matched` status has the matched amount whereas `unmatched` amounts must be `0`.",
+      "checkHint": "Payment at 71:59 after an order gets `matched` status.",
+      "timeShare": 20
+    },
+    {
+      "index": 5,
+      "label": "Build Summary Report",
+      "intent": "Develop `build_summary(matches, refund_total)` to generate a report of reconciled data.\n- Receive `matches` as a list of dictionary results from `match_payments` and `refund_total` from `compute_refunds`.\n- Generate a summary dictionary with keys: `total_orders`, `matched_count`, `refund_total`, `net_total`, and `unmatched_ids`.\n- `total_orders` count total orders.\n- `matched_count`: count records with status `matched`.\n- `unmatched_ids`: deduplicated list of unmatched `order_id`s, sorted lexicographically.\n- `net_total` is the sum of all matched amounts minus `refund_total`, bounded to be non-negative.\n- Include the `refund_total` as provided.",
+      "checkHint": "The summary should show `net_total` as `0` if results net to a negative.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Integrating the Solver",
+      "intent": "Combine every method to achieve complete settlement reconciliation.\n- Input consists of all text records being processed through `load_records`.\n- Obtain valid records, compute refunds using `compute_refunds`, and build the summary via `build_summary`.\n- **Ensure all sub-functions** are utilized within an orchestrated solution, integrating parsing, matching and summary generation without modifying inputs or using global states.\n- Return the final summary as detailed.",
+      "checkHint": "A complete call chain processes raw text records to output the structured summary promptly.",
+      "timeShare": 10
+    }
+  ]
+}

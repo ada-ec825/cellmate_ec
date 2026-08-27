@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_hard_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parsing amounts",
+      "intent": "Implement `parse_amount(s)` to convert a string `s` to integer cents based on specific rules.\n- `s` includes digits and possibly one decimal point, with an optional leading minus sign.\n- Accept at most three decimal places; round the third place to cents using round-half-up.\n- Disallow scientific notation.\n- Convert amounts to integer cents.\n- If the absolute value exceeds 1,000,000 cents, the amount is invalid.\n- Return `None` for invalid inputs.",
+      "checkHint": "parse_amount('123.456') should return 12346",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parsing records",
+      "intent": "Implement `parse_record(line)` to handle one line of input in a specific format.\n- Input `line` has six `|`-separated fields: `TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP`.\n- `TYPE` is case-insensitive `ORDER` or `PAYMENT`, stored uppercase.\n- `ORDER_ID` must start with `ORD-` after trimming.\n- Invalid records are ignored, returning `None`.\n- Use `parse_amount` to validate and convert `AMOUNT`.\n- Only process `USD` currency.\n- Validate timestamp format as `YYYY-MM-DD HH:MM` or `YYYY-MM-DD HH:MM:SS`.\n- Return a dictionary for valid records with keys: `type`, `record_id`, `order_id`, `amount`, `currency`, `timestamp`.",
+      "checkHint": "parse_record('Order| 123 | ORD-1 | 100.50 | USD | 2023-10-12 00:00') should return a valid dictionary",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Loading records",
+      "intent": "Implement `load_records(text)` to load multiple records from a text block.\n- Input `text` is of multiple lines.\n- Each line is parsed using `parse_record`.\n- Silently skip invalid records.\n- Maintain the first valid occurrence for duplicate `record_id`s.\n- Preserve the order of valid records.",
+      "checkHint": "load_records with duplicate RECORD_IDs keeps the first valid one",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Compute refunds",
+      "intent": "Create `compute_refunds(records)` to calculate the total refund from negative payment entries.\n- Only consider records processed by `load_records`.\n- Refunds are negative payments linked to existing orders.\n- Output is the positive sum of refund values.\n- Ensure refunds only count if corresponding order records exist.",
+      "checkHint": "compute_refunds returns a positive integer sum of negative payments",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match payments to orders",
+      "intent": "Develop `match_payments(records)` for order and payment matching.\n- Produce one result per order, ordered by appearance.\n- Payments must match within start timestamp and strictly less than 72 hours later.\n- Prefer earliest timestamp and, on a tie, first source occurrence.\n- Refund payments do not match; status should be `unmatched` with amount `0`.\n- Result includes `order_id`, `status`, and `amount`.",
+      "checkHint": "match_payments only matches if within strict 72-hour window",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Build summary report",
+      "intent": "Implement `build_summary(matches, refund_total)` to generate a report.\n- Report contains keys: `total_orders`, `matched_count`, `refund_total`, `net_total`, `unmatched_ids`.\n- Calculate `matched_count` based on `matched` status in lowercase.\n- `net_total` equals matched payments minus `refund_total`, with a lower bound of zero.\n- `unmatched_ids` is a sorted unique list.\n- Include `refund_total` provided as input.",
+      "checkHint": "build_summary correctly computes `net_total` following constraints",
+      "timeShare": 20
+    }
+  ]
+}

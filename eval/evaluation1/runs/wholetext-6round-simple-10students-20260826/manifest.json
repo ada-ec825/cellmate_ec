@@ -1,0 +1,61 @@
+{
+  "runId": "wholetext-6round-simple-10students-20260826",
+  "startedAt": "2026-08-26T01:30:36.485Z",
+  "protocolSha256": "906c3f68bc40a75a52951549322d2a0ac902c797a8a19033b61a478e36f45c14",
+  "presentationsPath": "eval/evaluation1/tasks/simple/presentations_wholetext_6rounds.json",
+  "presentationsSha256": "0b19b4763c8b47a9c1631d87351c4ab815263ef339a99d1815b50f6ea1a799ce",
+  "modelDescriptor": {
+    "backend": "openai-responses",
+    "identifier": "gpt-4o-mini-2024-07-18",
+    "endpointSha256": "ee0291cefbb5b6136483fb38ba9efe9264f9b685d5006c273e293a54b43a1883",
+    "credentialReferenceName": "env:OPENAI_API_KEY",
+    "transportPayloadSemantics": "POST input to the OpenAI Responses API with explicit temperature, max_output_tokens and store=false; the API exposes no sampling seed field",
+    "responseSemantics": "output_text content plus whitelisted model, input/output token counts, status, response-id and request-id metadata",
+    "nonSecretConfigSha256": "3ed421dcc5efca9ba03c1dcec80f67ce9e98deae87cf75690a82be58287bd88c"
+  },
+  "modelIdentity": {
+    "backend": "openai-responses",
+    "id": "gpt-4o-mini-2024-07-18",
+    "object": "model",
+    "created": 1721172717,
+    "ownedBy": "system",
+    "requestId": "d5d69a05-09b3-4ab3-9c93-078a4ca9e15f"
+  },
+  "generationSeeds": [
+    80001,
+    80002,
+    80003,
+    80004,
+    80005,
+    80006,
+    80007,
+    80008,
+    80009,
+    80010
+  ],
+  "preflight": {
+    "referenceTest": 1,
+    "starterTest": 0,
+    "logicalUnseenTests": 22,
+    "underlyingCaseVariants": 44,
+    "materials": 1,
+    "stagesPerMaterial": {
+      "plain_wholetext_6rounds": 6
+    },
+    "repairRoundsPerMaterial": {
+      "plain_wholetext_6rounds": 0
+    },
+    "totalRoundsPerMaterial": {
+      "plain_wholetext_6rounds": 6
+    },
+    "stopAfterPresentation": true,
+    "task": "simple",
+    "plainControlWords": {
+      "plain_5parts": 358,
+      "plain_6parts": 358
+    },
+    "presentationWords": {
+      "plain_wholetext_6rounds": 2148
+    }
+  }
+}

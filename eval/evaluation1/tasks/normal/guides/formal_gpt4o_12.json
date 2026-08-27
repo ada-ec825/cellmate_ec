@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse Amount String to Cents",
+      "intent": "Implement the `parse_amount(s)` function to process amount strings.\n- Accepts a string `s` representing an ordinary decimal number, which may have at most three fractional digits and an optional leading minus sign.\n- Invalid amount strings and non-string inputs must return `None`.\n- Valid strings are converted to integer cents by rounding to the nearest cent using round-half-up rounding if a third fractional digit is present.\n- Examples: \"12.30\" yields `1230`, \"-5.005\" rounds to `-501`, \"7.999\" is invalid.",
+      "checkHint": "`parse_amount(\"4.256\")` should return `426`.",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parse Record Line to Dictionary",
+      "intent": "Implement the `parse_record(line)` function to convert a line of text into a record dictionary or `None` if invalid.\n- Each line contains six `|`-separated fields: `TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP`.\n- Trim whitespace from `RECORD_ID` and `ORDER_ID`; they must be non-empty.\n- For `ORDER`, both identifiers must be equal.\n- `TYPE` is normalized to uppercase, accepting `ORDER` or `PAYMENT`.\n- `CURRENCY` must be exactly `USD` without surrounding whitespace.\n- Parse `AMOUNT` using `parse_amount(s)`; negative `ORDER` is invalid.\n- `TIMESTAMP` follows `2024-03-15 14:30` format, parsed to a naive `datetime` as UTC.\n- Return a dictionary with keys consistent with field names, or `None` if invalid.",
+      "checkHint": "`parse_record(\"order| 1001 | 1001 |12.50| USD |2024-03-15 14:30\")` should return a dictionary with `amount` as `1250`.",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Load and Filter Records",
+      "intent": "Implement the `load_records(text)` function to parse and filter multiple record lines.\n- Accepts a multiline string `text` where each line is a potential record.\n- Use `parse_record(line)` to parse each line.\n- Silently skip records that `parse_record(line)` returns as `None`.\n- If a `RECORD_ID` occurs more than once, retain only the first valid occurrence.\n- Return a list of valid records as dictionaries.",
+      "checkHint": "Given text with duplicate `RECORD_ID` lines, `load_records` should only include the first valid one.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Compute Refunds from Records",
+      "intent": "Implement the `compute_refunds(records)` function to calculate the total refund amount.\n- Accepts a list of record dictionaries, each from valid `PAYMENT` records.\n- Only consider negative `amount` fields in `PAYMENT` records as refunds.\n- Sum the absolute values of these negative amounts.\n- Return the total refund amount as a positive integer, in cents.\n- Records without a valid order associated should still count towards the refund total.",
+      "checkHint": "With payments including `-200` and `300`, `compute_refunds` should return `200`.",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match Payments to Orders",
+      "intent": "Implement the `match_payments(records)` function to associate payments with orders.\n- Accepts a list of record dictionaries containing both `ORDER` and `PAYMENT` records.\n- Match non-refund payments to orders by `order_id` if payment timestamp is at or after order timestamp but no more than 72 hours later.\n- Prefer the earliest valid payment for a matching order. Break ties using source order.\n- Build result dictionaries with `order_id`, `status` (`\"matched\"` or `\"unmatched\"`), and `amount`.\n- Orders without valid payments are unmatched with an `amount` of `0`.",
+      "checkHint": "If no payment falls within 72 hours, `match_payments` should return `\"unmatched\"` for that order.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Build Summary Dictionary",
+      "intent": "Implement the `build_summary(matches, refund_total)` function to compile a summary of matches and refunds.\n- Accepts a list `matches` of result dictionaries and an integer `refund_total`.\n- Generate a summary dictionary with keys: `\"total_orders\"`, `\"matched_count\"`, `\"net_total\"`, and `\"unmatched_ids\"`.\n- `\"total_orders\"` is the number of `ORDER` records.\n- `\"matched_count\"` counts orders with `\"matched\"` status.\n- `\"net_total\"` is the sum of matched payment amounts minus the positive `refund_total`.\n- `\"unmatched_ids\"` is a sorted list of `unmatched` `order_id`s.",
+      "checkHint": "Include all rules for building the summary, such as adding the `refund_total` to the calculation.",
+      "timeShare": 20
+    }
+  ]
+}

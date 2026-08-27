@@ -1,0 +1,55 @@
+{
+  "exerciseId": "evaluation1_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse amount to integer cents",
+      "intent": "Implement the `parse_amount(s)` function.\n- It converts a valid decimal-string amount to integer cents.\n- A valid amount string has at most three fractional digits and at most one decimal point.\n- Round the third fractional digit to cents using round-half-up.\n- Convert negative amounts correctly but handle them only in `PAYMENT` context.\n- Return `None` for non-string inputs, more than three fractional digits, scientific notation, or other invalid formats.",
+      "checkHint": "`parse_amount('-123.456')` returns `-12346`.",
+      "timeShare": 10
+    },
+    {
+      "index": 2,
+      "label": "Parse a record line",
+      "intent": "Implement the `parse_record(line)` function.\n- Parse a line containing six `|`-separated fields as a dictionary with specific keys.\n- Fields are parsed into dictionary keys: `\"type\"`, `\"record_id\"`, `\"order_id\"`, `\"amount\"`, `\"currency\"`, `\"timestamp\"`.\n- Normalize `TYPE` to uppercase, ensuring it's either `ORDER` or `PAYMENT`.\n- `RECORD_ID` and `ORDER_ID` must match for `ORDER` type and can't be empty after trimming.\n- Convert `AMOUNT` using `parse_amount`; skip line if it fails.\n- `CURRENCY` must be exactly `USD` after trimming; skip if not.\n- Validate `TIMESTAMP` format; skip if invalid.\n- Return `None` if any field is invalid; use a naive UTC `datetime` for `timestamp`.",
+      "checkHint": "`parse_record('ORDER| 001 | 001 | 123.45 | USD | 2024-03-15 14:30')` returns a dictionary.",
+      "timeShare": 15
+    },
+    {
+      "index": 3,
+      "label": "Load and deduplicate records",
+      "intent": "Implement the `load_records(text)` function.\n- Read lines from `text`, parse them using `parse_record`.\n- Silently skip lines parsed as `None`.\n- Keep the first valid occurrence of a `RECORD_ID` and skip duplicates.\n- Return a list of valid records, each as a dictionary.",
+      "checkHint": "`load_records` skips duplicate `RECORD_ID` and invalid lines.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Match payments to orders",
+      "intent": "Implement the `match_payments(records)` function.\n- For each `ORDER`, find eligible `PAYMENT`s by `order_id` and timestamp.\n- A non-refund `PAYMENT` qualifies if within 72-hour window from `ORDER` timestamp.\n- Choose the earliest qualifying payment by timestamp.\n- A negative payment (refund) is never matched.\n- Return a result dictionary for each order with `\"order_id\"`, `\"status\"`, and `\"amount\"`.\n- Status is `\"matched\"` when a payment is paired; `\"unmatched\"` if not.\n- Unmatched results have amount `0`.",
+      "checkHint": "A matching result has `\"status\": \"matched\"`.",
+      "timeShare": 20
+    },
+    {
+      "index": 5,
+      "label": "Compute refunds",
+      "intent": "Implement the `compute_refunds(records)` function.\n- Calculate the sum of absolute values of negative `PAYMENT` amounts, treating them as refunds.\n- Sum is returned in cents.\n- Refund count includes negatives even without matching orders.",
+      "checkHint": "`compute_refunds` calculates total refunds in cents.",
+      "timeShare": 10
+    },
+    {
+      "index": 6,
+      "label": "Build summary",
+      "intent": "Implement the `build_summary(matches, refund_total)` function.\n- Create a summary dictionary with four keys.\n- `\"total_orders\"`: count of valid orders processed.\n- `\"matched_count\"`: count of matches in `matches`.\n- `\"net_total\"`: net sum of matched payments minus `refund_total`.\n- `\"unmatched_ids\"`: list of unmatched order IDs, sorted lexicographically.\n- Use the revised rule where `net_total` subtracts `refund_total`.",
+      "checkHint": "Summary reflects matches, net payments, and unmatched IDs.",
+      "timeShare": 20
+    },
+    {
+      "index": 7,
+      "label": "Integrate and finalize",
+      "intent": "Integrate all components to reconcile orders and payments from a daily exported text file.\n- Parse, load, and deduplicate records using previous functions.\n- Match payments to orders with `match_payments`.\n- Compute total refunds with `compute_refunds`.\n- Build a final summary using `build_summary`.\n- Ensure all parts adhere to specifications e.g., currency, timestamp format, and deduction adjustments for refunds.",
+      "checkHint": "The tool correctly outputs reconciled data for given text input.",
+      "timeShare": 10
+    }
+  ]
+}

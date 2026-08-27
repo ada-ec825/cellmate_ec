@@ -1,0 +1,119 @@
+{
+  "protocolVersion": "evaluation2-normal-luna28-note-vs-no-note-v5-round6-unseen-deduplicated",
+  "status": "frozen",
+  "designSource": "method.normal-luna28-note-vs-no-note.md",
+  "task": "reconciliation",
+  "studentModels": {
+    "4omini": {
+      "label": "GPT-4o-mini",
+      "spec": "openai-responses:gpt-4o-mini-2024-07-18",
+      "snapshot": "gpt-4o-mini-2024-07-18",
+      "reasoningEffort": "not-applicable",
+      "temperature": 0.2,
+      "repeatRepairTemperature": 0.4,
+      "maxOutputTokens": 1800
+    },
+    "luna": {
+      "label": "GPT-5.6-Luna",
+      "spec": "openai-responses:gpt-5.6-luna",
+      "snapshot": "gpt-5.6-luna",
+      "reasoningEffort": "model-default-medium",
+      "temperature": null,
+      "repeatRepairTemperature": null,
+      "maxOutputTokens": 1800
+    }
+  },
+  "arms": [
+    "plain_note",
+    "plain_no_note",
+    "guide_note",
+    "guide_no_note"
+  ],
+  "cellDefinitions": {
+    "plain_note": {
+      "label": "plain with note",
+      "presentation": "plain",
+      "noteEnabled": true
+    },
+    "plain_no_note": {
+      "label": "plain no note",
+      "presentation": "plain",
+      "noteEnabled": false
+    },
+    "guide_note": {
+      "label": "guide with note",
+      "presentation": "project_steps",
+      "noteEnabled": true
+    },
+    "guide_no_note": {
+      "label": "guide no note",
+      "presentation": "project_steps",
+      "noteEnabled": false
+    }
+  },
+  "functionNames": [
+    "parse_amount",
+    "parse_record",
+    "load_records",
+    "match_payments",
+    "compute_refunds",
+    "build_summary"
+  ],
+  "stableInterfaceLines": "- parse_amount(s)\n- parse_record(line) -> dictionary or None\n- load_records(text) -> list of record dictionaries\n- match_payments(records) -> list of result dictionaries\n- compute_refunds(records)\n- build_summary(matches, refund_total)\nRecord and result fields use the exact string keys stated in the current task part. The starter already imports datetime, timedelta, Decimal, InvalidOperation, and ROUND_HALF_UP.",
+  "seeds": [
+    79001, 79002, 79003, 79004, 79005,
+    79006, 79007, 79008, 79009, 79010,
+    79011, 79012, 79013, 79014, 79015,
+    79016, 79017, 79018, 79019, 79020,
+    79021, 79022, 79023, 79024, 79025
+  ],
+  "generationSeedSalt": "generation-normal-luna28-note-vs-no-note-v2",
+  "scheduleSalt": "schedule-normal-luna28-note-vs-no-note-v2",
+  "numberOfStages": 6,
+  "maximumNoteCharacters": 3000,
+  "maximumNoteWords": 300,
+  "noteInstructionVersion": "source-note",
+  "maximumFinalRepairRounds": 0,
+  "testPolicy": {
+    "visibility": "unseen",
+    "aggregation": "paired_semantic_tests_all_case_variants_must_pass",
+    "logicalTestCount": 26,
+    "underlyingCaseVariantCount": 52,
+    "pairMappingAsset": "requirements.json"
+  },
+  "maximumTransportAttempts": 3,
+  "maximumCompletionCapRetries": 1,
+  "maximumRoundFormatRetries": 2,
+  "maximumCleanSessionAttempts": 5,
+  "assets": {
+    "statement": "tasks/normal/task.md",
+    "steps": "tasks/normal/steps.md",
+    "presentations": "tasks/normal/presentations.json",
+    "requirementTestMap": "tasks/normal/requirements.json",
+    "starter": "tasks/normal/starter.py",
+    "reference": "tasks/normal/reference.py",
+    "unseenTests": "tasks/normal/test_unseen.py"
+  },
+  "guideProvenance": {
+    "source": "evaluation1 formal_luna_28",
+    "generatorModel": "gpt-5.6-luna",
+    "steps": 6,
+    "presentationWords": 657
+  },
+  "rules": {
+    "completeNoteReplacesPreviousNoteEveryRound": true,
+    "noteUsesAtomicSourceRules": true,
+    "hardNoteWordLimit": 300,
+    "maximumTotalRounds": 6,
+    "repair": false,
+    "repeatPartsAfterFirstPass": false,
+    "requireRoundCode": true,
+    "requireNoteBeforeCodeWhenEnabled": true
+  },
+  "formalRun": {
+    "requiredRunId": "formal-normal-luna28-note-vs-no-note-6round-2models-200-20260825",
+    "sessionsPerCell": 25,
+    "expectedSessions": 200,
+    "checkpointEveryCleanSessions": 10
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "runId": "wholetext-6round-normal-20students-20260826",
+  "sessions": 20,
+  "logicalTestCount": 26,
+  "presentation": "plain_wholetext_6rounds",
+  "rounds": [
+    {
+      "round": 1,
+      "meanTestPassed": 9.6,
+      "meanTestFraction": 0.36923076923076925,
+      "sampleStandardDeviation": 0.09032968440190768,
+      "fullPassSessions": 0,
+      "meanAppliedFunctions": 3.05,
+      "transitionFromPreviousRound": null
+    },
+    {
+      "round": 2,
+      "meanTestPassed": 9.6,
+      "meanTestFraction": 0.36923076923076925,
+      "sampleStandardDeviation": 0.09032968440190768,
+      "fullPassSessions": 0,
+      "meanAppliedFunctions": 0.1,
+      "transitionFromPreviousRound": {
+        "meanFractionChange": 0,
+        "improvedSessions": 0,
+        "unchangedSessions": 20,
+        "regressedSessions": 0
+      }
+    },
+    {
+      "round": 3,
+      "meanTestPassed": 12.05,
+      "meanTestFraction": 0.4634615384615385,
+      "sampleStandardDeviation": 0.1580769477033384,
+      "fullPassSessions": 0,
+      "meanAppliedFunctions": 1,
+      "transitionFromPreviousRound": {
+        "meanFractionChange": 0.09423076923076924,
+        "improvedSessions": 9,
+        "unchangedSessions": 11,
+        "regressedSessions": 0
+      }
+    },
+    {
+      "round": 4,
+      "meanTestPassed": 15.45,
+      "meanTestFraction": 0.5942307692307693,
+      "sampleStandardDeviation": 0.1852868188296592,
+      "fullPassSessions": 0,
+      "meanAppliedFunctions": 1.3,
+      "transitionFromPreviousRound": {
+        "meanFractionChange": 0.1307692307692308,
+        "improvedSessions": 12,
+        "unchangedSessions": 8,
+        "regressedSessions": 0
+      }
+    },
+    {
+      "round": 5,
+      "meanTestPassed": 16.6,
+      "meanTestFraction": 0.6384615384615385,
+      "sampleStandardDeviation": 0.1638451084340639,
+      "fullPassSessions": 0,
+      "meanAppliedFunctions": 0.5,
+      "transitionFromPreviousRound": {
+        "meanFractionChange": 0.04423076923076922,
+        "improvedSessions": 5,
+        "unchangedSessions": 14,
+        "regressedSessions": 1
+      }
+    },
+    {
+      "round": 6,
+      "meanTestPassed": 17.75,
+      "meanTestFraction": 0.6826923076923077,
+      "sampleStandardDeviation": 0.11082418227598649,
+      "fullPassSessions": 0,
+      "meanAppliedFunctions": 0.5,
+      "transitionFromPreviousRound": {
+        "meanFractionChange": 0.044230769230769226,
+        "improvedSessions": 3,
+        "unchangedSessions": 16,
+        "regressedSessions": 1
+      }
+    }
+  ]
+}

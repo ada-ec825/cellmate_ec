@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_hard_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse amount with validation",
+      "intent": "Create a function `parse_amount(s)` to convert a currency amount string to integer cents, applying formatting and validation rules.\n- **Every amount must be stored as integer cents.**\n- Handle input with digits and at most one decimal; negative values remain negative.\n- Round a third fractional digit using **round-half-up**.\n- Return `None` if the input is not valid, including if its absolute value is greater than **1,000,000 cents**.\n- Scientific notation is not allowed.\n- This function will be used to process both `ORDER` and `PAYMENT` records.",
+      "checkHint": "`parse_amount('123.456')` returns `12346`.",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parse a record line into fields",
+      "intent": "Develop the `parse_record(line)` function to split a line into six fields, apply trimming and validation rules, and return a dictionary or `None`.\n- Each line contains `TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP`.\n- `TYPE` must be `ORDER` or `PAYMENT`, case-insensitive, stored uppercase.\n- `RECORD_ID` and `ORDER_ID` must not be empty after trimming.\n- `ORDER_ID` must start with `ORD-`.\n- Amount rules from the previous step are applied.\n- `CURRENCY` must be `USD`.\n- **The timestamp must be `YYYY-MM-DD HH:MM` or `YYYY-MM-DD HH:MM:SS`. Format violations return `None`.**\n- Silently skip invalid rows, never raise or print.",
+      "checkHint": "`parse_record('ORDER|123|ORD-789|100.00|USD|2023-01-01 10:00')` returns the expected dictionary.",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Load and store valid records",
+      "intent": "Define `load_records(text)` to process multiple log lines, applying validation and storing rules, and returning a list of valid records.\n- **Keep only the first valid occurrence for duplicate `RECORD_ID`.**\n- Records are space-delimited and maintain their input order.\n- Silently skip malformed or invalid rows, never raise or print.\n- Use `parse_record(line)` to handle individual line parsing.\n- Applicable to both `ORDER` and `PAYMENT` records.",
+      "checkHint": "Given a multiline input, `load_records` correctly returns a list of valid records.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Compute refunds from records",
+      "intent": "Implement `compute_refunds(records)`, which sums up valid negative payment amounts, contributing to refunds.\n- Only include payments linked to existing orders.\n- Refunds are regarded as **qualifying negative payment amounts.**\n- The result is the positive sum (absolute value) of deductions.\n- Use the list of valid records established from `load_records(text)`.",
+      "checkHint": "`compute_refunds` should exclude refunds for non-existent orders.",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match orders to payments",
+      "intent": "Create `match_payments(records)` that matches orders to qualifying payments under given rules.\n- A payment initially qualifies from the order timestamp up to **strictly less than 72 hours later**.\n- Choose the earliest timestamp if several qualify, breaking exact ties by retained order.\n- Refunds (negative payments) never match an order.\n- Return a list where each result includes `order_id`, `status` ('matched' or 'unmatched'), and `amount` of matched payment, or `0` for unmatched.",
+      "checkHint": "A payment at exactly 72 hours after the order does not match.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Generate summary report",
+      "intent": "Develop `build_summary(matches, refund_total)` to create and return a report with five keys.\n- Count orders with 'matched' status as `matched_count`.\n- `net_total` is calculated as matched payments minus `refund_total`, having **zero lower bound.**\n- `unmatched_ids` is a deduplicated, ascending lexicographic list of unmatched order IDs.\n- Include keys: `total_orders`, `matched_count`, `refund_total`, `net_total`, and `unmatched_ids`.\n- Ensure **final `net_total` is not negative**, reported as `0` when below zero.",
+      "checkHint": "`build_summary` returns a dictionary with the specified keys, including an adjusted `net_total`.",
+      "timeShare": 20
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "protocolVersion": "evaluation1-code-leakage-top10-random10-v1",
+  "completedAt": "2026-08-26T13:21:01.231Z",
+  "judgments": 69,
+  "manifestSha256": "a5549c9368d85daff54270241142ef3fd0edee567fd76fb39dd076813b160073",
+  "resultsSha256": "a528d8e8af210bbebf6c63458b7f1e6d39ea9ceb1cd85ab661897fbf9aa672f4",
+  "callsSha256": "c0a9462a19be4a3348ab9f4674697e2010410f1f9e1666bd447223344c237fef",
+  "summarySha256": "7ced7947cdf8f736d2fa220480ecda8ad6797c565fd7ca5ebacfc07bb644b148"
+}

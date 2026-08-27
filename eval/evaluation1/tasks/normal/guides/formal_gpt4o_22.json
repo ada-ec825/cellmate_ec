@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse amount to cents",
+      "intent": "Implement `parse_amount(s)` to convert valid amount strings to integer cents.\n- Accept a string `s` that represents an amount with up to three fractional digits.\n- **Invalid inputs** include non-string types and strings with more than three fractional digits; return `None` for these.\n- **Implement rounding**: Round the third fractional digit to cents using the round-half-up method.\n- Return the amount as an integer value of cents.",
+      "checkHint": "parse_amount('12.345') returns 1235.",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parse individual record",
+      "intent": "Implement `parse_record(line)` to generate a dictionary from a line of record.\n- Each line has fields separated by `|` with `TYPE`, `RECORD_ID`, `ORDER_ID`, `AMOUNT`, `CURRENCY`, `TIMESTAMP`.\n- Convert `TYPE` to uppercase and ensure non-empty trimmed `RECORD_ID` and `ORDER_ID`.\n- Ensure `TYPE` is `ORDER` if `RECORD_ID` equals `ORDER_ID`. Invalid if negative `ORDER` amount.\n- Ignore lines with non-`USD` currency. Trim surrounding whitespace of `CURRENCY`.\n- Parse `AMOUNT` using the previously implemented `parse_amount(s)`.\n- Convert valid `TIMESTAMP` to a naive `datetime` object.\n- For duplicate `RECORD_ID`, retain only the first valid occurrence.\n- Return `None` on encountering any invalid field.",
+      "checkHint": "parse_record('order|123|123|12.30|usd|2024-03-15 14:30') returns a valid dictionary.",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Load records",
+      "intent": "Implement `load_records(text)` to parse and manage multiple lines of records.\n- Accepts a multiline `text` where each line contains a record.\n- Use `parse_record(line)` to parse each line.\n- **Silently skip** invalid lines and handle duplicate `RECORD_ID` by retaining the first valid occurrence only.\n- Return a list of valid parsed-record dictionaries.",
+      "checkHint": "load_records with one invalid line skips it and processes valid lines.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Compute payment refunds",
+      "intent": "Implement `compute_refunds(records)` to calculate total refund amounts.\n- Receives a list of valid record dictionaries.\n- Identify and sum the absolute values of negative `PAYMENT` amounts, not correlating with `ORDER` existence.\n- Return the total refunds in integer cents as a positive amount.",
+      "checkHint": "compute_refunds(['payment|id1|order1|-10.50|USD|timestamp']) returns 1050.",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match payments with orders",
+      "intent": "Implement `match_payments(records)` to associate payments with orders.\n- Takes a list of valid record dictionaries.\n- **A non-refund payment qualifies** only if its timestamp is between the order timestamp and 72 hours after.\n- Match the earliest qualifying payment by timestamp for each order.\n- Output one dictionary per valid `ORDER`, each with `order_id`, `status`, and `amount`.\n- Status is `matched` if a matching payment exists; otherwise, `unmatched` with amount `0`.\n- **Refunds do not qualify** as matched payments.",
+      "checkHint": "An order with no qualifying payment gets an unmatched result.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Build summary report",
+      "intent": "Implement `build_summary(matches, refund_total)` to generate a comprehensive report.\n- `matches` contains dictionaries from `match_payments(records)`.\n- Calculate `total_orders` as the number of valid orders.\n- `matched_count` is the number of matched results in `matches`.\n- `net_total` is the sum of matched payment amounts minus `refund_total`, clarified to override previous exclusion.\n- Collect `unmatched_ids`, sorted lexicographically, from unmatched records.\n- Return a dictionary with exactly these four keys and computed values.",
+      "checkHint": "A result where all payments match returns the same matched_count as total_orders.",
+      "timeShare": 20
+    }
+  ]
+}

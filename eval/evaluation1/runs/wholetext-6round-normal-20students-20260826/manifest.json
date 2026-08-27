@@ -1,0 +1,71 @@
+{
+  "runId": "wholetext-6round-normal-20students-20260826",
+  "startedAt": "2026-08-26T01:30:37.825Z",
+  "protocolSha256": "cb9ab505d2154444a39d68948b5f7c7f62ba1653bf04744a7f030fdcaf4dcdd7",
+  "presentationsPath": "eval/evaluation1/tasks/normal/presentations_wholetext_6rounds.json",
+  "presentationsSha256": "6ea92bd49ae4e1c5b066db1fb6728ab2ac83faae377ba68481ccb52646607e00",
+  "modelDescriptor": {
+    "backend": "openai-responses",
+    "identifier": "gpt-4o-mini-2024-07-18",
+    "endpointSha256": "ee0291cefbb5b6136483fb38ba9efe9264f9b685d5006c273e293a54b43a1883",
+    "credentialReferenceName": "env:OPENAI_API_KEY",
+    "transportPayloadSemantics": "POST input to the OpenAI Responses API with explicit temperature, max_output_tokens and store=false; the API exposes no sampling seed field",
+    "responseSemantics": "output_text content plus whitelisted model, input/output token counts, status, response-id and request-id metadata",
+    "nonSecretConfigSha256": "3ed421dcc5efca9ba03c1dcec80f67ce9e98deae87cf75690a82be58287bd88c"
+  },
+  "modelIdentity": {
+    "backend": "openai-responses",
+    "id": "gpt-4o-mini-2024-07-18",
+    "object": "model",
+    "created": 1721172717,
+    "ownedBy": "system",
+    "requestId": "521a89f9-a26a-4ab7-aa32-0d7ce1c61b86"
+  },
+  "generationSeeds": [
+    78001,
+    78002,
+    78003,
+    78004,
+    78005,
+    78006,
+    78007,
+    78008,
+    78009,
+    78010,
+    78011,
+    78012,
+    78013,
+    78014,
+    78015,
+    78016,
+    78017,
+    78018,
+    78019,
+    78020
+  ],
+  "preflight": {
+    "referenceTest": 1,
+    "starterTest": 0,
+    "logicalUnseenTests": 26,
+    "underlyingCaseVariants": 52,
+    "materials": 1,
+    "stagesPerMaterial": {
+      "plain_wholetext_6rounds": 6
+    },
+    "repairRoundsPerMaterial": {
+      "plain_wholetext_6rounds": 0
+    },
+    "totalRoundsPerMaterial": {
+      "plain_wholetext_6rounds": 6
+    },
+    "stopAfterPresentation": true,
+    "task": "normal",
+    "plainControlWords": {
+      "plain_5parts": 717,
+      "plain_6parts": 717
+    },
+    "presentationWords": {
+      "plain_wholetext_6rounds": 4302
+    }
+  }
+}

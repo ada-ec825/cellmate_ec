@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Create parse_amount function",
+      "intent": "Implement the `parse_amount(s)` function to handle amount strings.\n- Accepts an ordinary decimal string with at most three fractional digits.\n- May contain digits and at most one decimal point, with an optional leading minus.\n- Round a third fractional digit to cents using round-half-up.\n- More than three fractional digits is invalid.\n- Should return integer cents if valid, else return `None`.\n- A non-string input is invalid and should return `None`.\n- For example, '12.345' rounds to `1234` cents and '-12.34' returns `-1234` cents.",
+      "checkHint": "`parse_amount('12.345')` returns 1234 because of round-half-up rounding.",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Implement parse_record function",
+      "intent": "Create `parse_record(line)` to convert a line into a record dictionary.\n- The line has six fields separated by `|`, following the format `TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP`.\n- Trim whitespace from `TYPE`, `RECORD_ID`, and `ORDER_ID`; make `TYPE` uppercase.\n- `RECORD_ID` and `ORDER_ID` must match for `ORDER` type.\n- `AMOUNT` should use `parse_amount()` to convert to cents.\n- Process only `USD` currency after trimming whitespace.\n- `TIMESTAMP` must follow `2024-03-15 14:30` format.\n- Return `None` for invalid fields.\n- If successfully parsed, return a dictionary with specified keys and types.",
+      "checkHint": "`parse_record('ORDER|123|123|12.30|USD|2024-03-15 14:30')` returns a dictionary with amounts in cents.",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Develop load_records function",
+      "intent": "Create `load_records(text)` to process multiple records from text.\n- Text contains one line per record with six fields.\n- Use `parse_record(line)` for each line.\n- Silently skip invalid lines without raising exceptions.\n- Apply first-valid-record rule: retain first valid occurrence and skip duplicates identified by `RECORD_ID`.\n- Return a list of valid record dictionaries.",
+      "checkHint": "`load_records` correctly processes only valid and unique `RECORD_ID` lines.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Implement compute_refunds",
+      "intent": "Create `compute_refunds(records)` to compute total refund amount.\n- Refunds are from `PAYMENT` records with negative `AMOUNT`.\n- Calculate the sum of absolute values of these negative amounts.\n- Return the sum in cents.\n- Refunds are counted even if no matching `ORDER` exists.",
+      "checkHint": "A negative `PAYMENT` of `-1230` contributes `1230` to refunds.",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Construct match_payments function",
+      "intent": "Implement `match_payments(records)` to associate payments with orders.\n- Match `PAYMENT` to `ORDER` by `order_id`.\n- Payment is valid if timestamp is >= order timestamp and <= 72 hours later.\n- For multiple valid payments, choose the earliest (by timestamp, then by order).\n- Negative payments are refunds and cannot be matched.\n- For unmatched orders, return amount `0` with status `unmatched`.\n- Each result is a dictionary with keys `order_id`, `status`, and `amount`.",
+      "checkHint": "An `ORDER` with no valid `PAYMENT` receives an `unmatched` status.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Finalize build_summary function",
+      "intent": "Create `build_summary(matches, refund_total)` for report generation.\n- Calculate `total_orders`: count of valid orders.\n- Calculate `matched_count`: number of `matched` statuses in matches.\n- Compute `net_total`: sum of matched payment amounts, subtract `refund_total`.\n- Collect `unmatched_ids`: list of unmatched order IDs in ascending order.\n- Return a dictionary with keys `total_orders`, `matched_count`, `net_total`, and `unmatched_ids`.",
+      "checkHint": "A summary correctly reflects adjustments for refunds.",
+      "timeShare": 20
+    }
+  ]
+}

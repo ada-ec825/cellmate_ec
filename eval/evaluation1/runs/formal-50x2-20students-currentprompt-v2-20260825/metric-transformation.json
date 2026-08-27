@@ -1,0 +1,11 @@
+{
+  "transformedAt": "2026-08-26T00:17:41.457Z",
+  "method": "pair_unseen_case_variants_into_semantic_tests_without_rerunning_students",
+  "logicalTestCount": 26,
+  "underlyingCaseVariantCount": 52,
+  "pairMappingAsset": "task_assets/requirements.json",
+  "logicalPassRule": "both_case_variants_must_pass",
+  "intermediateStagePolicy": "legacy_split_scores_removed; final_stage_independently_rescored",
+  "recoverySnapshot": "evaluation1_archive/20260826_cleanup/pre_paired_test_policy/formal-50x2-20students-currentprompt-v2-20260825",
+  "auditPassed": true
+}

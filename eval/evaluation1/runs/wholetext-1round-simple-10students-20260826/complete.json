@@ -1,0 +1,7 @@
+{
+  "runId": "wholetext-1round-simple-10students-20260826",
+  "completedAt": "2026-08-26T01:27:32.099Z",
+  "sessions": 10,
+  "resultsSha256": "06bde36c34bd01892a0cb72d8d09dc2e1bbdbcf9f8a87de0577ea7c02666dfa6",
+  "callsSha256": "fe10ba3e2bb363ab9c9fedf154d12129469627415c9d09587f5828e22608a381"
+}

@@ -1,0 +1,181 @@
+{
+  "completedAt": "2026-08-25T23:14:57.213Z",
+  "generatorModel": "gpt-5.6-luna",
+  "generatorTransport": "OpenAI responses",
+  "task": "simple",
+  "projectEngine": "out/decompose.js generated from src/decompose.ts",
+  "promptSource": "prompts/decompose.txt",
+  "promptSha256": "71510815ad1d90c89ea9a99a190c82373d4b1f9609bb6056057f7c4281e5aeb4",
+  "inclusionRule": "project structural validation only; natural 3..8 step count retained without manual repair",
+  "guideCount": 25,
+  "guidePrefix": "formal_luna",
+  "materialClass": "luna_generated",
+  "comparisonGroups": [
+    {
+      "prefix": "formal_gpt4o",
+      "materialClass": "gpt4o_generated"
+    },
+    {
+      "prefix": "formal_luna",
+      "materialClass": "luna_generated"
+    }
+  ],
+  "guides": [
+    {
+      "id": "formal_luna_01",
+      "steps": 6,
+      "words": 528,
+      "sha256": "dd5e81154058b0181c41fb0c75f527da5c9c9fc6f2ddb9e61ee92ddf96aa13e2"
+    },
+    {
+      "id": "formal_luna_02",
+      "steps": 6,
+      "words": 480,
+      "sha256": "d66e5dbfc104c47d20451747daf20aea833a5f22c3ed8ced4431d15b5d0f772c"
+    },
+    {
+      "id": "formal_luna_03",
+      "steps": 6,
+      "words": 536,
+      "sha256": "74129682afc586873fa01d9c24ef142e2608f6e8ef90ea2e7c26fd41b2f6181f"
+    },
+    {
+      "id": "formal_luna_04",
+      "steps": 6,
+      "words": 544,
+      "sha256": "a9e80888588736eb7918cc6a92151923b90f3e9613799f9e0d94ea558fc07deb"
+    },
+    {
+      "id": "formal_luna_05",
+      "steps": 6,
+      "words": 563,
+      "sha256": "602a910601c2a403fadd997a5af9ad082a890e0198a27c538cf634937bf33756"
+    },
+    {
+      "id": "formal_luna_06",
+      "steps": 6,
+      "words": 518,
+      "sha256": "0c3628d834b64f055e4018c9aac1718fceca487cf4df0313c844a7588d089ed9"
+    },
+    {
+      "id": "formal_luna_07",
+      "steps": 6,
+      "words": 524,
+      "sha256": "4f488a5069339533f50c312724e0b95d39bfa99f0aef097417cdb7264b5e7a52"
+    },
+    {
+      "id": "formal_luna_08",
+      "steps": 6,
+      "words": 581,
+      "sha256": "cd42f09aa83ee9ca8126a0c9cf6f6f7f7873c8c9056b059a8a1cdd8ddb43190a"
+    },
+    {
+      "id": "formal_luna_09",
+      "steps": 6,
+      "words": 557,
+      "sha256": "69700ac0928cd4361d78c58e8df5fcf4f6570e0b1a7572c619cf3ea0beda5721"
+    },
+    {
+      "id": "formal_luna_10",
+      "steps": 6,
+      "words": 479,
+      "sha256": "9e7927275174575a38d4c6c4c8a6070e158c4a1048cb3a3efd13772dbdb156ba"
+    },
+    {
+      "id": "formal_luna_11",
+      "steps": 6,
+      "words": 507,
+      "sha256": "6b7865f8a38c1fe76d27b0fb3f1126e6a62aff102a1c72c67ce8e84ad37e768c"
+    },
+    {
+      "id": "formal_luna_12",
+      "steps": 6,
+      "words": 505,
+      "sha256": "f76c21bba649942c863bbc7e1b0f6d94e55517627fd39128f3b4e35e52060152"
+    },
+    {
+      "id": "formal_luna_13",
+      "steps": 6,
+      "words": 561,
+      "sha256": "8f006c36443038db93a73e0c3a7df976a46c569898b9e350f5076291ed04a73b"
+    },
+    {
+      "id": "formal_luna_14",
+      "steps": 6,
+      "words": 550,
+      "sha256": "ba3c078b627f9ebf20ec8150e3b953c5889e14e4c2c31f88d55cebaa5754918f"
+    },
+    {
+      "id": "formal_luna_15",
+      "steps": 6,
+      "words": 543,
+      "sha256": "9c033e2672a11f9fb559724f04d3fdcb0fae8bc9b99eca22c6e55f46640be976"
+    },
+    {
+      "id": "formal_luna_16",
+      "steps": 6,
+      "words": 533,
+      "sha256": "0ea24888839e84536ee4e454e4b31b1d162f2e4e9b390c16f3055147bea7d7b0"
+    },
+    {
+      "id": "formal_luna_17",
+      "steps": 6,
+      "words": 482,
+      "sha256": "fc65e8751611e2f17721ea705a43139d3c367ff73126031a67342e8bf2215d63"
+    },
+    {
+      "id": "formal_luna_18",
+      "steps": 6,
+      "words": 530,
+      "sha256": "dc2a5db9c80db70b0d38088f75bd019aba24260142f95d3fa0019b32641433dd"
+    },
+    {
+      "id": "formal_luna_19",
+      "steps": 6,
+      "words": 534,
+      "sha256": "56a44db1ef3474fb281c6a056e28754ba55a07f622464d93abba5bdf2f479c46"
+    },
+    {
+      "id": "formal_luna_20",
+      "steps": 6,
+      "words": 487,
+      "sha256": "834b5115654626eff3cd6cf8e9cb9e23ebcee6d6ec2e4dcfc8a2713c3ff1648b"
+    },
+    {
+      "id": "formal_luna_21",
+      "steps": 6,
+      "words": 459,
+      "sha256": "f45f5395553791a7284480b3b2e26c5fa1586d46f536475839d128a9e89ea879"
+    },
+    {
+      "id": "formal_luna_22",
+      "steps": 6,
+      "words": 522,
+      "sha256": "2fda2ff63ce847f744ab837c1bb165b1aff8c5c5c08614ec1211cb4bc49402b3"
+    },
+    {
+      "id": "formal_luna_23",
+      "steps": 6,
+      "words": 479,
+      "sha256": "b9c365534c7e2974ec7687fd5b56607b51650689280ddb4a21d025d2ea592911"
+    },
+    {
+      "id": "formal_luna_24",
+      "steps": 6,
+      "words": 555,
+      "sha256": "347dc535cca160420a3ee8e1d155d0531a4d881ccfbcb07f0aba496393d96f46"
+    },
+    {
+      "id": "formal_luna_25",
+      "steps": 6,
+      "words": 492,
+      "sha256": "0e78cc1034e976504747823b3f0db8110fdcb5460eb6e9346fafdfb7c011b121"
+    }
+  ],
+  "presentationsPath": "eval/evaluation1/tasks/simple/presentations_formal_25x2.json",
+  "presentationsSha256": "6aad0b76277e012abfaac2310260ab186599f1eeaaa457523883f27231b03b37",
+  "stepCountDistribution": {
+    "6": 25
+  },
+  "nonFiveOrSixStepGuides": []
+}

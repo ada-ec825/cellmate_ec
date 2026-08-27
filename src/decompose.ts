@@ -1,5 +1,5 @@
 import { getPromptContent } from './gitUtils';
-import { Decomposition, DECOMPOSITION_VERSION, listDecompositionViolations } from './schema';
+import { Decomposition, listDecompositionViolations } from './schema';
 
 /** Template id of the decompose prompt in the prompt repository. */
 export const DECOMPOSE_PROMPT_ID = 'decompose';
@@ -82,6 +82,41 @@ export async function generateDecomposition(
   return { ok: false, reason: lastReason, attempts: 2 };
 }
 
+/**
+ * Names generators actually use for the specification field instead of
+ * `intent`. Prompt wording drifts and models rename the field on their own;
+ * a rejected plan costs the student a whole regeneration (minutes on a 35B
+ * reasoning model), so accept the synonym rather than spend a retry
+ * teaching the model our spelling.
+ */
+const INTENT_ALIASES = ['spec', 'specification', 'description'];
+
+/** Move a recognised alias onto `intent`, leaving a real `intent` untouched. */
+function normaliseStep(step: any): any {
+  if (!step || typeof step !== 'object') return step;
+  if (typeof step.intent === 'string' && step.intent.trim() !== '') return step;
+  const alias = INTENT_ALIASES.find(
+    (key) => typeof step[key] === 'string' && step[key].trim() !== ''
+  );
+  if (!alias) return step;
+  const { [alias]: intent, ...rest } = step;
+  return { ...rest, intent };
+}
+
+/**
+ * Escape a double quote that a backtick marks as literal text.
+ *
+ * Steps quote names in backticks, and where the exercise prints a name with
+ * quotes of its own the model writes `"type"` into a JSON string without
+ * escaping either quote, ending the string early and costing a whole
+ * regeneration. A quote with a backtick against it is text, not a delimiter.
+ * Only reached once plainer repairs have already failed, so it cannot turn a
+ * well-formed reply into a broken one.
+ */
+function protectQuotedLiterals(jsonText: string): string {
+  return jsonText.replace(/`"|"`/g, (match) => match.replace('"', '\\"'));
+}
+
 /** Outcome of parsing one LLM response into a Decomposition. */
 export type ParseDecompositionResult =
   | { ok: true; decomposition: Decomposition }
@@ -123,9 +158,41 @@ export function extractJsonObject(raw: string): string | null {
 }
 
 /**
+ * Double the lone backslashes that JSON forbids. Models quoting maths from
+ * an exercise write LaTeX ("\Delta t", "\frac{1}{2}") straight into JSON
+ * strings, and JSON.parse rejects those escapes. Valid escape sequences
+ * (\" \\ \/ \b \f \n \r \t \uXXXX) are consumed atomically and preserved.
+ */
+/**
+ * Keep LaTeX commands out of JSON's escape rules.
+ *
+ * Every JSON escape is a single character (" \\ / b f n r t) or u followed by
+ * four hex digits, so a backslash followed by two or more letters can only be
+ * a LaTeX command. Left alone, "\\frac" and "\\theta" parse cleanly into a
+ * formfeed and a tab and destroy the sentence around them without raising
+ * anything — the failure repairInvalidEscapes cannot see, because that text
+ * was valid JSON. Doubling the backslash keeps the command as readable prose.
+ * Already-escaped backslashes and \\uXXXX are consumed first so neither is
+ * touched twice.
+ */
+function protectLatexCommands(jsonText: string): string {
+  return jsonText.replace(
+    /\\\\|\\u[0-9a-fA-F]{4}|\\([a-zA-Z]{2,})/g,
+    (match, command) => (command ? `\\\\${command}` : match)
+  );
+}
+
+function repairInvalidEscapes(jsonText: string): string {
+  return jsonText.replace(
+    /\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4})|\\/g,
+    (m) => (m.length > 1 ? m : '\\\\')
+  );
+}
+
+/**
  * Parse raw LLM output into a validated Decomposition.
  *
- * Fields the extension owns (exerciseId, version, source) are stamped
+ * Fields the extension owns (exerciseId, source) are stamped
  * authoritatively rather than trusted from the model's echo. The
  * model-authored steps must pass validateDecomposition and carry
  * contiguous 1-based indices; any violation is returned as a reason
@@ -137,18 +204,31 @@ export function parseDecomposition(raw: string, exerciseId: string): ParseDecomp
     return { ok: false, reason: 'no JSON object found in model output' };
   }
 
+  const guarded = protectLatexCommands(jsonText);
+  // Each fallback is strictly more aggressive than the last, and none runs
+  // until the plainer reading has already failed.
   let data: any;
-  try {
-    data = JSON.parse(jsonText);
-  } catch (e: any) {
-    return { ok: false, reason: `invalid JSON: ${e.message}` };
+  let firstError: any = null;
+  for (const candidate of [
+    guarded,
+    repairInvalidEscapes(guarded),
+    protectQuotedLiterals(repairInvalidEscapes(guarded)),
+  ]) {
+    try {
+      data = JSON.parse(candidate);
+      break;
+    } catch (e: any) {
+      firstError = firstError ?? e;
+    }
+  }
+  if (data === undefined) {
+    return { ok: false, reason: `invalid JSON: ${firstError?.message ?? firstError}` };
   }
 
   const candidate: Decomposition = {
     exerciseId,
-    version: DECOMPOSITION_VERSION,
     source: 'generated',
-    steps: Array.isArray(data.steps) ? data.steps : [],
+    steps: Array.isArray(data.steps) ? data.steps.map(normaliseStep) : [],
   };
 
   // Report index problems before the coarser schema gate so the retry

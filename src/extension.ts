@@ -11,12 +11,14 @@ import { initState, getHelpState, setHelpState } from './state';
 import { initTelemetry, logEvent, getEvents, clearEvents } from './telemetry';
 import { Decomposition } from './schema';
 import { DecomposeContext, generateDecomposition } from './decompose';
+import { runProgressCheck } from './stepCheck';
 import { GuidePanel, GuidePanelHooks } from './guidePanel';
-import { 
-  syncGitRepo, 
-  getPromptContent, 
-  getTestFiles, 
-  listLocalExercises, 
+import {
+  syncGitRepo,
+  getPromptContent,
+  setBundledPromptsDir,
+  getTestFiles,
+  listLocalExercises,
   listLocalTemplates,
   LOCAL_REPO_PATH,
 } from './gitUtils';
@@ -37,9 +39,9 @@ import {
 } from './promptUtils';
 
 const chan = vscode.window.createOutputChannel("Jupyter AI Feedback");
-function toStr(x:any){ try{ return typeof x==='string'?x:JSON.stringify(x,(_k,v)=>v,2);}catch{ return String(x);} }
-export function log(...args:any[]){ chan.appendLine(`[${new Date().toISOString()}] ` + args.map(toStr).join(" ")); }
-export function showLog(preserveFocus=true){ chan.show(preserveFocus); }
+function toStr(x: any) { try { return typeof x === 'string' ? x : JSON.stringify(x, (_k, v) => v, 2); } catch { return String(x); } }
+export function log(...args: any[]) { chan.appendLine(`[${new Date().toISOString()}] ` + args.map(toStr).join(" ")); }
+export function showLog(preserveFocus = true) { chan.show(preserveFocus); }
 
 // Throttle: restrict 'CellMate.sendNotebookCell' to once per 3 seconds
 let lastSendNotebookCellTs = 0;
@@ -53,18 +55,6 @@ const decompositionCache = new Map<string, Decomposition>();
 // (billed) request; block it instead.
 const decomposeInFlight = new Set<string>();
 
-// Dev convenience: until the decompose template is published to the prompt
-// repository, seed the synced copy from the extension's local prompts/ dir.
-// Deliberately does not call syncGitRepo(): a re-clone would wipe the seed.
-function ensureDecomposeTemplate(extensionPath: string) {
-  const target = path.join(LOCAL_REPO_PATH, 'prompts', 'decompose.txt');
-  if (fs.existsSync(target)) return;
-  const local = path.join(extensionPath, 'prompts', 'decompose.txt');
-  if (fs.existsSync(local)) {
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.copyFileSync(local, target);
-  }
-}
 
 // LLM API configuration interface
 interface LLMConfig {
@@ -769,8 +759,175 @@ ${analysis}
   }
 }
 
+/**
+ * Surface the explanation a failing server put in its body.
+ *
+ * Axios reports only "Request failed with status code 400", which sends
+ * everyone hunting through their own code for a fault the server already
+ * named — "Model 'qwen3.6:35b' was not found" is the whole answer. Under
+ * responseType 'stream' the body arrives as a stream, so it has to be read
+ * back before it can be reported.
+ */
+async function describeHttpError(error: any): Promise<string> {
+  const base = String(error?.message ?? error);
+  const data = error?.response?.data;
+  let body = '';
+  if (data && typeof data.on === 'function') {
+    body = await new Promise<string>((resolve) => {
+      let text = '';
+      data.on('data', (chunk: Buffer) => {
+        text += chunk.toString('utf8');
+      });
+      data.on('end', () => resolve(text));
+      data.on('error', () => resolve(text));
+    });
+  } else if (typeof data === 'string') {
+    body = data;
+  } else if (data) {
+    body = JSON.stringify(data);
+  }
+  if (!body.trim()) return base;
+  let detail = body.trim();
+  try {
+    const parsed = JSON.parse(detail);
+    detail = parsed?.detail ?? parsed?.error?.message ?? parsed?.error ?? parsed?.message ?? detail;
+  } catch {
+    // a plain-text body is already the message
+  }
+  detail = String(detail).replace(/\s+/g, ' ').slice(0, 300);
+  return detail && detail !== base ? `${base} — ${detail}` : base;
+}
+
+/** How much of a model reply has arrived, for callers that show progress. */
+interface LLMProgress {
+  /** Characters produced by the model so far, reasoning channels included. */
+  chars: number;
+  /** Milliseconds since the request was sent. */
+  elapsedMs: number;
+}
+
+/**
+ * Consume a model reply incrementally so a slow call can report progress.
+ *
+ * Transport-agnostic on purpose: Ollama streams one JSON object per line,
+ * OpenAI-compatible endpoints stream SSE `data:` frames, and a server that
+ * ignores `stream` altogether still answers with one plain JSON body — the
+ * end handler falls back to that shape rather than reporting an empty reply.
+ * Reasoning-only output (`thinking`, `reasoning_content`) counts towards
+ * progress but never towards the returned text, so a model that reasons for
+ * minutes before writing anything still visibly moves.
+ */
+async function streamLLMAPI(
+  body: any,
+  config: LLMConfig,
+  isOpenAIEndpoint: boolean,
+  onProgress: (progress: LLMProgress) => void
+): Promise<string> {
+  const started = Date.now();
+  let resp: any;
+  try {
+    resp = await axios.post(
+      config.apiUrl,
+      { ...body, stream: true },
+    {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
+        responseType: 'stream',
+        timeout: LLM_TIMEOUT_MS
+      }
+    );
+  } catch (error: any) {
+    throw new Error(await describeHttpError(error));
+  }
+
+  let text = '';
+  let chars = 0;
+  let pending = '';
+  let whole = '';
+  let lastReportMs = 0;
+
+  const takeFrame = (line: string) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    let payload = trimmed;
+    if (isOpenAIEndpoint) {
+      if (!trimmed.startsWith('data:')) return;
+      payload = trimmed.slice('data:'.length).trim();
+      if (payload === '[DONE]') return;
+    }
+    let frame: any;
+    try {
+      frame = JSON.parse(payload);
+    } catch {
+      return; // keep-alives and other non-JSON transport material
+    }
+    const delta = isOpenAIEndpoint ? frame.choices?.[0]?.delta ?? {} : frame;
+    const visible = isOpenAIEndpoint ? delta.content : frame.response;
+    const reasoning = isOpenAIEndpoint
+      ? delta.reasoning_content ?? delta.reasoning
+      : frame.thinking;
+    if (typeof visible === 'string') {
+      text += visible;
+      chars += visible.length;
+    }
+    if (typeof reasoning === 'string') chars += reasoning.length;
+  };
+
+  await new Promise<void>((resolve, reject) => {
+    resp.data.on('data', (chunk: Buffer) => {
+      const piece = chunk.toString('utf8');
+      whole += piece;
+      pending += piece;
+      const lines = pending.split('\n');
+      pending = lines.pop() ?? '';
+      for (const line of lines) takeFrame(line);
+      const elapsedMs = Date.now() - started;
+      // One report a second: enough to look alive, cheap enough to ignore.
+      if (elapsedMs - lastReportMs >= 1000) {
+        lastReportMs = elapsedMs;
+        onProgress({ chars, elapsedMs });
+      }
+    });
+    resp.data.on('end', () => {
+      takeFrame(pending);
+      resolve();
+    });
+    resp.data.on('error', reject);
+  });
+
+  if (!text) {
+    // A server that ignored `stream` answered with one ordinary JSON body.
+    try {
+      const single = JSON.parse(whole);
+      text = single.choices?.[0]?.message?.content ?? single.response ?? '';
+    } catch {
+      // leave text empty; the caller reports the failure below
+    }
+  }
+
+  onProgress({ chars, elapsedMs: Date.now() - started });
+  if (!text) throw new Error('No valid response content received from API.');
+  return text;
+}
+
+/**
+ * One line of reassurance for a long call. Reasoning models can spend
+ * minutes before their first visible character, so the count shown is the
+ * model's total output, not the answer alone.
+ */
+function describeLLMProgress({ chars, elapsedMs }: LLMProgress): string {
+  const seconds = Math.round(elapsedMs / 1000);
+  const clock = seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  return chars > 0
+    ? `${clock} · ${chars.toLocaleString()} characters so far`
+    : `${clock} · waiting for the model to start`;
+}
+
 // LLM Call API, for AI Feedback and Error Helper - Modified for OpenAI format
-async function callLLMAPI(prompt: string, config: LLMConfig): Promise<string> {
+async function callLLMAPI(
+  prompt: string,
+  config: LLMConfig,
+  onProgress?: (progress: LLMProgress) => void
+): Promise<string> {
   // Check if using OpenAI-compatible endpoint
   const isOpenAIEndpoint = config.apiUrl.includes('/chat/completions');
 
@@ -794,18 +951,25 @@ async function callLLMAPI(prompt: string, config: LLMConfig): Promise<string> {
     };
   }
 
-  const resp = await axios.post(
-    config.apiUrl,
-    body,
-    {
+  if (onProgress) return streamLLMAPI(body, config, isOpenAIEndpoint, onProgress);
+
+  let resp: any;
+  try {
+    resp = await axios.post(
+      config.apiUrl,
+      body,
+      {
         headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.apiKey}`
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${config.apiKey}`
         },
         responseType: isOpenAIEndpoint ? 'json' : 'text',
         timeout: LLM_TIMEOUT_MS
-    }
-  );
+      }
+    );
+  } catch (error: any) {
+    throw new Error(await describeHttpError(error));
+  }
 
   if (isOpenAIEndpoint) {
     // Handle OpenAI format response
@@ -1019,6 +1183,10 @@ async function insertMarkdownCellBelow(notebook: vscode.NotebookDocument, cellIn
 }
 
 export function activate(ctx: vscode.ExtensionContext) {
+  // Templates ship with the extension; the synced repository overrides them
+  // when it carries a copy. Nothing is written into the clone.
+  setBundledPromptsDir(path.join(ctx.extensionPath, 'prompts'));
+
   setExtensionContext(ctx);
   initState(ctx);
   initTelemetry(ctx);
@@ -1026,58 +1194,55 @@ export function activate(ctx: vscode.ExtensionContext) {
     provideCellStatusBarItems(cell) {
       const items = [];
       if (cell.document.languageId === 'python') {
-          const alwaysShowErrorHelper = getCellMateSetting<boolean>('errorHelper.alwaysShow', false) ?? false;
+        const alwaysShowErrorHelper = getCellMateSetting<boolean>('errorHelper.alwaysShow', false) ?? false;
 
-          const cellOutput = getCellOutput(cell);
-          const hasError = cellOutput.executionError ||
-                          (cellOutput.hasOutput && cellOutput.output.toLowerCase().includes('error'));
+        const cellOutput = getCellOutput(cell);
+        const hasError = cellOutput.executionError ||
+          (cellOutput.hasOutput && cellOutput.output.toLowerCase().includes('error'));
 
-          const shouldShowErrorHelper = alwaysShowErrorHelper || hasError;
+        const shouldShowErrorHelper = alwaysShowErrorHelper || hasError;
 
-          if (shouldShowErrorHelper) {
-            const errorHelperItem = new vscode.NotebookCellStatusBarItem(
-              '🆘 Error Helper',
-              vscode.NotebookCellStatusBarAlignment.Right
-            );
-            errorHelperItem.priority = 200;
-            errorHelperItem.command = {
-              command: 'CellMate.errorHelper',
-              title: 'Error Helper',
-              arguments: [cell]
-            };
-            errorHelperItem.tooltip = hasError ?
-              'Get AI help with this error' :
-              'Get AI help with your code (no errors detected)';
-            items.push(errorHelperItem);
-          }
-
-          // Guide entry point, only where an exercise id identifies the task
-          if (extractExerciseId(cell.document.getText())) {
-            const guideItem = new vscode.NotebookCellStatusBarItem(
-              '🧭 Guide',
-              vscode.NotebookCellStatusBarAlignment.Right
-            );
-            guideItem.priority = 150;
-            guideItem.command = {
-              command: 'CellMate.startGuide',
-              title: 'Start Guide',
-              arguments: [cell]
-            };
-            guideItem.tooltip = 'Break this exercise into step-by-step subgoals';
-            items.push(guideItem);
-          }
-
-          const item = new vscode.NotebookCellStatusBarItem(
-            '$(zap) 🧠 AI Feedback',
+        if (shouldShowErrorHelper) {
+          const errorHelperItem = new vscode.NotebookCellStatusBarItem(
+            '🆘 Error Helper',
             vscode.NotebookCellStatusBarAlignment.Right
           );
-          item.priority = 100;
-          item.command = {
-            command: 'CellMate.sendNotebookCell',
-            title: 'Send to AI',
+          errorHelperItem.priority = 200;
+          errorHelperItem.command = {
+            command: 'CellMate.errorHelper',
+            title: 'Error Helper',
             arguments: [cell]
           };
-          items.push(item);
+          errorHelperItem.tooltip = hasError ?
+            'Get AI help with this error' :
+            'Get AI help with your code (no errors detected)';
+          items.push(errorHelperItem);
+        }
+
+        // Guide entry point, only where an exercise id identifies the task
+        if (extractExerciseId(cell.document.getText())) {
+          const guideItem = new vscode.NotebookCellStatusBarItem(
+            '🧭 Guide',
+            vscode.NotebookCellStatusBarAlignment.Right
+          );
+          guideItem.priority = 150;
+          guideItem.command = {
+            command: 'CellMate.startGuide',
+            title: 'Start Guide',
+            arguments: [cell]
+          };
+          guideItem.tooltip = 'Break this exercise into step-by-step subgoals';
+          items.push(guideItem);
+        }
+
+        // The inherited AI Feedback button is no longer offered on the cell.
+        // It requires a hidden test suite for the cell's exercise id, and
+        // throws when the synced repository has none -- which is the case for
+        // every exercise this project's guide work uses. Rather than show a
+        // control that fails on the exercises actually in front of a student,
+        // the entry point is withdrawn. The command itself stays registered,
+        // so the feature remains available from the Command Palette on
+        // exercises that do have tests.
       }
       if (cell.document.languageId === 'markdown') {
         const speechItem = new vscode.NotebookCellStatusBarItem(
@@ -1096,7 +1261,7 @@ export function activate(ctx: vscode.ExtensionContext) {
       const showAll = getCellMateSetting<boolean>('showButtonInAllMarkdown', false) ?? false;
       const text = cell.document.getText().toLowerCase()
       const containsFeedback = text.includes('**feedback**') || text.includes('**🤖feedback expansion**')
-      if(cell.kind === vscode.NotebookCellKind.Markup && (showAll || containsFeedback)){
+      if (cell.kind === vscode.NotebookCellKind.Markup && (showAll || containsFeedback)) {
         const mode = getCellMateSetting<string>('feedbackMode', 'Expand') || 'Expand';
 
         const label =
@@ -1105,13 +1270,13 @@ export function activate(ctx: vscode.ExtensionContext) {
             : '📖 Expand | ➤ Explain';
 
         const markdownItem = new vscode.NotebookCellStatusBarItem(
-        label,
-        vscode.NotebookCellStatusBarAlignment.Right
+          label,
+          vscode.NotebookCellStatusBarAlignment.Right
         );
         markdownItem.command = {
-          command : 'CellMate.explainMarkdownCell',
+          command: 'CellMate.explainMarkdownCell',
           title: 'Expand or Explain Feedback Markdown',
-          arguments:[cell]
+          arguments: [cell]
         }
         markdownItem.priority = 100;
         markdownItem.tooltip = `Use AI to ${mode} the feedback`
@@ -1198,7 +1363,7 @@ export function activate(ctx: vscode.ExtensionContext) {
 
           const possibleKeys = ['problem_description', 'problem', 'exercise_description', 'task'];
           let problemDescription = '';
-          
+
           for (const key of possibleKeys) {
             if (placeholderMap.has(key)) {
               problemDescription = placeholderMap.get(key) || '';
@@ -1321,7 +1486,6 @@ ${feedback}
           );
         }
 
-        ensureDecomposeTemplate(ctx.extensionPath);
 
         // State and telemetry are auxiliary: if their storage hiccups, log
         // and carry on — a lost trace must never take the guide down with it.
@@ -1338,17 +1502,22 @@ ${feedback}
         const decomposeCtx: DecomposeContext = { exerciseId, problemDescription, code };
         // Log every exchange to the output channel: during template tuning we
         // need to see exactly what the model was asked and what it answered.
-        const callLLM = async (p: string) => {
-          log(`[guide] prompt → model (${exerciseId}):\n${p}`);
-          try {
-            const raw = await callLLMAPI(p, config);
-            log(`[guide] response ← model (${exerciseId}):\n${raw}`);
-            return raw;
-          } catch (e: any) {
-            log(`[guide] LLM call error (${exerciseId}): ${e?.message ?? e}`);
-            throw e;
-          }
-        };
+        const callLLMWith =
+          (progress?: vscode.Progress<{ message?: string }>) => async (p: string) => {
+            log(`[guide] prompt → model (${exerciseId}):\n${p}`);
+            try {
+              const raw = await callLLMAPI(
+                p,
+                config,
+                progress && ((s) => progress.report({ message: describeLLMProgress(s) }))
+              );
+              log(`[guide] response ← model (${exerciseId}):\n${raw}`);
+              return raw;
+            } catch (e: any) {
+              log(`[guide] LLM call error (${exerciseId}): ${e?.message ?? e}`);
+              throw e;
+            }
+          };
         const generate = async () => {
           if (decomposeInFlight.has(exerciseId)) {
             vscode.window.showInformationMessage(
@@ -1363,7 +1532,7 @@ ${feedback}
                 location: vscode.ProgressLocation.Notification,
                 title: 'CellMate: generating step plan…',
               },
-              () => generateDecomposition(decomposeCtx, callLLM)
+              (progress) => generateDecomposition(decomposeCtx, callLLMWith(progress))
             );
           } finally {
             decomposeInFlight.delete(exerciseId);
@@ -1412,21 +1581,54 @@ ${feedback}
         });
 
         const hooks: GuidePanelHooks = {
-          onStepRevealed: (step) =>
-            recordSafely('step reveal', async () => {
-              const s = getHelpState(exerciseId);
-              s.state = 'Guide';
-              s.guideStep = step;
-              await setHelpState(s);
-              await logEvent({ exerciseId, event: 'step_reveal', guideStep: step });
-            }),
-          onReset: () =>
-            recordSafely('guide reset', async () => {
-              const s = getHelpState(exerciseId);
-              s.guideStep = 1;
-              await setHelpState(s);
-              await logEvent({ exerciseId, event: 'step_reveal', guideStep: 1, meta: { reset: true } });
-            }),
+          onCheckProgress: async () => {
+            // The panel disables its button while a check runs; whatever
+            // happens below, showProgress() must be reached to re-enable it.
+            try {
+              const currentPlan = decompositionCache.get(exerciseId);
+              if (!currentPlan) {
+                GuidePanel.currentPanel?.showProgress(null);
+                return;
+              }
+              const liveCode = cell!.document.getText();
+              log(`[guide] progress check requested for ${exerciseId}`);
+              const result = await runProgressCheck(
+                {
+                  exerciseId,
+                  problemDescription,
+                  code: liveCode,
+                  steps: currentPlan.steps,
+                },
+                callLLMWith()
+              );
+              GuidePanel.currentPanel?.showProgress(result);
+              if (!result) {
+                log(`[guide] progress check for ${exerciseId} failed open`);
+                return;
+              }
+              const addressed = result.verdicts.filter((v) => v.status === 'done').length;
+              const issues = result.verdicts.filter((v) => v.status === 'issue').length;
+              log(`[guide] progress check for ${exerciseId}: ${addressed}/${result.verdicts.length} done, ${issues} with issues`);
+              const frontier = result.verdicts.findIndex((v) => v.status !== 'done');
+              await recordSafely('progress check', async () => {
+                const s = getHelpState(exerciseId);
+                s.state = 'Guide';
+                // guideStep now tracks the frontier: first step not cleanly done.
+                s.guideStep = frontier === -1 ? currentPlan.steps.length : frontier + 1;
+                await setHelpState(s);
+                await logEvent({
+                  exerciseId,
+                  event: 'step_check',
+                  guideStep: s.guideStep,
+                  meta: { statuses: result.verdicts.map((v) => v.status), addressed, issues },
+                });
+              });
+            } catch (e: any) {
+              // runProgressCheck is fail-open; this guards the wiring itself.
+              log(`[guide] progress check wiring error for ${exerciseId}: ${e?.message ?? e}`);
+              GuidePanel.currentPanel?.showProgress(null);
+            }
+          },
           onRegenerate: async () => {
             try {
               const result = await generate();
@@ -1546,7 +1748,7 @@ ${feedback}
 
         const editor = vscode.window.activeNotebookEditor;
         let problemDescription = '';
-        
+
         if (editor) {
           // Extract placeholders
           const placeholderKeys = new Set(['problem_description', 'problem', 'exercise_description', 'task']);
@@ -1652,7 +1854,7 @@ ${feedback}
             // 1) From synced repo tests folder
             const repoDataDir = path.join(LOCAL_REPO_PATH, 'tests', exId, 'data');
             resourceDirs.push(repoDataDir);
-          } catch {}
+          } catch { }
 
           // Run tests locally (with internal timeout guard and resource copy)
           const testResult = await runLocalTest(code, test, pythonPath, 15000, resourceDirs);
@@ -1778,12 +1980,12 @@ ${feedback}
             apiUrl,
             body,
             {
-                headers: {
+              headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${apiKey}`
-                },
-                responseType: isOpenAIEndpoint ? 'json' : 'text',
-                timeout: LLM_TIMEOUT_MS
+              },
+              responseType: isOpenAIEndpoint ? 'json' : 'text',
+              timeout: LLM_TIMEOUT_MS
             }
           );
 
@@ -1963,9 +2165,9 @@ ${feedback}
     })
   );
 
-  async function replaceCellContent(doc:vscode.TextDocument, content:string){
+  async function replaceCellContent(doc: vscode.TextDocument, content: string) {
     const edit = new vscode.WorkspaceEdit();
-    const start = new vscode.Position(0,0);
+    const start = new vscode.Position(0, 0);
     const end = doc.lineAt(doc.lineCount - 1).range.end;
     const fullRange = new vscode.Range(start, end);
     edit.replace(doc.uri, fullRange, content);
@@ -1976,47 +2178,47 @@ ${feedback}
     let cleaned = text;
 
     // Remove common redundant phrases generated by LLMs
-    cleaned = cleaned.replace(/^.*?(Expanded Feedback|Feedback Expansion|Here.*feedback|Based on.*feedback).*$/gmi, '');    
+    cleaned = cleaned.replace(/^.*?(Expanded Feedback|Feedback Expansion|Here.*feedback|Based on.*feedback).*$/gmi, '');
     // Remove extra blank lines
     cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
 
     // Fix unmatched markdown symbol
     const count = (str: string) => (cleaned.match(new RegExp(str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
-    
+
     // Prioritize fixing unmatched **
     if (count('\\*\\*') % 2 !== 0) cleaned += '**';
-    
+
     // Then fix single *
     const singleStarCount = count('\\*') - 2 * count('\\*\\*');
     if (singleStarCount % 2 !== 0) cleaned += '*';
-    
+
     // Fix unmatched backticks `
     if (count('`') % 2 !== 0) cleaned += '`';
 
-     // Do not touch patterns related to **
+    // Do not touch patterns related to **
     cleaned = cleaned.replace(/\\([_`#])/g, '$1');
     cleaned = cleaned.replace(/\\n/g, '\n');
 
     return cleaned.trim();
-}
+  }
 
-type ExplanationCtx = {
-  wholeFeedback?: string;    
-};
+  type ExplanationCtx = {
+    wholeFeedback?: string;
+  };
 
-const explanationStore = new Map<string, ExplanationCtx>();
+  const explanationStore = new Map<string, ExplanationCtx>();
 
-function setExplanationCtx(cellUri: string, ctx: ExplanationCtx) {
-  explanationStore.set(cellUri, ctx);
-}
-function getExplanationCtx(cellUri: string) {
-  return explanationStore.get(cellUri);
-}
+  function setExplanationCtx(cellUri: string, ctx: ExplanationCtx) {
+    explanationStore.set(cellUri, ctx);
+  }
+  function getExplanationCtx(cellUri: string) {
+    return explanationStore.get(cellUri);
+  }
   // Markdown cell
   ctx.subscriptions.push(
     vscode.commands.registerCommand(
       'CellMate.explainMarkdownCell',
-      async(cell: vscode.NotebookCell) => {
+      async (cell: vscode.NotebookCell) => {
         const editor = vscode.window.activeNotebookEditor;
         if (!editor) {
           return vscode.window.showErrorMessage('No activity')
@@ -2057,15 +2259,15 @@ function getExplanationCtx(cellUri: string) {
             return vscode.window.showErrorMessage('Please select the sentence you want explained.')
           }
           inputText = selectedText;
-          header =  `**🤖Explanation** for:**_"${selectedText}"_**`
+          header = `**🤖Explanation** for:**_"${selectedText}"_**`
         } else {
           return vscode.window.showErrorMessage(`Unsupported mode: ${mode}`);
         }
 
         await syncGitRepo()
         const promptTpl = await getPromptContent(mode);
-        
-        let prompt:string 
+
+        let prompt: string
         switch (mode) {
           case "Expand": {
             prompt = promptTpl.replace('{{content}}', inputText);
@@ -2078,7 +2280,7 @@ function getExplanationCtx(cellUri: string) {
           default:
             prompt = promptTpl;
         }
-        
+
         const placeholderKeys = getTemplatePlaceholderKeys(prompt);
 
         const placeholderMap = extractPromptPlaceholders(editor.notebook, cell.index, placeholderKeys)
@@ -2106,14 +2308,14 @@ function getExplanationCtx(cellUri: string) {
 
         try {
           const body = {
-            model : modelName,
+            model: modelName,
             prompt: prompt,
-            stream : true
+            stream: true
           };
 
           const resp = await axios.post(apiUrl, body, {
             headers: {
-              'Content-Type' : 'application/json',
+              'Content-Type': 'application/json',
               Authorization: `Bearer ${apiKey}`
             },
             responseType: 'stream',
@@ -2125,16 +2327,16 @@ function getExplanationCtx(cellUri: string) {
           let accumulated = '';
           for await (const chunk of resp.data) {
             const lines = chunk.toString().split('\n');
-            
+
             for (const line of lines) {
               const trimmedLine = line.trim();
               if (!trimmedLine) continue;
-              
+
               try {
                 const jsonResponse = JSON.parse(trimmedLine);
                 if (jsonResponse.response) {
                   accumulated += jsonResponse.response;
-                  
+
                   const safeText = cleanMarkdown(accumulated);
                   const updatedContent = `${header}\n\n${safeText.replace(/\n/g, '  \n')}\n\n${generatingNote}`;
                   await replaceCellContent(doc, updatedContent);
@@ -2151,13 +2353,13 @@ function getExplanationCtx(cellUri: string) {
           const borderColor = mode === 'Expand' ? '#6ec5d2ff' : '#4CAF50';
           const wrappedContent = `<div style="box-sizing:border-box; border: 3px solid ${borderColor}; padding: 10px ;border-radius:8px;">\n\n${header}\n\n${finalText.replace(/\n/g, '  \n')}\n\n</div>`;
           const finalContent = `${wrappedContent}\n`;
-          await replaceCellContent(doc,finalContent);
+          await replaceCellContent(doc, finalContent);
 
           const cellUri = newCell.document.uri.toString();
           setExplanationCtx(cellUri, {
-            wholeFeedback: fullText,              
+            wholeFeedback: fullText,
           });
-        } catch (e:any) {
+        } catch (e: any) {
           console.error("AI Extension fail:", e);
           const errorMsg = `${header}\n\n❌ AI generation failed:\n\n\`${e.message}\``;
           await replaceCellContent(doc, errorMsg);
@@ -2175,7 +2377,7 @@ function getExplanationCtx(cellUri: string) {
       if (!editor) {
         return vscode.window.showErrorMessage('No active notebook editor');
       }
-      
+
       const cellUri = cell.document.uri.toString();
       const ctxData = getExplanationCtx?.(cellUri);
 
@@ -2184,7 +2386,7 @@ function getExplanationCtx(cellUri: string) {
       let followupPromptTpl = '';
       try {
         followupPromptTpl = await getPromptContent('followup');
-      } catch (e:any) {
+      } catch (e: any) {
         vscode.window.showErrorMessage('⚠️ Failed to load Followup prompt: ' + e.message);
       }
       const panel = vscode.window.createWebviewPanel(
@@ -2196,7 +2398,7 @@ function getExplanationCtx(cellUri: string) {
 
 
       function getHTML() {
-      return `<!DOCTYPE html>
+        return `<!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8">
@@ -2490,76 +2692,76 @@ function getExplanationCtx(cellUri: string) {
         </script>
       </body>
       </html>`;
-        }
+      }
 
       panel.webview.html = getHTML();
 
       panel.webview.onDidReceiveMessage(async (msg) => {
-          if (msg.type !== 'ask') return;
+        if (msg.type !== 'ask') return;
 
-          const question = String(msg.question ?? '');
-          const wholeFeedback = ctxData?.wholeFeedback ?? '';
+        const question = String(msg.question ?? '');
+        const wholeFeedback = ctxData?.wholeFeedback ?? '';
 
-          const fullPrompt = followupPromptTpl
-            .replace('{{explanationOutput}}', explanationOutput)
-            .replace('{{wholeFeedback}}', wholeFeedback)
-            .replace('{{followupQuestion}}', question);
+        const fullPrompt = followupPromptTpl
+          .replace('{{explanationOutput}}', explanationOutput)
+          .replace('{{wholeFeedback}}', wholeFeedback)
+          .replace('{{followupQuestion}}', question);
 
-          const apiUrl = getCellMateSetting<string>('apiUrl', '') || '';
-          const apiKey = getCellMateSetting<string>('apiKey', '') || '';
-          const modelName = getCellMateSetting<string>('modelName', '') || '';
-          if (!apiUrl || !apiKey || !modelName) {
-            panel.webview.postMessage({ type: 'answer', content: 'Please configure CellMate.apiUrl, apiKey, and modelName in settings.' });
-            return;
-          }
+        const apiUrl = getCellMateSetting<string>('apiUrl', '') || '';
+        const apiKey = getCellMateSetting<string>('apiKey', '') || '';
+        const modelName = getCellMateSetting<string>('modelName', '') || '';
+        if (!apiUrl || !apiKey || !modelName) {
+          panel.webview.postMessage({ type: 'answer', content: 'Please configure CellMate.apiUrl, apiKey, and modelName in settings.' });
+          return;
+        }
 
-          try {
-          const resp = await axios.post(apiUrl, { model: modelName, prompt: fullPrompt, stream:false }, {
+        try {
+          const resp = await axios.post(apiUrl, { model: modelName, prompt: fullPrompt, stream: false }, {
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
             timeout: LLM_TIMEOUT_MS
           });
 
           const answer = resp.data?.message?.content || resp.data?.response || 'No response received';
           panel.webview.postMessage({ type: 'answer', content: answer });
-          } catch (e:any) {
-            panel.webview.postMessage({ type: 'answer', content: `❌ Request failed: ${e.message}` });
-          }
+        } catch (e: any) {
+          panel.webview.postMessage({ type: 'answer', content: `❌ Request failed: ${e.message}` });
+        }
       });
     })
   );
 
   ctx.subscriptions.push(
     vscode.notebooks.registerNotebookCellStatusBarItemProvider('jupyter-notebook', {
-    provideCellStatusBarItems(cell, _token) {
-      const items: vscode.NotebookCellStatusBarItem[] = [];
+      provideCellStatusBarItems(cell, _token) {
+        const items: vscode.NotebookCellStatusBarItem[] = [];
 
-      if (cell.kind === vscode.NotebookCellKind.Markup) {
-        const text = cell.document.getText();
+        if (cell.kind === vscode.NotebookCellKind.Markup) {
+          const text = cell.document.getText();
 
-        // Explanation cell
-        if (text.includes('**🤖Explanation** for:')) {
-          const item = new vscode.NotebookCellStatusBarItem(
-            '💬 Ask follow-up',
-            vscode.NotebookCellStatusBarAlignment.Right
-          );
-          item.command = 'CellMate.askFollowUpFromButton';
-          item.tooltip = 'Ask a follow-up question about this explanation';
-          items.push(item);
-        };
+          // Explanation cell
+          if (text.includes('**🤖Explanation** for:')) {
+            const item = new vscode.NotebookCellStatusBarItem(
+              '💬 Ask follow-up',
+              vscode.NotebookCellStatusBarAlignment.Right
+            );
+            item.command = 'CellMate.askFollowUpFromButton';
+            item.tooltip = 'Ask a follow-up question about this explanation';
+            items.push(item);
+          };
 
-        // Feedback Expansion cell
-        if (text.includes('**🤖Feedback Expansion**')){
-          const item = new vscode.NotebookCellStatusBarItem(
-            '💬 Ask follow-up',
-            vscode.NotebookCellStatusBarAlignment.Right
-          );
-          item.command = 'CellMate.askFollowUpFromButton';
-          item.tooltip = 'Ask a follow-up question about this explanation';
-          items.push(item);
+          // Feedback Expansion cell
+          if (text.includes('**🤖Feedback Expansion**')) {
+            const item = new vscode.NotebookCellStatusBarItem(
+              '💬 Ask follow-up',
+              vscode.NotebookCellStatusBarAlignment.Right
+            );
+            item.command = 'CellMate.askFollowUpFromButton';
+            item.tooltip = 'Ask a follow-up question about this explanation';
+            items.push(item);
+          }
         }
+        return items;
       }
-      return items;
-    }
     })
   );
 }

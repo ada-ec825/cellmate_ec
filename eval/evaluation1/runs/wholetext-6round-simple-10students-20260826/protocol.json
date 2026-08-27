@@ -1,0 +1,70 @@
+{
+  "protocolVersion": "evaluation1-guide-only-v4-unseen-deduplicated",
+  "presentationVersion": "evaluation1-simple-wholetext-six-round-v1",
+  "task": "reconciliation",
+  "taskVariant": "simple",
+  "model": {
+    "spec": "openai-responses:gpt-4o-mini-2024-07-18",
+    "snapshot": "gpt-4o-mini-2024-07-18"
+  },
+  "arms": [
+    "plain_wholetext_6rounds"
+  ],
+  "seeds": [
+    80001,
+    80002,
+    80003,
+    80004,
+    80005,
+    80006,
+    80007,
+    80008,
+    80009,
+    80010
+  ],
+  "cellDefinitions": {
+    "plain_wholetext_6rounds": {
+      "presentation": "plain_wholetext_6rounds",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    }
+  },
+  "functionNames": [
+    "parse_amount",
+    "parse_record",
+    "load_records",
+    "match_payments",
+    "compute_refunds",
+    "build_summary"
+  ],
+  "stableInterfaceLines": "- parse_amount(s)\n- parse_record(line) -> dictionary or None\n- load_records(text) -> list of record dictionaries\n- match_payments(records) -> list of result dictionaries\n- compute_refunds(records)\n- build_summary(matches, refund_total)\nRecord and result fields use the exact string keys stated in the current task part. The starter already imports datetime, timedelta, Decimal, and InvalidOperation.",
+  "generationSeedSalt": "evaluation1-simple-multimaterial-student-v1",
+  "scheduleSalt": "evaluation1-simple-multimaterial-schedule-v1",
+  "numberOfStages": 6,
+  "presentationStages": {
+    "plain_wholetext_6rounds": 6
+  },
+  "maximumFinalRepairRounds": 0,
+  "testPolicy": {
+    "visibility": "unseen",
+    "aggregation": "paired_semantic_tests_all_case_variants_must_pass",
+    "logicalTestCount": 22,
+    "underlyingCaseVariantCount": 44
+  },
+  "maximumNoteCharacters": 3000,
+  "maximumNoteWords": 300,
+  "noteInstructionVersion": "source-note",
+  "temperature": 0.2,
+  "repeatRepairTemperature": 0.4,
+  "numPredict": 1800,
+  "maximumTransportAttempts": 6,
+  "maximumCompletionCapRetries": 1,
+  "rules": {
+    "completeNoteReplacesPreviousNoteEveryRound": true,
+    "noteUsesAtomicSourceRules": true,
+    "hardNoteWordLimit": 300,
+    "repeatPartsAfterFirstPass": false,
+    "stopAfterPresentation": true
+  }
+}

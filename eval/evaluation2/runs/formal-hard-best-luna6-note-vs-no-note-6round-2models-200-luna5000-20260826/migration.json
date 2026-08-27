@@ -1,0 +1,10 @@
+{
+  "migratedAt": "2026-08-26T00:58:49.590Z",
+  "reason": "raise Hard GPT-5.6-Luna max output tokens from 1800 to 5000 after repeated completion-cap failures",
+  "archivedPartialRun": "/Users/ec825/cellmate_ec/eval/evaluation2_archive/20260826_hard_luna1800_partial/formal-hard-best-luna6-note-vs-no-note-6round-2models-200-20260826",
+  "retainedStudentModel": "gpt-4o-mini-2024-07-18",
+  "retainedCleanSessions": 33,
+  "excludedOldCapLunaSessions": 28,
+  "oldLunaMaxOutputTokens": 1800,
+  "newLunaMaxOutputTokens": 5000
+}

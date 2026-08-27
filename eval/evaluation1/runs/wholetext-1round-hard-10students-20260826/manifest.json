@@ -1,0 +1,61 @@
+{
+  "runId": "wholetext-1round-hard-10students-20260826",
+  "startedAt": "2026-08-26T01:27:17.052Z",
+  "protocolSha256": "25db78e6d0ca450f0e0e390e2fe23037656040b3027f5cb8fde4c1277cccf98f",
+  "presentationsPath": "eval/evaluation1/tasks/hard/presentations_wholetext_1round.json",
+  "presentationsSha256": "9770c3f5a6e45412b09aaf9151f6787dd2b52eff1fdded05c6f64de888bce97e",
+  "modelDescriptor": {
+    "backend": "openai-responses",
+    "identifier": "gpt-4o-mini-2024-07-18",
+    "endpointSha256": "ee0291cefbb5b6136483fb38ba9efe9264f9b685d5006c273e293a54b43a1883",
+    "credentialReferenceName": "env:OPENAI_API_KEY",
+    "transportPayloadSemantics": "POST input to the OpenAI Responses API with explicit temperature, max_output_tokens and store=false; the API exposes no sampling seed field",
+    "responseSemantics": "output_text content plus whitelisted model, input/output token counts, status, response-id and request-id metadata",
+    "nonSecretConfigSha256": "3ed421dcc5efca9ba03c1dcec80f67ce9e98deae87cf75690a82be58287bd88c"
+  },
+  "modelIdentity": {
+    "backend": "openai-responses",
+    "id": "gpt-4o-mini-2024-07-18",
+    "object": "model",
+    "created": 1721172717,
+    "ownedBy": "system",
+    "requestId": "2404c6b1-1765-4c58-bfe2-37c9f99e12f3"
+  },
+  "generationSeeds": [
+    80001,
+    80002,
+    80003,
+    80004,
+    80005,
+    80006,
+    80007,
+    80008,
+    80009,
+    80010
+  ],
+  "preflight": {
+    "referenceTest": 1,
+    "starterTest": 0,
+    "logicalUnseenTests": 22,
+    "underlyingCaseVariants": 44,
+    "materials": 1,
+    "stagesPerMaterial": {
+      "plain_wholetext_1round": 1
+    },
+    "repairRoundsPerMaterial": {
+      "plain_wholetext_1round": 0
+    },
+    "totalRoundsPerMaterial": {
+      "plain_wholetext_1round": 1
+    },
+    "stopAfterPresentation": true,
+    "task": "hard",
+    "plainControlWords": {
+      "plain_5parts": 451,
+      "plain_6parts": 451
+    },
+    "presentationWords": {
+      "plain_wholetext_1round": 451
+    }
+  }
+}

@@ -1,5 +1,3 @@
-export const DECOMPOSITION_VERSION = 1;
-
 export interface DecompositionStep {
   /** 1-based position in the ordered plan. */
   index: number;
@@ -9,15 +7,19 @@ export interface DecompositionStep {
   intent: string;
   /** Optional: what step_check should look for as evidence of this intent. */
   checkHint?: string;
+  /**
+   * Optional (v2): recommended share of the whole exercise's time, as a
+   * percentage. Guidance for pacing, never a deadline. Either every step
+   * carries one or none does, and a plan's shares sum to roughly 100.
+   */
+  timeShare?: number;
 }
 
 export interface Decomposition {
   exerciseId: string;
-  /** Equals DECOMPOSITION_VERSION at write time. */
-  version: number;
   /** Hand-written gold plan vs. LLM-generated plan. */
   source: 'gold' | 'generated';
-  /** Ordered subgoals. The plan constrains this to 3..7 steps. */
+  /** Ordered subgoals. The plan constrains this to 3..8 steps. */
   steps: DecompositionStep[];
 }
 
@@ -70,26 +72,11 @@ export interface TelemetryEvent {
   meta?: Record<string, unknown>;
 }
 
-/**
- * Patterns that suggest code has leaked into prose fields. Shared by the
- * decomposition validator and reusable for later hint leakage audits.
- * Deliberately conservative: a false hit costs one retry, a miss leaks
- * implementation.
- */
-const CODE_TRACE_PATTERNS: RegExp[] = [
-  /```/, // fenced code block
-  /`[^`\n]+`/, // inline code span
-  /\bdef\s+\w+/i, // function definition
-  /\bimport\b/i, // import statement
-  /\breturn\b/i, // return statement
-  /\bfor\s+\w+\s+in\b/i, // Python-style loop header
-  /=/, // assignment or comparison operator
-];
-
-/** True if the text looks like it contains code rather than plain English. */
-export function containsCodeTrace(text: string): boolean {
-  return CODE_TRACE_PATTERNS.some((re) => re.test(text));
-}
+// No code-trace regex gate. Every pattern tried — keywords, back-ticks,
+// "=", even literal "def name(" — ended up rejecting legitimate plans that
+// quoted the exercise's own contract or signatures. Leakage review is the
+// job of the offline audit (LLM judge + human reading), never of a
+// parse-time regex; the validator below checks structure only.
 
 /**
  * Every rule the candidate breaks, as one-line messages that name the
@@ -97,6 +84,21 @@ export function containsCodeTrace(text: string): boolean {
  * a retry, so precision here buys retry success; they also tell a gold
  * file author exactly what to fix.
  */
+/**
+ * Control characters that mean a LaTeX command was eaten by JSON escaping.
+ *
+ * `repairInvalidEscapes` rescues the commands JSON rejects outright, but
+ * "\frac" and "\beta" begin with escapes JSON accepts, so they parse
+ * cleanly into a formfeed or a backspace and corrupt the prose in silence.
+ * A tab is legitimate only as leading indentation, so one anywhere else on
+ * a line is the residue of "\theta" or "\times". Catching these turns a
+ * silently mangled step into one retry.
+ */
+function hasMangledEscape(text: string): boolean {
+  if (/[\f\b\v]/.test(text)) return true;
+  return text.split('\n').some((line) => line.replace(/^[^\S\n]+/, '').includes('\t'));
+}
+
 export function listDecompositionViolations(d: any): string[] {
   const violations: string[] = [];
   if (!d || typeof d !== 'object') {
@@ -106,9 +108,6 @@ export function listDecompositionViolations(d: any): string[] {
   if (typeof d.exerciseId !== 'string' || d.exerciseId.trim() === '') {
     violations.push('exerciseId must be a non-empty string');
   }
-  if (d.version !== DECOMPOSITION_VERSION) {
-    violations.push(`version must equal ${DECOMPOSITION_VERSION}`);
-  }
   if (d.source !== 'gold' && d.source !== 'generated') {
     violations.push("source must be 'gold' or 'generated'");
   }
@@ -116,8 +115,8 @@ export function listDecompositionViolations(d: any): string[] {
     violations.push('steps must be an array');
     return violations;
   }
-  if (d.steps.length < 3 || d.steps.length > 7) {
-    violations.push(`the plan must have 3 to 7 steps, found ${d.steps.length}`);
+  if (d.steps.length < 3 || d.steps.length > 8) {
+    violations.push(`the plan must have 3 to 8 steps, found ${d.steps.length}`);
   }
 
   d.steps.forEach((s: any, i: number) => {
@@ -132,27 +131,48 @@ export function listDecompositionViolations(d: any): string[] {
     if (typeof s.label !== 'string' || s.label.trim() === '') {
       violations.push(`step ${n} label must be a non-empty string`);
     }
-    if (typeof s.intent !== 'string' || s.intent.trim() === '') {
-      violations.push(`step ${n} intent must be a non-empty string`);
-    } else if (containsCodeTrace(s.intent)) {
-      violations.push(`step ${n} intent contains code; rewrite it as plain English`);
+    if (typeof s.intent === 'string' && hasMangledEscape(s.intent)) {
+      violations.push(
+        `step ${n} intent contains a control character, which means a LaTeX ` +
+          'command was swallowed by JSON escaping; write maths with Unicode ' +
+          'characters such as Δt, x², ≤ and π instead'
+      );
     }
-    if (s.checkHint !== undefined) {
-      if (typeof s.checkHint !== 'string') {
-        violations.push(`step ${n} checkHint must be a string when present`);
-      } else if (containsCodeTrace(s.checkHint)) {
-        violations.push(`step ${n} checkHint contains code; rewrite it as plain English`);
+    if (typeof s.intent !== 'string' || s.intent.trim() === '') {
+      violations.push(
+        `step ${n} must carry its specification in a field named exactly "intent"; ` +
+          'a non-empty string, not "spec" or any other synonym'
+      );
+    }
+    if (s.checkHint !== undefined && typeof s.checkHint !== 'string') {
+      violations.push(`step ${n} checkHint must be a string when present`);
+    }
+    if (s.timeShare !== undefined) {
+      if (!Number.isFinite(s.timeShare) || s.timeShare < 5 || s.timeShare > 100) {
+        violations.push(`step ${n} timeShare must be a number between 5 and 100`);
       }
     }
   });
+
+  // timeShare is all-or-none, and a complete set must sum to roughly 100.
+  const withShare = d.steps.filter((s: any) => s && s.timeShare !== undefined);
+  if (withShare.length > 0 && withShare.length !== d.steps.length) {
+    violations.push('timeShare must be given on every step or on none');
+  } else if (d.steps.length > 0 && withShare.length === d.steps.length) {
+    const sum = withShare.reduce(
+      (acc: number, s: any) => acc + (Number.isFinite(s.timeShare) ? s.timeShare : 0),
+      0
+    );
+    if (sum < 90 || sum > 110) {
+      violations.push(`timeShare values must sum to roughly 100, found ${sum}`);
+    }
+  }
 
   return violations;
 }
 
 /**
  * Structural gate for both LLM-generated plans and hand-written gold files.
- * Tightening these checks does not change the data shape, so it needs no
- * DECOMPOSITION_VERSION bump.
  */
 export function validateDecomposition(d: any): d is Decomposition {
   return listDecompositionViolations(d).length === 0;

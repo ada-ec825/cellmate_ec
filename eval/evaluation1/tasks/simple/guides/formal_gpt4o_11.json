@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_simple_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse amount to cents",
+      "intent": "Implement `parse_amount(s)` to convert string amounts to cents.\n- Input is a string with ordinary decimal notation, having at most two fractional digits.\n- Convert positive amounts like \"12.30\" to 1230 and \"3\" to 300, and negative amounts like \"-2.00\" to -200.\n- Return `None` for malformed or non-string input without raising or printing errors.\n- Ensure every amount is calculated and stored as an integer number of cents.",
+      "checkHint": "`parse_amount('12.30')` should return 1230.",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parse record line",
+      "intent": "Implement `parse_record(line)` to parse strings with order/payment info.\n- Every line has five `|`-separated fields: `TYPE|RECORD_ID|ORDER_ID|AMOUNT|TIMESTAMP`.\n- `TYPE` must be `ORDER` or `PAYMENT`, matched case-insensitively and stored uppercase.\n- Trim `RECORD_ID` and `ORDER_ID`; reject the row if either becomes empty.\n- For `ORDER`, `RECORD_ID` and `ORDER_ID` must be equal.\n- Call `parse_amount` to handle `AMOUNT`; a negative `ORDER` is invalid, a negative `PAYMENT` is allowed as a refund.\n- Parse `TIMESTAMP` in `YYYY-MM-DD HH:MM` format and store it as a naive `datetime`.\n- Return a dictionary with `type`, `record_id`, `order_id`, `amount`, `timestamp` keys, or return `None` for invalid rows.",
+      "checkHint": "`parse_record('ORDER|123|123|100.00|2023-09-15 14:00')` returns a valid dictionary.",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Load records from text",
+      "intent": "Implement `load_records(text)` to parse text into records.\n- Input is a string containing record lines.\n- Use `parse_record` to parse each line.\n- Silently skip invalid rows, leaving the valid rows in their original order.\n- Return an empty list for empty or non-string input.\n- Do not mutate input or store global state.",
+      "checkHint": "`load_records('')` returns an empty list.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Compute refunds",
+      "intent": "Implement `compute_refunds(records)` to calculate refund totals.\n- A refund is identified as a `PAYMENT` with a negative integer-cent amount.\n- Return the positive sum of the absolute values of all refunds.\n- Even if there is no matching order, a refund still counts.\n- Return `0` when there are no refunds.",
+      "checkHint": "For a `PAYMENT` of -500 cents, `compute_refunds` includes 500 in the total.",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match payments to orders",
+      "intent": "Implement `match_payments(records)` to map payments to orders.\n- Produce results for `ORDER` records, preserving record source order.\n- Match non-negative `PAYMENT` by `order_id` when its timestamp is within 72 hours inclusive of the order's timestamp.\n- Choose the earliest payment if multiple qualify; retain source order on ties.\n- Refunds (negative payments) do not match by definition.\n- Each result is a dictionary with `order_id`, `status`, `amount`. Status conveys `matched` or `unmatched` without case sensitivity. For matched, use payment amount; otherwise, use `0`.",
+      "checkHint": "An order from `match_payments` should show `unmatched` if no payments qualify.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Build summary report",
+      "intent": "Implement `build_summary(matches, refund_total)` to summarize records.\n- Return a dictionary with `total_orders`, `matched_count`, `net_total`, `unmatched_ids` keys.\n- `total_orders` counts the number of match results.\n- `matched_count` counts results with status `matched`.\n- `net_total` is the sum of all matched amounts minus `refund_total`.\n- `unmatched_ids` lists unmatched order IDs in ascending lexicographic order.",
+      "checkHint": "An `unmatched_ids` list in `build_summary` is sorted lexicographically.",
+      "timeShare": 20
+    }
+  ]
+}

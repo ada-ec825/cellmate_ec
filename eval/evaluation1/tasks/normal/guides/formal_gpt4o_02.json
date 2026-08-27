@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse Amount",
+      "intent": "Implement `parse_amount(s)` to convert a valid amount string to integer cents.\n- Accept a string with an ordinary decimal string with at most three fractional digits.\n- The string can contain only digits, one optional decimal point, and an optional leading minus sign.\n- Round a third fractional digit to cents using **round-half-up**.\n- Return `None` for non-string inputs or invalid strings (e.g., containing letters or more than one decimal point).\n- Ensure the function handles edge cases such as `\".50\"` yielding `50` cents.",
+      "checkHint": "`parse_amount('12.345')` returns `1235`",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parse Record",
+      "intent": "Create `parse_record(line)` to parse a line of records into a dictionary or return `None` if invalid.\n- Split the input line by '|', expecting exactly six fields.\n- Normalize `TYPE` to uppercase and trim whitespace from all fields.\n- Ensure `RECORD_ID` and `ORDER_ID` are non-empty after trimming.\n- For an `ORDER`, verify `RECORD_ID` equals `ORDER_ID`.\n- Parse `AMOUNT` using `parse_amount(s)` and ensure the amount is non-negative for `ORDER` types.\n- Validate `CURRENCY` is exactly `USD`.\n- Ensure `TIMESTAMP` is formatted as `\"YYYY-MM-DD HH:MM\"`.\n- Return `None` for any field violations.",
+      "checkHint": "`parse_record('ORDER| 123 | 123 | 12.30 | USD | 2024-03-15 14:30')` returns a valid dictionary",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Load Records",
+      "intent": "Implement `load_records(text)` to parse lines of text into valid records, ignoring duplicates and invalid lines.\n- Split the `text` input into lines and apply `parse_record(line)` on each.\n- Silently skip lines that return `None` from parsing.\n- Retain only the first valid occurrence of each `RECORD_ID`.\n- Return a list of parsed dictionary records.",
+      "checkHint": "Multiple entries with `RECORD_ID` '123', the first valid one is retained, others are ignored.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Compute Refunds",
+      "intent": "Develop `compute_refunds(records)` to calculate the sum of absolute values of negative payments.\n- Iterate over parsed records, checking for `PAYMENT` type.\n- Sum the absolute `amount` of records with negative `PAYMENT` amounts.\n- Return the total refund amount in positive cents.\n- Include a refund even if no order with its `order_id` exists.",
+      "checkHint": "`compute_refunds` on records including a payment `-100.00` results in `10000`",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match Payments",
+      "intent": "Create `match_payments(records)` to pair payments with orders based on `order_id`.\n- Match `PAYMENT` with `ORDER` only if `PAYMENT` timestamp is within [order timestamp, order timestamp + 72 hours].\n- Select the earliest valid `PAYMENT`, breaking ties by source order.\n- Ignore negative `amount` payments as they are considered refunds.\n- Return a list of results each as a dictionary with keys: `\"order_id\"`, `\"status\"`, and `\"amount\"`. Use lowercase `\"matched\"` or `\"unmatched\"` for status.\n- A matched order includes `amount`, unmatched has `amount` 0.",
+      "checkHint": "Order and payment of `order_id 123` aligning within 72 hours results in `matched`.",
+      "timeShare": 25
+    },
+    {
+      "index": 6,
+      "label": "Build Summary",
+      "intent": "Implement `build_summary(matches, refund_total)` to create a summary dictionary of the reconciliation process.\n- Include `\"total_orders\"` as the total count of valid orders.\n- Include `\"matched_count\"` as the count of matched payments.\n- Calculate `\"net_total\"` as the sum of matched payment amounts minus the positive refund total.\n- List `\"unmatched_ids\"` as unmatched `order_id`s sorted lexicographically.\n- Ensure output is a dictionary matching the expected key names and format.",
+      "checkHint": "Summary reflects correct `net_total` subtraction of refund total.",
+      "timeShare": 15
+    }
+  ]
+}

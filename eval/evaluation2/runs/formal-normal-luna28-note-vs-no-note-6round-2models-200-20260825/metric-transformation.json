@@ -1,0 +1,12 @@
+{
+  "transformedAt": "2026-08-25T23:45:56.362Z",
+  "method": "pair_52_unseen_case_variants_into_26_semantic_tests_without_rerunning_students",
+  "recoverySnapshot": "evaluation2_archive/20260826_cleanup/pre_unseen_metric_merge/formal-normal-luna28-note-vs-no-note-6round-2models-200-20260825",
+  "logicalTestCount": 26,
+  "underlyingCaseVariantCount": 52,
+  "pairMappingAsset": "tasks/normal/requirements.json",
+  "logicalPassRule": "both_case_variants_must_pass",
+  "runId": "formal-normal-luna28-note-vs-no-note-6round-2models-200-20260825",
+  "rows": 200,
+  "auditPassed": true
+}

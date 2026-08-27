@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse monetary amounts",
+      "intent": "Implement `parse_amount(s)` to convert a monetary string into integer cents.\n- Return integer cents if the input is a valid amount string.\n- Return `None` if the input is invalid or not a string.\n- The `AMOUNT` string may have at most three fractional digits and must be rounded to cents using **round-half-up**.\n- Invalid inputs include incorrect decimal formats and strings like scientific notation.",
+      "checkHint": "`parse_amount('12.345')` returns `1235`",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parse individual records",
+      "intent": "Create the `parse_record(line)` function to process an individual record line into a dictionary.\n- Return a dictionary with keys: `\"type\"`, `\"record_id\"`, `\"order_id\"`, `\"amount\"`, `\"currency\"`, and `\"timestamp\"`.\n- Return `None` if any field is invalid.\n- Convert `TYPE` to uppercase and ensure it is either `ORDER` or `PAYMENT`.\n- Ensure `RECORD_ID` and `ORDER_ID` are non-empty and equal for `ORDER` lines.\n- Validate `AMOUNT` using `parse_amount`, ensuring it's non-negative for `ORDER` records.\n- Check `CURRENCY` is exactly `USD` after trimming whitespace.\n- Ensure `TIMESTAMP` format is `2024-03-15 14:30` and represents UTC without conversion.",
+      "checkHint": "`parse_record('ORDER|1|1|12.30| USD |2024-03-15 14:30')` returns a valid dictionary",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Load and filter records",
+      "intent": "Implement `load_records(text)` to parse lines from the input text.\n- Return a list of valid record dictionaries.\n- Use the first valid occurrence of a `RECORD_ID`, skipping duplicates.\n- Silently skip lines with invalid records or formats.\n- Apply the duplicate filter only to valid records: an invalid record does not reserve its `RECORD_ID`.",
+      "checkHint": "Given records with the same `RECORD_ID`, only the first valid one is kept.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Match payments to orders",
+      "intent": "Implement `match_payments(records)` to match payments with orders.\n- Return a list of dictionaries with keys: `\"order_id\"`, `\"status\"`, `\"amount\"`.\n- Non-refund payments qualify if they are within the 72-hour window and include both endpoints.\n- Use the earliest timestamp for qualifying payments; break ties by source order.\n- Set status to `\"matched\"` or `\"unmatched\"`, with unmatched having `amount` 0.\n- **Refunds never qualify as matched payments**.",
+      "checkHint": "Matching uses a 72-hour window, ensuring both start and end timestamps are included.",
+      "timeShare": 20
+    },
+    {
+      "index": 5,
+      "label": "Compute total refunds",
+      "intent": "Create `compute_refunds(records)` to return the positive sum of all refund amounts.\n- Calculate total refunds from negative `PAYMENT` amounts as the sum of their absolute values.\n- A refund counts even if no order with its `order_id` exists.",
+      "checkHint": "A negative refund of `-1230` cents contributes positively to the sum.",
+      "timeShare": 10
+    },
+    {
+      "index": 6,
+      "label": "Build summary report",
+      "intent": "Develop `build_summary(matches, refund_total)` to compile a final summary dictionary.\n- Keys in the dictionary are `\"total_orders\"`, `\"matched_count\"`, `\"net_total\"`, and `\"unmatched_ids\"`.\n- `\"total_orders\"` is the count of valid order records.\n- `\"matched_count\"` is the number of results with `status` as `\"matched\"`.\n- `\"net_total\"` is the sum of matched payments minus `refund_total`.\n- List `\"unmatched_ids\"` in ascending lexicographic order.\n- This summary reflects adjustments according to the **updated rules** on `net_total`, which includes subtracting refunds.",
+      "checkHint": "The `net_total` accounts for the subtraction of `refund_total`.",
+      "timeShare": 20
+    }
+  ]
+}

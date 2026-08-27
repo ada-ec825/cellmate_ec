@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse Amount String",
+      "intent": "Implement `parse_amount(s)` to translate a decimal string to integer cents.\n- Convert monetary amounts stored as strings to integer cents.\n- Follow rounding rules: round a third fractional digit using round-half-up.\n- Amount strings contain only digits, at most one decimal point, and an optional leading minus sign for negative values.\n- Return `None` for invalid inputs (non-string or more than three fractional digits).\n- Handle conversions silently, without raising exceptions or printing warnings.",
+      "checkHint": "`parse_amount('12.345')` returns `1234`.",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parse Record Line",
+      "intent": "Create `parse_record(line)` to validate and parse a text line into a dictionary.\n- Process records with fields: `TYPE`, `RECORD_ID`, `ORDER_ID`, `AMOUNT`, `CURRENCY`, `TIMESTAMP`.\n- Evaluate order correctness: `RECORD_ID` and `ORDER_ID` must be equal and non-empty.\n- Convert `AMOUNT` using `parse_amount`, checking for negative ORDER amounts.\n- Validate currency: Only process if `CURRENCY` is exactly `USD`.\n- Use the `datetime` module for timestamps, parsed as naive Python `datetime` objects.\n- Ignore malformed records silently. Return `None` if any field is invalid.",
+      "checkHint": "`parse_record('ORDER|123|123|12.30|USD|2023-10-01 10:10')` returns a dictionary with parsed values.",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Load Records from Text",
+      "intent": "Develop `load_records(text)` to read text lines and produce valid parsed records.\n- Parse each line using `parse_record`.\n- Maintain rules: silently skip invalid or unparseable lines.\n- Implement the first-valid-record duplicate rule by retaining only the first valid appearance of a `RECORD_ID` and skipping any further occurrences.",
+      "checkHint": "The text input with duplicate `RECORD_ID` retains only the first valid record.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Compute Refund Totals",
+      "intent": "Build `compute_refunds(records)` to sum the absolute value of negative payments.\n- Traverse records to identify `PAYMENT` types with negative `AMOUNT`.\n- Return the total sum of absolute values of negative amounts as a positive integer.\n- Include refunds even if no order with the corresponding `order_id` exists.",
+      "checkHint": "Calculating refunds on records with negative payments returns their absolute sum.",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match Payments to Orders",
+      "intent": "Create `match_payments(records)` to connect payments with orders based on `order_id`.\n- Determine `matched` if a non-negative payment’s timestamp is within 72 hours after the order's timestamp.\n- Prioritize payments: Earliest timestamp selected, breaking ties by source order.\n- Status is `matched` or `unmatched`. Unmatched results have amount `0`.\n- Use the result as the dictionary format described, never as a tuple.",
+      "checkHint": "A payment within the proper timeframe changes the order status to `matched`.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Build Summary",
+      "intent": "Implement `build_summary(matches, refund_total)` to compile and return a summary of reconciliation.\n- Calculate `total_orders`: count of valid orders.\n- Determine `matched_count`: number of matched payments.\n- Compute `net_total`: sum of matched payment amounts minus `refund_total`.\n- List `unmatched_ids`: ascending lexicographic order of IDs from unmatched orders.\n- Ensure the summary dictionary contains these exact keys and values.",
+      "checkHint": "The summary correctly reflects the total orders and net total including refunds.",
+      "timeShare": 20
+    }
+  ]
+}

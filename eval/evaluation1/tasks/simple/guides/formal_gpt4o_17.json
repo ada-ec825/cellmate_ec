@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_simple_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Implement parse_amount",
+      "intent": "Implement the `parse_amount(s)` function.\n- Convert a string representing a monetary value into an integer representing cents.\n- For input like `'12.30'`, the output should be `1230`.\n- For input like `'3'`, the output should be `300`.\n- For input like `'-2.00'`, the output should be `-200`.\n- Return `None` for malformed inputs or non-string inputs, handling these cases silently.",
+      "checkHint": "parse_amount('5.00') should return 500.",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Implement parse_record",
+      "intent": "Implement the `parse_record(line)` function.\n- Each line contains exactly 5 fields, separated by `|`.\n- Fields are `TYPE|RECORD_ID|ORDER_ID|AMOUNT|TIMESTAMP`.\n- `TYPE` should be case-insensitively matched as `ORDER` or `PAYMENT`, needs to be stored as uppercase.\n- `RECORD_ID` and `ORDER_ID` should be equal for an `ORDER`.\n- Use `parse_amount` to convert the `AMOUNT`. A negative amount in `ORDER` indicates an invalid record.\n- `TIMESTAMP` should follow `YYYY-MM-DD HH:MM` format and stored as a naive `datetime`.\n- Return a dictionary with `type`, `record_id`, `order_id`, `amount`, `timestamp` keys, or `None` for any invalid row.",
+      "checkHint": "parse_record('ORDER|123|123|1000|2023-01-01 10:00') should return a dictionary with those exact keys.",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Implement load_records",
+      "intent": "Create the `load_records(text)` function.\n- Parse the input string line by line using `parse_record`.\n- Silently skip any invalid rows.\n- Maintain the original order of valid records.\n- Return an empty list for empty or non-string input.\n- Ensure that input is not mutated and no global state is stored.",
+      "checkHint": "load_records('ORDER|123|123|1000|2023-01-01 10:00\\nINVALID|LINE') returns a list with one valid dictionary.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Implement compute_refunds",
+      "intent": "Create the `compute_refunds(records)` function.\n- Identify all `PAYMENT` records with a negative `amount` as refunds.\n- Return the positive sum of absolute values of all refund amounts.\n- Return `0` when there are no refunds.\n- Refunds should count even if no order matches the `order_id`.",
+      "checkHint": "compute_refunds([{ 'type': 'PAYMENT', 'amount': -500 }]) returns 500.",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Implement match_payments",
+      "intent": "Create the `match_payments(records)` function.\n- Examine each `ORDER` type record and match with eligible `PAYMENT`s.\n- A payment matches if `order_id` is same and timestamp is between order's timestamp and 72 hours later.\n- Choose the earliest payment on a timestamp tie, retaining original order if all else is equal.\n- Refunds are not considered for matching.\n- Return a list of dictionaries each with `order_id`, `status`, `amount` keys. `status` is `matched` or `unmatched`.\n- Use the payment amount for matched orders, `0` for unmatched ones.",
+      "checkHint": "match_payments([{ 'type': 'ORDER', 'order_id': '123', 'amount': 1000, 'timestamp': some_datetime }]) returns a list with status depending on matching conditions.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Implement build_summary",
+      "intent": "Implement the `build_summary(matches, refund_total)` function.\n- Output a dictionary with keys `total_orders`, `matched_count`, `net_total`, `unmatched_ids`.\n- `total_orders` counts the number of `matches`.\n- `matched_count` is the number of `matched` orders.\n- `net_total` is the sum of matched amounts minus `refund_total`.\n- `unmatched_ids` contains `order_id`s of unmatched orders in ascending lexicographic order.\n- Match status is case-insensitive for determination of matched vs. unmatched.",
+      "checkHint": "build_summary([{ 'order_id': '123', 'status': 'matched', 'amount': 1000 }], 500) should construct a correct summary dictionary.",
+      "timeShare": 20
+    }
+  ]
+}

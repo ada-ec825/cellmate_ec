@@ -1,0 +1,9 @@
+{
+  "runId": "formal-simple-25x2-10students-currentprompt-20260825",
+  "completedAt": "2026-08-26T00:14:57.592Z",
+  "sessions": 530,
+  "postHocTestMetricTransformation": true,
+  "resultsSha256": "bcc7d4057aee5e9a2eeaa73758daf45205adb261fff585e537beda0df970084f",
+  "callsSha256": "d4462738855c2345f7e15253b0239f189df473e2622a2c0435eaba5f9d2cbf7b",
+  "healthAuditSha256": "a4fc5cd59f23af9bbb43826aae8e607aab647f4f7408feafb00086392e17d1bc"
+}

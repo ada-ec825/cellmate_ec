@@ -1,0 +1,75 @@
+{
+  "version": "evaluation1-simple-hard-25x2-10students-v2-unseen-deduplicated",
+  "status": "complete",
+  "studentModel": {
+    "spec": "openai-responses:gpt-4o-mini-2024-07-18",
+    "snapshot": "gpt-4o-mini-2024-07-18"
+  },
+  "studentSeeds": [
+    80001,
+    80002,
+    80003,
+    80004,
+    80005,
+    80006,
+    80007,
+    80008,
+    80009,
+    80010
+  ],
+  "guideGenerators": [
+    {
+      "model": "gpt-4o",
+      "transport": "chat-completions",
+      "prefix": "formal_gpt4o",
+      "materialClass": "gpt4o_generated",
+      "guideCountPerTask": 25
+    },
+    {
+      "model": "gpt-5.6-luna",
+      "transport": "responses",
+      "prefix": "formal_luna",
+      "materialClass": "luna_generated",
+      "guideCountPerTask": 25
+    }
+  ],
+  "tasks": {
+    "simple": {
+      "localRoot": "tasks/simple",
+      "plain5Words": 358,
+      "plain6Words": 358,
+      "presentationOutput": "tasks/simple/presentations_formal_25x2.json",
+      "requiredRunId": "formal-simple-25x2-10students-currentprompt-20260825"
+    },
+    "hard": {
+      "localRoot": "tasks/hard",
+      "plain5Words": 451,
+      "plain6Words": 451,
+      "presentationOutput": "tasks/hard/presentations_formal_25x2.json",
+      "requiredRunId": "formal-hard-25x2-10students-currentprompt-20260825"
+    }
+  },
+  "controlsPerTask": [
+    "reference_steps",
+    "plain_6parts",
+    "plain_5parts"
+  ],
+  "materialsPerTask": 53,
+  "sessionsPerTask": 530,
+  "totalSessions": 1060,
+  "testPolicy": {
+    "visibility": "unseen",
+    "aggregation": "paired_semantic_tests_all_case_variants_must_pass",
+    "logicalTestsPerTask": 22,
+    "underlyingCaseVariantsPerTask": 44,
+    "pairMappingAsset": "task_assets/requirements.json"
+  },
+  "rules": {
+    "sameRulesAsEvaluation1Normal": true,
+    "stopImmediatelyAfterFinalPresentationPart": true,
+    "maximumFinalRepairRounds": 0,
+    "retainNaturalGuideStepCountsFrom3Through8": true,
+    "runtimeReadsEvaluation2": false,
+    "plainControlNamesAreAligned": true
+  }
+}

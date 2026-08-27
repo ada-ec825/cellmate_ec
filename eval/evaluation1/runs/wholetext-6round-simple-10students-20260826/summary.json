@@ -1,0 +1,146 @@
+{
+  "runId": "wholetext-6round-simple-10students-20260826",
+  "completedAt": "2026-08-26T01:32:29.689Z",
+  "sessions": 10,
+  "generationSeeds": [
+    80001,
+    80002,
+    80003,
+    80004,
+    80005,
+    80006,
+    80007,
+    80008,
+    80009,
+    80010
+  ],
+  "stopAfterPresentation": true,
+  "totalRoundsByMaterial": {
+    "plain_wholetext_6rounds": 6
+  },
+  "materialOrder": [
+    "plain_wholetext_6rounds"
+  ],
+  "results": [
+    {
+      "material": "plain_wholetext_6rounds",
+      "generationSeed": 80001,
+      "materialClass": "plain-wholetext-6rounds",
+      "finalTestPassed": 19,
+      "finalTestTotal": 22,
+      "finalTestFraction": 0.8636363636363636,
+      "preRepairTestFraction": 0.8636363636363636,
+      "completed": false,
+      "totalRounds": 6,
+      "mechanicalFailures": 0
+    },
+    {
+      "material": "plain_wholetext_6rounds",
+      "generationSeed": 80002,
+      "materialClass": "plain-wholetext-6rounds",
+      "finalTestPassed": 18,
+      "finalTestTotal": 22,
+      "finalTestFraction": 0.8181818181818182,
+      "preRepairTestFraction": 0.8181818181818182,
+      "completed": false,
+      "totalRounds": 6,
+      "mechanicalFailures": 0
+    },
+    {
+      "material": "plain_wholetext_6rounds",
+      "generationSeed": 80003,
+      "materialClass": "plain-wholetext-6rounds",
+      "finalTestPassed": 21,
+      "finalTestTotal": 22,
+      "finalTestFraction": 0.9545454545454546,
+      "preRepairTestFraction": 0.9545454545454546,
+      "completed": false,
+      "totalRounds": 6,
+      "mechanicalFailures": 0
+    },
+    {
+      "material": "plain_wholetext_6rounds",
+      "generationSeed": 80004,
+      "materialClass": "plain-wholetext-6rounds",
+      "finalTestPassed": 19,
+      "finalTestTotal": 22,
+      "finalTestFraction": 0.8636363636363636,
+      "preRepairTestFraction": 0.8636363636363636,
+      "completed": false,
+      "totalRounds": 6,
+      "mechanicalFailures": 0
+    },
+    {
+      "material": "plain_wholetext_6rounds",
+      "generationSeed": 80005,
+      "materialClass": "plain-wholetext-6rounds",
+      "finalTestPassed": 19,
+      "finalTestTotal": 22,
+      "finalTestFraction": 0.8636363636363636,
+      "preRepairTestFraction": 0.8636363636363636,
+      "completed": false,
+      "totalRounds": 6,
+      "mechanicalFailures": 0
+    },
+    {
+      "material": "plain_wholetext_6rounds",
+      "generationSeed": 80006,
+      "materialClass": "plain-wholetext-6rounds",
+      "finalTestPassed": 19,
+      "finalTestTotal": 22,
+      "finalTestFraction": 0.8636363636363636,
+      "preRepairTestFraction": 0.8636363636363636,
+      "completed": false,
+      "totalRounds": 6,
+      "mechanicalFailures": 0
+    },
+    {
+      "material": "plain_wholetext_6rounds",
+      "generationSeed": 80007,
+      "materialClass": "plain-wholetext-6rounds",
+      "finalTestPassed": 20,
+      "finalTestTotal": 22,
+      "finalTestFraction": 0.9090909090909091,
+      "preRepairTestFraction": 0.9090909090909091,
+      "completed": false,
+      "totalRounds": 6,
+      "mechanicalFailures": 0
+    },
+    {
+      "material": "plain_wholetext_6rounds",
+      "generationSeed": 80008,
+      "materialClass": "plain-wholetext-6rounds",
+      "finalTestPassed": 19,
+      "finalTestTotal": 22,
+      "finalTestFraction": 0.8636363636363636,
+      "preRepairTestFraction": 0.8636363636363636,
+      "completed": false,
+      "totalRounds": 6,
+      "mechanicalFailures": 0
+    },
+    {
+      "material": "plain_wholetext_6rounds",
+      "generationSeed": 80009,
+      "materialClass": "plain-wholetext-6rounds",
+      "finalTestPassed": 20,
+      "finalTestTotal": 22,
+      "finalTestFraction": 0.9090909090909091,
+      "preRepairTestFraction": 0.9090909090909091,
+      "completed": false,
+      "totalRounds": 6,
+      "mechanicalFailures": 0
+    },
+    {
+      "material": "plain_wholetext_6rounds",
+      "generationSeed": 80010,
+      "materialClass": "plain-wholetext-6rounds",
+      "finalTestPassed": 20,
+      "finalTestTotal": 22,
+      "finalTestFraction": 0.9090909090909091,
+      "preRepairTestFraction": 0.9090909090909091,
+      "completed": false,
+      "totalRounds": 6,
+      "mechanicalFailures": 0
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_simple_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Convert amounts to cents",
+      "intent": "Implement the `parse_amount(s)` function.\n- Convert a string representing a monetary amount to an integer number of cents.\n- Input format: a string in ordinary decimal notation with at most two decimal places.\n- Conversion examples: \"12.30\" becomes 1230, \"3\" becomes 300, \"-2.00\" becomes -200.\n- Return `None` for **malformed** strings or non-string inputs.\n- Do not raise exceptions or print error messages.",
+      "checkHint": "parse_amount(\"45.67\") returns 4567.",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parse individual records",
+      "intent": "Implement the `parse_record(line)` function.\n- Input is a `line` with exactly five `|`-separated fields: `TYPE|RECORD_ID|ORDER_ID|AMOUNT|TIMESTAMP`.\n- `TYPE` must be `ORDER` or `PAYMENT`, case-insensitive and stored as uppercase.\n- The `RECORD_ID` and `ORDER_ID` must be equal for `ORDER` type.\n- Use `parse_amount` to parse `AMOUNT`; reject negative order amounts.\n- A negative `PAYMENT` `AMOUNT` is treated as a refund.\n- `TIMESTAMP` should be parsed to a naive `datetime` format of `YYYY-MM-DD HH:MM`.\n- Return a dictionary with keys `type`, `record_id`, `order_id`, `amount`, and `timestamp`.\n- Return `None` for any invalid row, silently skipping it.",
+      "checkHint": "parse_record(\"ORDER|123|123|45.67|2024-03-29 14:45\") returns a valid dictionary.",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Load and filter records",
+      "intent": "Implement the `load_records(text)` function.\n- Parse each line of the input `text` using `parse_record`.\n- Silently skip over invalid rows.\n- Keep the remaining records in the order they appear in the input.\n- Return an empty list for empty or non-string input.\n- Do not alter the input data or keep any global state.",
+      "checkHint": "load_records(\"ORDER|123|123|30.00|2024-03-29 14:45\") should include one valid dictionary in the list.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Compute refund total",
+      "intent": "Implement the `compute_refunds(records)` function.\n- Identify `PAYMENT` records with a negative amount as refunds.\n- Return the sum of the absolute values of these negative amounts.\n- Output should be a positive integer representing the total refund.\n- Return `0` when no refunds exist within the input records.",
+      "checkHint": "compute_refunds([{ \"type\": \"PAYMENT\", \"amount\": -500 }]) returns 500.",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match payments to orders",
+      "intent": "Implement the `match_payments(records)` function.\n- Process each `ORDER` record in the source order.\n- Match eligible non-negative `PAYMENT` records by `order_id` with constraints.\n- Payment timestamp must be between the order timestamp and 72 hours later, inclusive.\n- In ties, use the earliest payment; in exact ties, follow source order.\n- Refunds are not considered for matching.\n- Produce a result as a dictionary with `order_id`, `status`, and `amount`.\n- `status`: `matched` or `unmatched` (case-insensitive), with `amount` showing the matching sum or `0` if unmatched.",
+      "checkHint": "Matching payments incidentally excludes negative values.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Build summary of matches",
+      "intent": "Implement the `build_summary(matches, refund_total)` function.\n- `total_orders` is the number of processed matches.\n- `matched_count` counts all matched orders.\n- `net_total` calculates the sum of matched amounts minus `refund_total`.\n- `unmatched_ids` contains the IDs of unmatched orders, sorted lexicographically.\n- Interpret `matched`/`unmatched` statuses case-insensitively.",
+      "checkHint": "Inspect returned values to assure summary list integrity.",
+      "timeShare": 20
+    }
+  ]
+}

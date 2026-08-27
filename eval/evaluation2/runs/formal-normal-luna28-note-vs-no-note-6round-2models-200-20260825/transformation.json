@@ -1,0 +1,28 @@
+{
+  "transformedAt": "2026-08-25T23:23:26.085Z",
+  "sourceRunId": "formal-normal-luna28-note-vs-no-note-12round-2models-200-20260825",
+  "outputRunId": "formal-normal-luna28-note-vs-no-note-6round-2models-200-20260825",
+  "recoverySnapshot": "evaluation2_archive/20260826_cleanup/pre_round6_truncation/formal-normal-luna28-note-vs-no-note-12round-2models-200-20260825",
+  "originalRows": 200,
+  "outputRows": 200,
+  "originalRepairRows": 570,
+  "outputRepairRows": 0,
+  "originalCalls": 6028,
+  "outputCalls": 4018,
+  "beforeHashes": {
+    "results.jsonl": "d52e4dc4a67a584fe0a25acb656dc07a6c26ea0a312bbf11a9546902e1814831",
+    "calls.jsonl": "b8c6ff28e13593b6c0482d54ea3287410dbb33aca7515801537e73ec8932e8a5",
+    "protocol.json": "715d1a232e43fe2d7a882fa8c46457246aab1bf63c3fcd21370493f44106bd6f",
+    "summary.json": "fc6df0ede185f4a4c1150d0c8fa9116f67a637edcd50332e0ff236f0ce0f64e4",
+    "complete.json": "bc98ba8b74acb87838b1bf02b299587caf30067fb64376991c283fd31540ee89"
+  },
+  "afterHashes": {
+    "results.jsonl": "20ce5c55ce4285cd027291266bbb4653b5a44a12d2ab73bea6947d67e28d1287",
+    "calls.jsonl": "a91fae26f004c81888dc050db751ca6cbb72cf9498261d4c724756cf80dc1294",
+    "protocol.json": "7fe1dc884b01c2f14d725d301c69ac8c8e6efeb3743b35e6e5f4bfa19be83c39",
+    "summary.json": "bd2843a6119fd2dd954c87232f73c93effe58fd922b3a5e49b40bae96e048297",
+    "health-audit.json": "d88b25bcf139e831178428f64bae2d998144a30c779eed3e2f06ba4d0c332657",
+    "complete.json": "ff88042bf7b7df2a22b46a6327692472d0c07c5d562a248a4b55e1de743611e9"
+  },
+  "auditPassed": true
+}

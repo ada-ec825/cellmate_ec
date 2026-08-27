@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse Amount String",
+      "intent": "Implement `parse_amount(s)`, converting a valid amount string to integer cents.\n- The input `s` is a string representing a decimal amount.\n- Convert `s` to an integer representing cents; e.g. '12.30' becomes `1230`.\n- Perform conversion by rounding half-up if the third digit exists.\n- Ensure `s` only contains digits, an optional minus sign, and at most one decimal point.\n- Return `None` for invalid strings, non-string inputs, or unrecognized formats.\n- **Cents representation is critical for accurate calculations**.",
+      "checkHint": "`parse_amount('123.456')` should return `12346`.",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parse Record Line",
+      "intent": "Implement `parse_record(line)`, converting a line of text to a record dictionary.\n- Split the `line` by '|' into exactly six fields: `TYPE`, `RECORD_ID`, `ORDER_ID`, `AMOUNT`, `CURRENCY`, and `TIMESTAMP`.\n- Normalize `TYPE` to uppercase and any surrounding whitespaces from fields.\n- `RECORD_ID` and `ORDER_ID` must be equal and non-empty for `ORDER` types.\n- `CURRENCY` must be exactly `USD`.\n- Validate `AMOUNT` and use integer cents via `parse_amount`.\n- `TIMESTAMP` must exactly match the format `2024-03-15 14:30`.\n- Return `None` for any validation failure.\n- **Silently skip invalid and unparsable records**.",
+      "checkHint": "`parse_record('ORDER|1|1|12.30|USD|2024-03-15 14:30')` returns a dictionary with parsed fields.",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Load Valid Records",
+      "intent": "Implement `load_records(text)`, processing lines to valid records.\n- `text` is a string with multiple lines, each representing a record.\n- Use `parse_record` for line parsing and skip invalid lines without exceptions.\n- Retain the first valid occurrence for each `RECORD_ID`.\n- Return a list of dictionaries, each having keys: `type`, `record_id`, `order_id`, `amount`, `currency`, and `timestamp`.\n- **Do not reserve record IDs for invalid lines**.",
+      "checkHint": "`load_records` can process text of multiple lines, returning only unique valid records.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Compute Refund Total",
+      "intent": "Implement `compute_refunds(records)`, calculating total refunds in cents.\n- `records` is a list of record dictionaries, with fields as demanded.\n- Identify `PAYMENT` records with negative amounts as refunds.\n- Sum positive values of negative `PAYMENT` amounts across all records.\n- Return the refund sum in integer cents as the output.\n- Refunds are considered independent of matching orders.\n- **Ensure only negative payment amounts are treated as valid refunds**.",
+      "checkHint": "`compute_refunds` should return the sum of positive refund amounts from payments.",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match Payments to Orders",
+      "intent": "Implement `match_payments(records)`, aligning payments to their respective orders.\n- `records` is a list of record dictionaries parsed and validated earlier.\n- Match `PAYMENT` timestamps within 72 hours of their respective `ORDER` timestamps.\n- For tied timestamps, choose the earliest valid `PAYMENT` based on order of occurrence.\n- Refunds denoted by negative `PAYMENT` amounts are never qualified as matches.\n- Return a list of result dictionaries, each with `order_id`, `status`, and `amount`.\n- `status` is `matched` or `unmatched`, with `amount` being zero for unmatched entries.\n- **Return dictionary must precisely conform to result format**.",
+      "checkHint": "`match_payments` correctly associates payments within the time window and ignores refunds.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Build Reconciliation Summary",
+      "intent": "Implement `build_summary(matches, refund_total)`, generating a reconciliation dictionary.\n- `matches` is a list of result dictionaries from `match_payments`.\n- `refund_total` is the sum of refunds calculated in earlier steps.\n- Calculate `total_orders` as the number of valid orders processed.\n- `matched_count` is the count of dictionaries with status `matched`.\n- Calculate `net_total` as the sum of matched payment amounts minus refunds, using integer cents.\n- Populate `unmatched_ids` with unmatched order IDs in lexicographic order.\n- Return a dictionary with `total_orders`, `matched_count`, `net_total`, and `unmatched_ids` keys.\n- **Ensure final dictionary accurately reflects all provided and calculated inputs**.",
+      "checkHint": "A valid output dictionary should include all given and calculated keys.",
+      "timeShare": 20
+    }
+  ]
+}

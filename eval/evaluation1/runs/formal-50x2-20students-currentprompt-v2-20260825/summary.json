@@ -1,0 +1,58 @@
+{
+  "runId": "formal-50x2-20students-currentprompt-v2-20260825",
+  "transformedAt": "2026-08-26T00:17:41.457Z",
+  "protocolVersion": "evaluation1-guide-only-v4-unseen-deduplicated",
+  "sessions": 2060,
+  "task": "normal",
+  "testVisibility": "unseen",
+  "testAggregation": "paired_semantic_tests_all_case_variants_must_pass",
+  "logicalTestCount": 26,
+  "underlyingCaseVariantCount": 52,
+  "overall": {
+    "sessions": 2060,
+    "meanFinalTest": 0.660511575802838,
+    "testFullPasses": 37,
+    "testFullPassRate": 0.017961165048543688
+  },
+  "byMaterialClass": {
+    "gpt4o_generated": {
+      "sessions": 1000,
+      "meanFinalTest": 0.5149999999999992,
+      "testFullPasses": 0,
+      "testFullPassRate": 0
+    },
+    "luna_generated": {
+      "sessions": 1000,
+      "meanFinalTest": 0.8032307692307651,
+      "testFullPasses": 37,
+      "testFullPassRate": 0.037
+    },
+    "reference": {
+      "sessions": 20,
+      "meanFinalTest": 0.7846153846153846,
+      "testFullPasses": 0,
+      "testFullPassRate": 0
+    },
+    "plain_6parts": {
+      "sessions": 20,
+      "meanFinalTest": 0.7615384615384617,
+      "testFullPasses": 0,
+      "testFullPassRate": 0
+    },
+    "plain_5parts": {
+      "sessions": 20,
+      "meanFinalTest": 0.575,
+      "testFullPasses": 0,
+      "testFullPassRate": 0
+    }
+  },
+  "metricTransformation": {
+    "transformedAt": "2026-08-26T00:17:41.457Z",
+    "method": "pair_unseen_case_variants_into_semantic_tests_without_rerunning_students",
+    "logicalTestCount": 26,
+    "underlyingCaseVariantCount": 52,
+    "pairMappingAsset": "task_assets/requirements.json",
+    "logicalPassRule": "both_case_variants_must_pass",
+    "intermediateStagePolicy": "legacy_split_scores_removed; final_stage_independently_rescored"
+  }
+}

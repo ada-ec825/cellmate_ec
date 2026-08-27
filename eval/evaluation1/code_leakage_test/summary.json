@@ -1,0 +1,95 @@
+{
+  "protocolVersion": "evaluation1-code-leakage-top10-random10-v1",
+  "judgeModel": "gpt-5.6-luna",
+  "generated": {
+    "overall": {
+      "judgments": 60,
+      "clean": 60,
+      "leaking": 0,
+      "quotedFragments": 0
+    },
+    "top": {
+      "judgments": 30,
+      "clean": 30,
+      "leaking": 0,
+      "quotedFragments": 0
+    },
+    "random": {
+      "judgments": 30,
+      "clean": 30,
+      "leaking": 0,
+      "quotedFragments": 0
+    }
+  },
+  "byTask": {
+    "simple": {
+      "top": {
+        "judgments": 10,
+        "clean": 10,
+        "leaking": 0,
+        "quotedFragments": 0
+      },
+      "random": {
+        "judgments": 10,
+        "clean": 10,
+        "leaking": 0,
+        "quotedFragments": 0
+      },
+      "anchor": {
+        "judgments": 3,
+        "clean": 1,
+        "leaking": 2,
+        "quotedFragments": 2
+      }
+    },
+    "normal": {
+      "top": {
+        "judgments": 10,
+        "clean": 10,
+        "leaking": 0,
+        "quotedFragments": 0
+      },
+      "random": {
+        "judgments": 10,
+        "clean": 10,
+        "leaking": 0,
+        "quotedFragments": 0
+      },
+      "anchor": {
+        "judgments": 3,
+        "clean": 1,
+        "leaking": 2,
+        "quotedFragments": 4
+      }
+    },
+    "hard": {
+      "top": {
+        "judgments": 10,
+        "clean": 10,
+        "leaking": 0,
+        "quotedFragments": 0
+      },
+      "random": {
+        "judgments": 10,
+        "clean": 10,
+        "leaking": 0,
+        "quotedFragments": 0
+      },
+      "anchor": {
+        "judgments": 3,
+        "clean": 2,
+        "leaking": 1,
+        "quotedFragments": 2
+      }
+    }
+  },
+  "health": {
+    "expectedJudgments": 69,
+    "acceptedJudgments": 69,
+    "uniqueKeys": 69,
+    "transportErrors": 0,
+    "invalidVerdictRetries": 1,
+    "plantedAnchorsDetected": true,
+    "passed": true
+  }
+}

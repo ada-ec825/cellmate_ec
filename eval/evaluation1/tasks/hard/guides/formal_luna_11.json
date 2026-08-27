@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_hard_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Establish shared contracts",
+      "intent": "Set the shared data and function contracts before implementing behavior.\n- Implement `parse_amount(s)`, `parse_record(line)`, `load_records(text)`, `compute_refunds(records)`, `match_payments(records)`, and `build_summary(matches, refund_total)`.\n- Store every amount as integer cents and process only `USD` records.\n- **Bad input is silently skipped or rejected as specified; functions never raise or print for bad input.**\n- Amount magnitudes may not exceed `1,000,000` cents.\n- Valid timestamps use `YYYY-MM-DD HH:MM` or `YYYY-MM-DD HH:MM:SS` with valid calendar values.\n- Trim both identifiers; every `ORDER_ID` starts with exact prefix `ORD-`.\n- Functions do not mutate input objects or use global state.\n- No plots, files, or required printed output are part of this exercise.",
+      "checkHint": "Confirm that all six named functions exist and that calling them does not produce required console output.",
+      "timeShare": 10
+    },
+    {
+      "index": 2,
+      "label": "Parse monetary amounts",
+      "intent": "Implement `parse_amount(s)` as the complete amount validator and converter.\n- Accept digits with at most one decimal point and an optional leading minus sign; scientific notation and all other syntax are invalid.\n- Accept at most three fractional digits; convert to cents and round a third fractional digit using **round-half-up**.\n- Apply rounding to the magnitude, then preserve the original sign, so negative values remain negative.\n- Apply the absolute-value limit after conversion: `abs(amount) ≤ 1,000,000` cents.\n- Return the converted integer cents for valid input.\n- Return `None` for empty, malformed, over-limit, or otherwise invalid input.\n- Do not raise or print for invalid input.",
+      "checkHint": "For example, `parse_amount('-12.345')` returns `-1235`, while `parse_amount('1e2')` returns `None`.",
+      "timeShare": 18
+    },
+    {
+      "index": 3,
+      "label": "Parse and load records",
+      "intent": "Implement `parse_record(line)` and `load_records(text)` for validated retained records.\n- Each line must contain exactly six `|`-separated fields: `TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP`.\n- `TYPE` is case-insensitive `ORDER` or `PAYMENT` and is stored uppercase; trimmed `RECORD_ID` and `ORDER_ID` must be non-empty.\n- `ORDER_ID` must start with exact prefix `ORD-`; currency must be exactly `USD`.\n- Parse the amount with `parse_amount(s)`; negative orders are invalid, while negative payments represent refunds.\n- Accept only valid calendar timestamps in `YYYY-MM-DD HH:MM` or `YYYY-MM-DD HH:MM:SS` form.\n- `parse_record(line)` returns exactly the keys `type`, `record_id`, `order_id`, `amount`, `currency`, and `timestamp`, or `None` for any invalid line; it never raises or prints.\n- `load_records(text)` silently skips invalid rows, preserves input order, and keeps the first valid occurrence of each duplicate `record_id`.",
+      "checkHint": "A valid lowercase `payment` with a trimmed identifier is returned with type `PAYMENT`; a row with seven fields or currency `EUR` is skipped.",
+      "timeShare": 25
+    },
+    {
+      "index": 4,
+      "label": "Compute qualifying refunds",
+      "intent": "Implement `compute_refunds(records)` using retained valid records.\n- Amounts are integer cents and the function returns one nonnegative integer total in cents.\n- Consider only records whose type is `PAYMENT` and whose amount is negative.\n- A refund counts only when its `order_id` belongs to an existing retained `ORDER` record.\n- Add the positive magnitude of each qualifying negative payment to `refund_total`.\n- Ignore refunds for unknown order IDs and all non-refund payments.\n- Do not mutate `records`, use global state, raise, or print for bad input.",
+      "checkHint": "If an existing order has a payment of `-250` cents and an unknown order has a payment of `-100` cents, the result is `250`.",
+      "timeShare": 12
+    },
+    {
+      "index": 5,
+      "label": "Match payments to orders",
+      "intent": "Implement `match_payments(records)` and return one result for each retained `ORDER` record in retained order-record order.\n- A non-refund payment is eligible from the order timestamp itself through a window that is **strictly less than 72 hours after the order timestamp**; a payment exactly 72 hours later is outside.\n- Refunds, meaning negative payments, never match.\n- If several non-refund payments qualify, choose the one with the earliest timestamp; break an exact timestamp tie by retained source order.\n- Each result has exactly `order_id`, `status`, and `amount`.\n- A matched result uses lowercase status `matched` and the selected payment amount in integer cents.\n- An unmatched result uses lowercase status `unmatched` and amount `0`.\n- Do not mutate input records, use global state, raise, or print.",
+      "checkHint": "An order at `2024-01-01 00:00` does not match a payment at `2024-01-04 00:00`, because that is exactly 72 hours later.",
+      "timeShare": 23
+    },
+    {
+      "index": 6,
+      "label": "Build the final summary",
+      "intent": "Implement `build_summary(matches, refund_total)` as the final report constructor.\n- Return exactly five keys: `total_orders`, `matched_count`, `refund_total`, `net_total`, and `unmatched_ids`.\n- `total_orders` is the number of result records in `matches`.\n- `matched_count` counts only results whose status is exactly lowercase `matched`.\n- `refund_total` is the supplied positive refund total in integer cents.\n- `net_total = matched payment amounts − refund_total`, with a lower bound of zero; report `0` when the calculation is below zero.\n- `unmatched_ids` contains unmatched `order_id` values, deduplicated and sorted in ascending lexicographic order.\n- Do not mutate `matches`, use global state, raise, or print.",
+      "checkHint": "Two unmatched results for `ORD-2` and one matched result produce `unmatched_ids` containing `ORD-2` only and `matched_count` equal to `1`.",
+      "timeShare": 12
+    }
+  ]
+}
