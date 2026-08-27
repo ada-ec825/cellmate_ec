@@ -1,0 +1,55 @@
+name: Verification
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Install dependencies
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm ci --prefix eval/evaluation1 --ignore-scripts --no-audit --no-fund
+          npm ci --prefix eval/evaluation2/src --ignore-scripts --no-audit --no-fund
+          python -m venv eval/evaluation1/.venv
+          eval/evaluation1/.venv/bin/python -m pip install -r eval/evaluation1/requirements.txt
+          python -m venv eval/evaluation2/src/.venv
+          eval/evaluation2/src/.venv/bin/python -m pip install -r eval/evaluation2/requirements.txt
+      - name: Compile and test
+        run: npm run verify
+      - name: Preflight Evaluation 1
+        run: |
+          node eval/evaluation1/run_experiment.js --task normal --presentations eval/evaluation1/tasks/normal/presentations_formal_50x2.json --preflight-only
+          node eval/evaluation1/code_leakage_test/judge.js --preflight-only
+      - name: Preflight Evaluation 2
+        working-directory: eval/evaluation2/src
+        run: |
+          node run_formal_note_comparison.js --protocol tasks/simple/protocol.best-luna6-note-vs-no-note.json --preflight-only
+          node run_formal_note_comparison.js --protocol tasks/normal/protocol.luna28-note-vs-no-note.json --preflight-only
+          node run_formal_note_comparison.js --protocol tasks/hard/protocol.best-luna6-note-vs-no-note.json --preflight-only
+      - name: Package Linux VSIX
+        run: npm run package:vsix -- --target linux-x64 --out cellmate-linux-x64.vsix
+      - name: Reject packaged environment files
+        shell: bash
+        run: |
+          if unzip -Z1 cellmate-linux-x64.vsix | grep -E '(^|/)\.env($|\.)|(^|/)\.npmrc$'; then
+            echo 'VSIX contains an environment or npm credential file' >&2
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cellmate-linux-x64
+          path: cellmate-linux-x64.vsix

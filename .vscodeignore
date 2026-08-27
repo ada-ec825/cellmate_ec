@@ -1,0 +1,39 @@
+# Research material. This repository is an extension *and* a dissertation
+# project; none of the second belongs in a published package.
+eval/**
+docs/**
+report/**
+decompositions/**
+test/**
+*.pptx
+*.pdf
+*.ipynb
+.coverage
+.pytest_cache/**
+
+# Sources and build inputs. The package ships out/, not src/.
+src/**
+tsconfig.json
+.github/**
+.pnpm-store/**
+package-lock.json
+
+# Local workspace state. .vscode/settings.json carries a real API key.
+.vscode/**
+.claude/**
+.git/**
+.gitignore
+.DS_Store
+**/.DS_Store
+**/.env
+**/.env.*
+**/.npmrc
+**/*~
+**/*.map
+
+# Kept deliberately, listed here so a future edit does not drop them:
+#   out/**       compiled extension
+#   prompts/**   templates the guide falls back to when the synced
+#                repository has no copy; without these, guide mode breaks
+#                in a packaged build while working fine under F5
+#   package.json README.md LICENSE

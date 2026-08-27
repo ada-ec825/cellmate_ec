@@ -12,9 +12,7 @@ experiments. It does not depend on files from `evaluation2`.
   guide JSON, guide-generation call logs/receipts, and frozen presentations.
 - `runs/`: completed result bundles. Each keeps the frozen protocol,
   presentations, manifest, accepted result rows, score-policy provenance,
-  summary, and completion hashes. Bulky raw call logs are recoverably stored
-  under `eval_archive/result_bundle_cleanup_20260826/`; their hashes still
-  match the `callsSha256` values in each completion receipt.
+  summary, and completion hashes.
 - `generate_guides.js`, `run_experiment.js`, `runtime/`: generation and session
   execution code.
 - `build_wholetext_presentations.js`: reproducibly concatenates each task's
@@ -95,9 +93,3 @@ node eval/evaluation1/run_experiment.js \
 node eval/evaluation1/code_leakage_test/judge.js --preflight-only
 node eval/evaluation1/code_leakage_test/judge.js
 ```
-
-`CLEANUP_MANIFEST.json` records the earlier minimal-reproduction cleanup.
-Retired analysis, audit, and one-time score-transformation scripts are retained
-under `eval_archive/script_cleanup_20260826/evaluation1/`.
-Former split-test sources, completed-run raw calls, and filesystem metadata are
-inventoried under `eval_archive/result_bundle_cleanup_20260826/`.

@@ -4,11 +4,25 @@ const fs = require('fs');
 const path = require('path');
 const { runTests } = require('./sandbox.js');
 
+const venvPython = (root) => process.platform === 'win32'
+  ? path.join(root, 'Scripts', 'python.exe')
+  : path.join(root, 'bin', 'python');
+
+const configuredPython = process.env.CELLMATE_EVAL_PYTHON
+  ? path.resolve(process.env.CELLMATE_EVAL_PYTHON)
+  : null;
 const PYTHON = [
-  process.env.CELLMATE_EVAL_PYTHON,
-  path.join(__dirname, '..', '.venv', 'bin', 'python'),
-  path.join(__dirname, '..', '..', '..', '.venv', 'bin', 'python'),
-].find((candidate) => candidate && fs.existsSync(candidate)) ?? 'python3';
+  configuredPython,
+  venvPython(path.join(__dirname, '..', '.venv')),
+  venvPython(path.join(__dirname, '..', '..', '..', '.venv')),
+].find((candidate) => candidate && fs.existsSync(candidate));
+
+if (!PYTHON) {
+  throw new Error(
+    'Evaluation Python not found. Create eval/evaluation2/src/.venv or set ' +
+    'CELLMATE_EVAL_PYTHON to an existing interpreter.'
+  );
+}
 
 async function grade(code, testSource) {
   if (!code) {

@@ -24,6 +24,9 @@ cellmate_ec/
 │   ├── decompose.txt       bundled StepGuide-generation prompt
 │   └── progress_check.txt  bundled progress-check prompt
 ├── test/                   Node tests for guide parsing, intent rendering, and progress checks
+├── .vscode/launch.json     Extension Development Host launch configuration
+├── .github/workflows/      clean-checkout verification and VSIX release workflows
+├── .vscodeignore           VSIX inclusion and secret-exclusion rules
 ├── eval/
 │   ├── evaluation1/        guide-generation quality experiments
 │   │   ├── tasks/          task text, controls, generated guides, and tests
@@ -35,7 +38,6 @@ cellmate_ec/
 │       ├── src/tasks/      active tasks, guides, tests, and protocols
 │       ├── src/lib/        model, extraction, sandbox, and grading code
 │       └── runs/           accepted formal results and provenance files
-├── node_modules/           tracked Node dependencies
 ├── package.json            extension metadata, settings, commands, and scripts
 ├── package-lock.json       root dependency lock
 ├── tsconfig.json           TypeScript compiler configuration
@@ -49,24 +51,24 @@ Detailed experiment instructions are in
 ## Requirements
 
 - VS Code 1.75 or later
-- Node.js and npm
+- Node.js 20 or later and npm
 - VS Code Python extension
 - Jupyter notebook support in VS Code
 - An LLM endpoint and API key for AI features
-- Python 3.14 and the packages in `eval/evaluation1/requirements.txt` for the
-  recorded Evaluation 1 environment
+- Python 3.14 and the locked requirements in each evaluation directory
 
 ## Install and run from source
 
 ```bash
 git clone https://github.com/ada-ec825/cellmate_ec.git
 cd cellmate_ec
-npm install
+npm ci
 npm run compile
 ```
 
-Open the repository in VS Code and press `F5` to launch an Extension
-Development Host.
+Open the repository in VS Code and press `F5`. The tracked
+`.vscode/launch.json` starts an Extension Development Host using the compiled
+`out/extension.js` entry point.
 
 Configure the following settings in the Development Host:
 
@@ -155,19 +157,31 @@ Second part of the task.
 <!-- prompt:problem_description:end -->
 ```
 
-## Build and test the extension
+## Build, test, and package the extension
 
 ```bash
-npm run compile
-npm run test:node
+npm ci
+npm run verify
 ```
+
+`npm run verify` compiles the extension, runs all Node tests, and verifies the
+hashes and row counts of the retained evaluation results. Build a
+target-specific VSIX because the speech dependency includes a platform binary.
+For example, on Apple Silicon:
+
+```bash
+npm run package:vsix -- --target darwin-arm64 --out cellmate-darwin-arm64.vsix
+```
+
+GitHub Actions repeats verification from a clean checkout. Tagged releases
+build separate `linux-x64`, `darwin-arm64`, and `win32-x64` VSIX files.
 
 ## Run Evaluation 1
 
 From the repository root:
 
 ```bash
-npm install --prefix eval/evaluation1
+npm ci --prefix eval/evaluation1
 python3.14 -m venv eval/evaluation1/.venv
 eval/evaluation1/.venv/bin/python -m pip install -r eval/evaluation1/requirements.txt
 npm run compile
@@ -218,7 +232,9 @@ Install its isolated dependency set:
 
 ```bash
 cd eval/evaluation2/src
-npm install
+npm ci
+python3.14 -m venv .venv
+.venv/bin/python -m pip install -r ../requirements.txt
 export OPENAI_API_KEY=YOUR_API_KEY
 ```
 

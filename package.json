@@ -5,7 +5,11 @@
   "description": "An AI-powered feedback system for VS Code Jupyter Notebooks with speech-to-text, expand/explain, error helper, and AI feedback tools.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/teachnology/cellmate/tree/main"
+    "url": "https://github.com/ada-ec825/cellmate_ec.git"
+  },
+  "homepage": "https://github.com/ada-ec825/cellmate_ec#readme",
+  "bugs": {
+    "url": "https://github.com/ada-ec825/cellmate_ec/issues"
   },
   "version": "0.4.0",
   "engines": {
@@ -30,13 +34,15 @@
     "@types/tmp": "^0.2.6",
     "@types/vscode": "^1.75.0",
     "@vscode/test-electron": "^2.3.0",
+    "@vscode/vsce": "3.9.2",
     "typescript": "^4.9.5"
   },
   "scripts": {
     "compile": "tsc -p .",
     "test:node": "node --test test/*.test.js",
-    "test:evaluation": "node eval/evaluation2/src/analyze.js",
-    "verify": "npm run compile && npm run test:node && npm run test:evaluation"
+    "test:evaluation": "node eval/verify.js",
+    "verify": "npm run compile && npm run test:node && npm run test:evaluation",
+    "package:vsix": "vsce package"
   },
   "contributes": {
     "configuration": [

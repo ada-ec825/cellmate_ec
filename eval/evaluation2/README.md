@@ -2,8 +2,8 @@
 
 This directory retains the completed Simple, Normal, and Hard experiments that
 compare plain task parts with six-step guides under note-enabled and no-note
-conditions. Older clear, repair, smoke, and 12-round designs are stored in
-`eval_archive/evaluation2/`.
+conditions. Only the final six-round design is part of the reproducible
+experiment bundle.
 
 ## Retained design
 
@@ -26,16 +26,10 @@ The retained run directories are:
 
 Each run contains its frozen protocol and presentations, accepted results,
 health audit, summary, and completion hashes. Transformation or migration
-receipts are retained where applicable. Bulky raw call logs and progress-only
-checkpoints are recoverably stored under
-`eval_archive/result_bundle_cleanup_20260826/`; every archived call-log hash
-matches the `callsSha256` value in its retained completion receipt.
+receipts are retained where applicable.
 
-The one-time migration, metric-transformation, task-preparation, presentation
-synchronisation, and regression-test scripts are recoverably archived under
-`eval_archive/script_cleanup_20260826/evaluation2/`. They are not required to
-launch the retained formal protocols; all resulting data and provenance
-receipts remain in place.
+The retained protocols, transformed results, health audits, and provenance
+receipts contain everything required to inspect the reported final design.
 
 ## Runtime and inputs
 
@@ -43,8 +37,7 @@ receipts remain in place.
 `src/run.js` is its shared per-session engine. `src/lib/` contains extraction,
 model, sandbox, and grading logic. `src/tasks/{simple,normal,hard}/` contains
 the task assets, selected guide, frozen presentations, active protocol, and one
-physical `test_unseen.py` suite. The former visible/hidden source split is only
-retained in the recovery archive.
+physical `test_unseen.py` suite.
 
 The active protocols are:
 
@@ -57,11 +50,16 @@ The active protocols are:
 From `eval/evaluation2/src`:
 
 ```bash
-npm install
+npm ci
+python3.14 -m venv .venv
+.venv/bin/python -m pip install -r ../requirements.txt
 node run_formal_note_comparison.js --protocol tasks/simple/protocol.best-luna6-note-vs-no-note.json --preflight-only
 node run_formal_note_comparison.js --protocol tasks/normal/protocol.luna28-note-vs-no-note.json --preflight-only
 node run_formal_note_comparison.js --protocol tasks/hard/protocol.best-luna6-note-vs-no-note.json --preflight-only
 ```
+
+Alternatively, set `CELLMATE_EVAL_PYTHON` to the absolute path of an existing
+interpreter containing the packages in `requirements.txt`.
 
 Formal protocols pin their original run IDs. To collect a fresh independent
 replication, copy an active protocol, assign a new `formalRun.requiredRunId`,

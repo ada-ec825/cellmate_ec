@@ -2,8 +2,10 @@ node_modules/
 .pnpm-store/
 out/
 .DS_Store
-.vscode/
+.vscode/*
+!.vscode/launch.json
 .env
 .env.local
+*.vsix
 __pycache__/
 *.py[cod]
