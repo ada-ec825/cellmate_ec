@@ -14,6 +14,7 @@ cellmate_ec/
 │   ├── guidePanel.ts       StepGuide webview and progress display
 │   ├── stepCheck.ts        done/issue/missing progress checks
 │   ├── schema.ts           StepGuide data types and validation rules
+│   ├── intentMarkup.ts     safe Markdown and maths rendering for step intents
 │   ├── promptUtils.ts      notebook prompt-marker extraction
 │   ├── gitUtils.ts         prompt/test repository synchronisation
 │   ├── testUtils.ts        exercise-test execution helpers
@@ -22,13 +23,14 @@ cellmate_ec/
 ├── prompts/
 │   ├── decompose.txt       bundled StepGuide-generation prompt
 │   └── progress_check.txt  bundled progress-check prompt
-├── test/                   Node tests for guide parsing and progress checks
+├── test/                   Node tests for guide parsing, intent rendering, and progress checks
 ├── eval/
 │   ├── evaluation1/        guide-generation quality experiments
 │   │   ├── tasks/          task text, controls, generated guides, and tests
 │   │   ├── runs/           accepted formal results and frozen protocols
 │   │   ├── runtime/        student-session and grading runtime
-│   │   └── code_leakage_test/  generated-guide leakage audit
+│   │   ├── code_leakage_test/  generated-guide leakage audit
+│   │   └── package-lock.json   frozen Evaluation 1 Node dependencies
 │   └── evaluation2/        guide/plain and note/no-note experiments
 │       ├── src/tasks/      active tasks, guides, tests, and protocols
 │       ├── src/lib/        model, extraction, sandbox, and grading code
@@ -238,6 +240,17 @@ node run_formal_note_comparison.js \
 
 For a new replication, copy the relevant protocol, set a new
 `formalRun.requiredRunId`, and pass the same value with `--run-id`.
+
+For example, after copying the Normal protocol to
+`tasks/normal/protocol.replication.json` and setting its
+`formalRun.requiredRunId` to `reproduce-normal-2`, run:
+
+```bash
+node run_formal_note_comparison.js \
+  --protocol tasks/normal/protocol.replication.json \
+  --run-id reproduce-normal-2 \
+  --concurrency 8
+```
 
 ## Licence
 
