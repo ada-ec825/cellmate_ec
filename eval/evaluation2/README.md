@@ -12,8 +12,9 @@ conditions. Older clear, repair, smoke, and 12-round designs are stored in
   and `guide_no_note`.
 - 25 fixed seeds per cell: 200 clean sessions per task, 600 in total.
 - Exactly six presentation/coding rounds; no repair rounds.
-- Tests are never shown to the student. The 52 case variants are scored as 26
-  paired logical requirements.
+- Tests are never shown to the student. Normal has 52 case variants scored as
+  26 logical requirements; Simple and Hard each have 44 variants scored as 22
+  logical requirements.
 - Mechanically invalid attempts are discarded and retried under the same cell
   and seed; they are not accepted result rows.
 
@@ -23,17 +24,27 @@ The retained run directories are:
 - `runs/formal-normal-luna28-note-vs-no-note-6round-2models-200-20260825`
 - `runs/formal-hard-best-luna6-note-vs-no-note-6round-2models-200-luna5000-20260826`
 
-Each run contains its frozen protocol and presentations, raw call log, accepted
-results, health audit, summary, and completion hashes. Transformation or
-migration receipts are retained where applicable.
+Each run contains its frozen protocol and presentations, accepted results,
+health audit, summary, and completion hashes. Transformation or migration
+receipts are retained where applicable. Bulky raw call logs and progress-only
+checkpoints are recoverably stored under
+`eval_archive/result_bundle_cleanup_20260826/`; every archived call-log hash
+matches the `callsSha256` value in its retained completion receipt.
+
+The one-time migration, metric-transformation, task-preparation, presentation
+synchronisation, and regression-test scripts are recoverably archived under
+`eval_archive/script_cleanup_20260826/evaluation2/`. They are not required to
+launch the retained formal protocols; all resulting data and provenance
+receipts remain in place.
 
 ## Runtime and inputs
 
 `src/run_formal_note_comparison.js` is the formal experiment orchestrator and
 `src/run.js` is its shared per-session engine. `src/lib/` contains extraction,
-model, sandbox, and paired-test logic. `src/tasks/{simple,normal,hard}/`
-contains the task assets, selected guide, frozen presentations, and active
-protocol.
+model, sandbox, and grading logic. `src/tasks/{simple,normal,hard}/` contains
+the task assets, selected guide, frozen presentations, active protocol, and one
+physical `test_unseen.py` suite. The former visible/hidden source split is only
+retained in the recovery archive.
 
 The active protocols are:
 
@@ -47,7 +58,6 @@ From `eval/evaluation2/src`:
 
 ```bash
 npm install
-npm test
 node run_formal_note_comparison.js --protocol tasks/simple/protocol.best-luna6-note-vs-no-note.json --preflight-only
 node run_formal_note_comparison.js --protocol tasks/normal/protocol.luna28-note-vs-no-note.json --preflight-only
 node run_formal_note_comparison.js --protocol tasks/hard/protocol.best-luna6-note-vs-no-note.json --preflight-only

@@ -1,47 +1,158 @@
-# Cellmate - VS Code Jupyter Notebook AI Feedback Extension
+# CellMate GuideMode
 
-Cellmate is an AI-powered teaching feedback extension designed specifically for VS Code Jupyter Notebooks. It automatically analyzes student code, runs hidden tests, generates personalized feedback, and provides intelligent chat functionality.
+A VS Code extension that helps students work through Jupyter notebook
+programming exercises — without handing them the answer.
 
-## Key Features
-### 1. AI Feedback Generation
-- **Personalized Feedback**: Generates targeted feedback based on student code and test results
-- **Template-based Prompts**: Uses a flexible prompt template system with support for various placeholders
+CellMate GuideMode extends [CellMate](https://github.com/teachnology/cellmate),
+a departmental teaching extension, with a guide mode: it turns a wall of
+exercise text into an ordered plan the student can actually start from.
 
-### 2. Prompt Template System
-- **Flexible Placeholders**: Supports various types of placeholders and cell references
-- **Dynamic Content Filling**: Automatically fills templates based on notebook content
-- **Multi-format Support**: Supports HTML comments, Markdown comments, and other formats
+Everything CellMate already did is still here — it runs the teacher's hidden
+tests, explains errors, and writes feedback on a cell — and the guide is built
+on top of it. The name is a label for this work, not a separate product: the
+commands, settings and prompt repository remain CellMate's.
 
-## Installation
-### **Cellmate is available in the VS Code Marketplace now**
+---
 
-OR:
-1. Clone the repository:
+## Why the plan matters
+
+Watch a novice long enough and you see two kinds of stuck. One is stuck
+*inside* an exercise: a bug, a wrong loop bound. Any tutor can unstick that.
+The other kind never starts. The exercise sits there as one solid block of
+text; the student reads it, opens the file, closes it, and twenty minutes
+later nothing has been written.
+
+That second kind usually gets blamed on the coding. It often begins earlier,
+at the reading. A long specification asks you to hold every rule in mind at
+once before writing a single line, and for a student with an ADHD-type
+executive-function profile that is the expensive part.
+
+**Guide mode** rewrites the same specification as a sequence of steps, each
+carrying the rules that govern it. Nothing is added and nothing is removed —
+only the arrangement changes. That the arrangement alone changes what a reader
+builds is what the experiments in [`eval/`](#research) set out to measure.
+
+---
+
+## Features
+
+### 🧭 Guide mode — the exercise as a plan
+
+Click **🧭 Guide** on a cell tagged with an exercise id.
+
+- The exercise is broken into **3–8 steps**, each stating what the code must
+  do — never how to write it.
+- **All steps stay visible.** "Five steps, I am on step two" is a fact you can
+  look at, not something to hold in your head.
+- Each step carries a **share of your time**, so step one does not eat the
+  whole evening.
+- **Progress check** reads your live code against the plan and marks every
+  step *done*, *issue* or *missing*, with a short note naming the symptom —
+  never the fix.
+- **Nothing is gated.** Come back after an interruption and just look. A wrong
+  verdict costs you a sentence, not a blocked path.
+- **The system never emits code**, however hard you press it, and correctness
+  is always decided by the hidden test suite rather than by any model.
+
+### 🆘 Error Helper and Error Chat
+
+Analyses a Python error in the cell and gives targeted debugging guidance
+without giving away the answer, then lets you ask follow-up questions.
+
+### 🧠 AI Feedback
+
+Generates written feedback on a cell from the student's code plus hidden-test
+results, using a teacher-authored prompt template.
+
+> **Note:** the cell button for this was hidden.
+> (**Send Notebook Cell to AI Feedback**) on exercises that do have tests.
+
+### 📖 Expand / Explain and follow-up chat
+
+Expands or explains a feedback markdown cell, with a follow-up chat button.
+
+### 🎙️ Speech to text
+
+Dictate into markdown cells; local, OpenAI or Azure providers.
+
+### 📊 Telemetry
+
+Every help request, state change and progress check becomes a versioned,
+anonymised event — no code, nothing identifying, a random per-session id.
+**Export CellMate Telemetry** writes a self-describing JSON envelope.
+
+---
+
+## Install
+
+CellMate is on the VS Code Marketplace. To run this fork from source:
+
 ```bash
 git clone https://github.com/teachnology/cellmate
 cd cellmate
-```
-
-2. Install dependencies:
-```bash
 npm install
-```
-
-3. Compile the extension:
-```bash
 npm run compile
 ```
 
-4. Press `F5` in VS Code to start debugging mode, or package as `.vsix` file for installation
-## Usage
-### Basic Usage
+Then press <kbd>F5</kbd> in VS Code to launch an Extension Development Host,
+or package a `.vsix`.
 
-1. **Open Jupyter Notebook**: Open a `.ipynb` file in VS Code
-2. **Write Code**: Write Python code in code cells
-3. **Click button**: Click the AI feedback button
-4. **View Feedback**: The extension will automatically generate feedback and insert it into the notebook
+---
 
-### Error Helper and Error Chat
+## Quick start
+
+1. Open a `.ipynb` file.
+2. Tag a code cell with an exercise id, and put the problem text in a markdown
+   cell above it:
+
+   ```python
+   # EXERCISE_ID: insertion_sort
+   ```
+
+   ```markdown
+   <!-- prompt:problem_description -->
+   Write a function `insertion_sort(values)` that returns a new sorted list.
+   ```
+
+3. Click **🧭 Guide** on the code cell. The exercise comes back as steps.
+4. Write code. Click **Check progress** in the guide panel whenever you want
+   to know where you stand.
+
+---
+
+## Configuration
+
+Set these in VS Code settings. The first three are required.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `CellMate.apiUrl` | — | Chat-completions or Ollama-compatible endpoint |
+| `CellMate.apiKey` | — | Bearer token for that endpoint |
+| `CellMate.modelName` | `gpt-oss:120b` | Model id |
+| `CellMate.templateId` | `standard_feedback` | Default feedback template |
+| `CellMate.useHiddenTests` | `true` | Run the exercise's hidden tests before writing feedback |
+| `CellMate.errorHelperOutput` | `markdown` | Where Error Helper writes |
+| `CellMate.errorHelper.alwaysShow` | `false` | Show the Error Helper button even with no error |
+| `CellMate.feedbackMode` | `Expand` | Default action on a feedback cell |
+| `CellMate.showButtonInAllMarkdown` | `false` | Offer Expand/Explain on every markdown cell |
+| `CellMate.speechProvider` | `local` | `local`, `openai` or `azure` |
+
+Speech providers take their own keys under `CellMate.speechOpenai.*` and
+`CellMate.speechAzure.*`.
+
+### Where prompts come from
+
+Two templates ship inside the extension: `prompts/decompose.txt` (guide
+generation) and `prompts/progress_check.txt`. Everything else lives in the
+teacher-owned prompt repository, which syncs to a local clone.
+
+Lookup order is **repository first, bundled second**. A teacher who publishes
+`decompose.txt` to the repository overrides the shipped copy without a
+software release; if they have not, the bundled one is used. Nothing is ever
+written into the clone, so a repository re-sync cannot remove a template.
+
+---
+## Error Helper in detail
 
 - **Error Helper**: Automatically analyzes Python errors and provides targeted debugging guidance without giving away answers. 
 
@@ -91,21 +202,8 @@ Cellmate provides additional interactive AI tools to help you better understand 
   3. The AI will respond in real-time.
 > **Note**: Each follow-up is independent. The AI only uses the Explanation cell, your question, and the original feedback for context.  
 > **Future Work**: Multi-turn conversation support inside the Webview panel.
-## 🔧 Configuration
-### LLM Configuration
 
-Configure LLM service in VS Code settings:
-
-```json
-{
-  "CellMate.apiUrl": "http://your-llm-server.com/api",
-  "CellMate.apiKey": "your-api-key",
-  "CellMate.modelName": "your-model-name"
-}
-```
-
-### Prompt Template list
-The extension fetches prompt templates from the remote prompt repository: https://github.com/teachnology/promptfolio/tree/main/prompts. If you design useful prompts, please contact us and we can add them to the prompt repo.
+---
 
 ## 📝 Prompt Placeholder Usage Guide
 Cellmate provides a powerful prompt template system that supports various types of placeholders for dynamic content filling.
@@ -195,33 +293,81 @@ Write a function to calculate the number of digits in a given integer. For examp
 3. Multiple blocks with the same key will be automatically concatenated
 4. Placeholders not found will be replaced with empty strings
 
+---
 
-## Project Structure
+## Project structure
+
+```text
+src/
+  extension.ts        commands, notebook UI, LLM transport
+  decompose.ts        guide generation: prompt, JSON repair, validation, retry
+  schema.ts           frozen data shapes and every structural rule
+  guidePanel.ts       the guide webview
+  stepCheck.ts        progress check against the plan
+  intentMarkup.ts     step markup and LaTeX-to-Unicode rendering
+  state.ts            per-exercise help state
+  telemetry.ts        anonymised events and export
+  promptUtils.ts      placeholder scanning and template filling
+  testUtils.ts        hidden-test execution and parsing
+  gitUtils.ts         prompt repository sync and template lookup
+  configParser.ts     settings, including speech providers
+  apiCaller.ts        speech transcription clients
+  speech.ts  localServer.ts  ffmpegRecorder.ts  templateUtils.ts
+
+prompts/              templates shipped with the extension
+test/                 unit tests (node:test, no framework)
+eval/                 research experiments (see below)
 ```
-cellmate/
-├── src/                  # Source code directory
-│   ├── extension.ts      # Main extension file
-│   ├── promptUtils.ts    # Prompt template processing
-│   ├── testUtils.ts      # Test execution and analysis
-│   ├── gitUtils.ts       # Git repository operations
-│   ├── configParser.ts   # Configuration parsing
-│   ├── apiCaller.ts      # API calling
-│   ├── templateUtils.ts  # Template utilities
-│   ├── speech.ts         # Speech functionality
-│   ├── localServer.ts    # Local server
-│   └── ffmpegRecorder.ts # Recording functionality
-├── docs/                 # Documentation directory
-│   ├── README.md         # Documentation index
-│   └── promptUtils.md    # Prompt template system 
-├── README.md             # Main project documentation
-└── package.json          # Project configuration
+
+---
+
+## Research
+
+This fork is also a dissertation project, and the experiments that justify its
+design live in `eval/`. Each carries its own README with the current results,
+the frozen protocol and the commands to reproduce it; the numbers are kept
+there rather than here so they cannot go stale in two places at once.
+
+| | Question | Design |
+|---|---|---|
+| [`eval/evaluation1`](eval/evaluation1) | Can the system generate a *good* guide? | Many independently generated guides set against the same specification shown in source order, scored by what a reader builds from each. Source-order controls are run at two different part counts so that the number of reading rounds cannot explain a difference |
+| [`eval/evaluation1/code_leakage_test`](eval/evaluation1/code_leakage_test) | Do the best-scoring guides give the answer away? | A worst-case audit of the highest-scoring guides, with anchors mixed in unlabelled. It exists because evaluation 1's own metric is confounded with leakage: a guide carrying the solution would score *better* |
+| [`eval/evaluation2`](eval/evaluation2) | Does a good guide still help a reader who cannot rely on their own notes? | One fixed guide against source-order parts, across three specifications of increasing difficulty, crossed with a factor that clears the reader's short note at random between rounds |
+
+Both reading experiments feed the material one part at a time. A transformer
+attends to its whole input at once, which is the mechanism it is named for,
+and a human reader does not: give a model the full document and the comparison
+measures nothing, because every arrangement is equally available to it. So each
+round shows one part and nothing else, and the only thing crossing a round
+boundary is a short note the reader writes — a small, lossy stand-in for what
+a person carries out of a page they have finished. A hidden test suite the
+reader never sees decides the score.
+
+These measure how an LLM agent handles organised versus unorganised
+information. They are **not** measurements of people, and support no clinical
+claim about ADHD or any other profile.
+
+---
+
+## Development
+
+```bash
+npm run compile      # tsc
+npm run test:node    # 68 unit tests, no test framework
+npm run verify       # compile + unit tests + evaluation analysis
 ```
+
+The unit tests cover JSON extraction and repair, schema validation, markup
+rendering, template filling, and both engines against scripted fake models.
+Several of the parsing rules exist because a real model broke on them; the
+tests are there so those rules cannot regress quietly.
+
+---
 
 ## Contributing
-Issues and Pull Requests are welcome!
 
-### Development Environment Setup
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Compile: `npm run compile`
-4. Press F5 to start debugging
+Issues and pull requests welcome.
+
+## Licence
+
+See `LICENSE`.

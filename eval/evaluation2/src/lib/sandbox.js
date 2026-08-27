@@ -5,7 +5,7 @@
 // resource limits, bounded output, and process-group cleanup), but it is NOT
 // an operating-system security boundary. In particular, pytest and the
 // submission still execute in the same process, so the submission can read
-// test_hidden.py. New confirmatory runs must put this runner inside a
+// test_unseen.py. New confirmatory runs must put this runner inside a
 // network-disabled container/VM and must separately solve hidden-test
 // confidentiality. See sandbox_canary.js: the unresolved boundaries fail
 // there deliberately instead of being described as "sandboxed" here.
@@ -87,7 +87,7 @@ os.execv(python_exec, [python_argv0, *python_args])
 // virtualenv/interpreter, and standard system/runtime paths; it does not grant
 // network access, process-fork, or writes outside TASK_DIR.
 //
-// Hidden-test confidentiality is intentionally not claimed: test_hidden.py is
+// Test confidentiality is intentionally not claimed: test_unseen.py is
 // inside TASK_DIR because pytest and the submission still share one process.
 function macosSandboxProfile({ taskDir, venvRoot, pythonPath, realPython, pythonExec }) {
   // JSON string literals are valid Scheme/SBPL strings and safely escape any
@@ -386,7 +386,7 @@ function runTests({
   const launcherPath = path.join(dir, 'resource_launcher.py');
   const profilePath = path.join(dir, 'sandbox.sb');
   fs.writeFileSync(path.join(dir, 'submission.py'), code, { encoding: 'utf8', mode: 0o600 });
-  fs.writeFileSync(path.join(dir, 'test_hidden.py'), testSource, { encoding: 'utf8', mode: 0o400 });
+  fs.writeFileSync(path.join(dir, 'test_unseen.py'), testSource, { encoding: 'utf8', mode: 0o400 });
   fs.writeFileSync(path.join(dir, 'conftest.py'), CONFTEST, { encoding: 'utf8', mode: 0o400 });
   fs.writeFileSync(launcherPath, RESOURCE_LAUNCHER, { encoding: 'utf8', mode: 0o400 });
   if (backend.kind === 'macos-sandbox') {
@@ -412,7 +412,7 @@ function runTests({
       '-p',
       'no:cacheprovider',
       '--capture=tee-sys',
-      'test_hidden.py',
+      'test_unseen.py',
       '--json-report',
       `--json-report-file=${reportPath}`,
       '-q',
