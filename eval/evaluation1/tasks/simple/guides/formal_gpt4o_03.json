@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_simple_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Convert string to cents",
+      "intent": "Implement `parse_amount(s)` to convert string amounts to integer cents.\n- Inputs are strings using ordinary decimal notation with at most two fractional digits.\n- Convert valid string amounts such as \"12.30\" into 1230, and \"-2.00\" into -200.\n- Return `None` for any malformed or non-string input.\n- Ensure conversion does not raise errors or print any output.",
+      "checkHint": "`parse_amount('3')` should return 300",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parse record into dictionary",
+      "intent": "Implement `parse_record(line)` to parse line into a dictionary.\n- Each line contains exactly five `|`-separated fields: `TYPE|RECORD_ID|ORDER_ID|AMOUNT|TIMESTAMP`.\n- `TYPE` should be `ORDER` or `PAYMENT`, store them uppercase. Return `None` if it is neither.\n- Trim and reject the row if any of `RECORD_ID` or `ORDER_ID` becomes empty.\n- If `TYPE` is `ORDER`, ensure `RECORD_ID` equals `ORDER_ID`.\n- Use `parse_amount` to process `AMOUNT`, reject negative amounts for `ORDER`.\n- Parse the `TIMESTAMP` as a naive `datetime` in `YYYY-MM-DD HH:MM` format.\n- Return a dictionary with keys: `type`, `record_id`, `order_id`, `amount`, and `timestamp` or `None` for invalid rows.",
+      "checkHint": "`parse_record('ORDER|123|123|100.00|2023-01-01 12:00')` returns a valid dictionary",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Load records from text",
+      "intent": "Implement `load_records(text)` to parse multiple lines of text.\n- Use `parse_record` to parse each line, and skip invalid rows silently.\n- Preserve the order of valid records from the source input.\n- Return an empty list for non-string or empty input.\n- Ensure the original input is not mutated and avoid storing any global state.",
+      "checkHint": "`load_records('ORDER|123|123|100.00|2023-01-01 12:00\\nINVALID')` returns a list with one dictionary",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Calculate total refunds",
+      "intent": "Implement `compute_refunds(records)` to calculate the total sum of refunds.\n- A refund is identified as a `PAYMENT` with a negative integer-cent amount.\n- Return the positive sum of the absolute values of all refunds.\n- Refunds counted even if no matching order is found for the order ID.\n- Return `0` if there are no refunds.",
+      "checkHint": "A list with a `PAYMENT` type and negative amount should add its absolute value to the total",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match payments to orders",
+      "intent": "Implement `match_payments(records)` to match payments with orders.\n- Iterate each `ORDER` and associate non-negative `PAYMENT` by `order_id`.\n- A `PAYMENT` qualifies if its timestamp is between the order timestamp and 72 hours later, inclusive.\n- If multiple payments qualify, choose the earliest payment by timestamp, maintaining source order on ties.\n- Refunds are not considered for matching.\n- Each result should be a dictionary with `order_id`, `status` as `matched` or `unmatched`, and `amount` representing the payment amount or `0` for unmatched.",
+      "checkHint": "Matching payments should consider the time window and pick the earliest valid payment",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Build summary based on matches",
+      "intent": "Implement `build_summary(matches, refund_total)` to return a summary.\n- Return a dictionary with `total_orders`, `matched_count`, `net_total`, and `unmatched_ids` keys.\n- Calculate `total_orders` as the number of results.\n- `matched_count` as the number of `matched` results, interpret status case-insensitively.\n- `net_total` as the sum of matched amounts minus `refund_total`.\n- `unmatched_ids` as a list of unmatched order IDs in ascending lexicographic order.",
+      "checkHint": "The summary should correctly tally matched and unmatched orders and calculate amounts accordingly",
+      "timeShare": 20
+    }
+  ]
+}

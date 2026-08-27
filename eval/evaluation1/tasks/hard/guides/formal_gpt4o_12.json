@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_hard_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse Amounts",
+      "intent": "Create a function `parse_amount(s)` that processes amount strings.\n- An amount is a string with digits, at most one decimal point, and can have a leading minus sign.\n- No scientific notation is allowed in the amount.\n- Only at most three fractional digits are accepted.\n- **If there are three fractional digits, round to cents using round-half-up.**\n- Convert the amount to cents as an integer.\n- **If the absolute value of the amount exceeds 1,000,000 cents after conversion, consider it invalid.**\n- For invalid inputs, the function should silently return `None`.\n",
+      "checkHint": "parse_amount('10000.555') returns 1000006",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parse Records",
+      "intent": "Implement `parse_record(line)` to process individual record lines.\n- Each record line consists of `TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP`.\n- `TYPE` must be `ORDER` or `PAYMENT` (case-insensitive) and stored in uppercase.\n- `ORDER_ID` must start with `ORD-` after trimming, otherwise it is invalid.\n- Amount and `CURRENCY` validation must be applied as defined.\n- **Timestamps must be in `YYYY-MM-DD HH:MM` or `YYYY-MM-DD HH:MM:SS` format to be valid.**\n- **If an `ORDER` has a negative amount, it is invalid.**\n- Return a dictionary with `type`, `record_id`, `order_id`, `amount`, `currency`, `timestamp` if valid, else return `None`.",
+      "checkHint": "parse_record('ORDER|r1|ORD-123|100.50|USD|2023-10-10 14:00') returns a dictionary",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Load Records",
+      "intent": "Develop a function `load_records(text)` that reads lines of records.\n- Ignore invalid lines, as defined by previous parsing rules, with no error messages.\n- Preserve the original order of valid records.\n- For records with duplicate `RECORD_ID`s, only keep the first valid instance.\n- Return a list of valid records, each as a dictionary.",
+      "checkHint": "load_records('ORDER|r1|ORD-123|100.50|USD|2023-10-10 14:00\\nORDER|r1|ORD-124|150|USD|2023-10-11 14:00') returns a list with one dictionary",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Compute Refunds",
+      "intent": "Create `compute_refunds(records)` that calculates total refunds.\n- `records` is a list of valid record dictionaries.\n- A refund is a `PAYMENT` record with a negative `amount`.\n- Only consider refunds for existing `order_id`s in the records list.\n- **Return the positive sum of all valid refunds.**\n",
+      "checkHint": "compute_refunds([{ ... }]) returns a positive integer",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match Payments",
+      "intent": "Implement `match_payments(records)` to match payments to orders within a window.\n- Each `ORDER` is valid from its timestamp up to but not including 72 hours later.\n- Match payments must occur within this strict window.\n- If multiple payments qualify, choose the earliest by timestamp and retain source order if tied.\n- Refunds do not qualify for matching.\n- Return a list with entries for each order having `order_id`, `status` (`matched` or `unmatched`), and `amount`. **Unmatched orders have `amount` set to `0`.**",
+      "checkHint": "`match_payments` returns status with 'matched' or 'unmatched'",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Build Summary Report",
+      "intent": "Implement `build_summary(matches, refund_total)` that produces a final summary.\n- `matches` is a list of match results from `match_payments`.\n- `refund_total` is calculated by `compute_refunds`.\n- Return a dictionary with: \n  - `total_orders`: count of all order records\n  - `matched_count`: count of records with status `matched`\n  - `refund_total`: the given `refund_total`\n  - `net_total`: sum of matched payment amounts minus `refund_total`, bounded by zero if negative\n  - `unmatched_ids`: a list of unique order IDs with an `unmatched` status, sorted in ascending lexicographic order",
+      "checkHint": "build_summary([{'order_id': 'ORD-1', ...}], 100) returns a dictionary with 5 keys",
+      "timeShare": 20
+    }
+  ]
+}

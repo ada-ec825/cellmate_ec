@@ -1,0 +1,178 @@
+{
+  "completedAt": "2026-08-25T23:13:09.815Z",
+  "generatorModel": "gpt-4o",
+  "generatorTransport": "OpenAI chat-completions",
+  "task": "hard",
+  "projectEngine": "out/decompose.js generated from src/decompose.ts",
+  "promptSource": "prompts/decompose.txt",
+  "promptSha256": "71510815ad1d90c89ea9a99a190c82373d4b1f9609bb6056057f7c4281e5aeb4",
+  "inclusionRule": "project structural validation only; natural 3..8 step count retained without manual repair",
+  "guideCount": 25,
+  "guidePrefix": "formal_gpt4o",
+  "materialClass": "gpt4o_generated",
+  "comparisonGroups": [
+    {
+      "prefix": "formal_gpt4o",
+      "materialClass": "gpt4o_generated"
+    }
+  ],
+  "guides": [
+    {
+      "id": "formal_gpt4o_01",
+      "steps": 6,
+      "words": 377,
+      "sha256": "f13e6c6ee128975630211f04768f8a828ac53415ecda7ddcaaef9ec8e3d5dbf4"
+    },
+    {
+      "id": "formal_gpt4o_02",
+      "steps": 6,
+      "words": 450,
+      "sha256": "f1dbb232500408dfe5410738affb1941011aa1269bdc5c28af31c9ecb8a0df5e"
+    },
+    {
+      "id": "formal_gpt4o_03",
+      "steps": 6,
+      "words": 449,
+      "sha256": "4381772552a9977f13c1ab88a658c9fed6bee738977dd0efe4c8206b03f3749e"
+    },
+    {
+      "id": "formal_gpt4o_04",
+      "steps": 6,
+      "words": 416,
+      "sha256": "a22733e9004c42228e867245884f66f1bebdb2c7c7ebeaa482d2466131775095"
+    },
+    {
+      "id": "formal_gpt4o_05",
+      "steps": 6,
+      "words": 357,
+      "sha256": "772a9b07b6069a24fc3b9a470866f7140179a8ff565dd492b29bacc626f5f836"
+    },
+    {
+      "id": "formal_gpt4o_06",
+      "steps": 6,
+      "words": 462,
+      "sha256": "18004e0f5c25c7411b518666222fe792f79748864154c9d948339c4bcc6e9cd1"
+    },
+    {
+      "id": "formal_gpt4o_07",
+      "steps": 6,
+      "words": 431,
+      "sha256": "b1f082f57ad8e41ed97965b2b4d5f67658525fa20594a95dcc92d47d098f03c6"
+    },
+    {
+      "id": "formal_gpt4o_08",
+      "steps": 6,
+      "words": 431,
+      "sha256": "8d15f055946f3d927552a8f6d066361f4e54244a167faa04033bd00787a0905c"
+    },
+    {
+      "id": "formal_gpt4o_09",
+      "steps": 6,
+      "words": 513,
+      "sha256": "e19a628fb7ad8f2b2f71188bff641c36fde635127b05cd03159ed50b79e088c8"
+    },
+    {
+      "id": "formal_gpt4o_10",
+      "steps": 6,
+      "words": 402,
+      "sha256": "7a0d72f099f6f1ce488118ed60ec5b4868044e8eb9c59541e5ed1e6fcca57fd9"
+    },
+    {
+      "id": "formal_gpt4o_11",
+      "steps": 6,
+      "words": 376,
+      "sha256": "d6f563d762fbe38776b2a96a7c17bad8c2d9acbc722911cd66b37ce4fa22c962"
+    },
+    {
+      "id": "formal_gpt4o_12",
+      "steps": 6,
+      "words": 444,
+      "sha256": "e0e5f85f567e342c732b124a30d3421afafc23b8cdc42a2d11ec7637e7c4455b"
+    },
+    {
+      "id": "formal_gpt4o_13",
+      "steps": 6,
+      "words": 448,
+      "sha256": "7f6b0a6ec4ee3b0e939d8adcac524d8920494e0639f53d4356354f78ed48a609"
+    },
+    {
+      "id": "formal_gpt4o_14",
+      "steps": 6,
+      "words": 408,
+      "sha256": "6908d8a2aba04462a40d99700f25ddc2b0a1d51b44838ae70dbd068fb3d9bb1a"
+    },
+    {
+      "id": "formal_gpt4o_15",
+      "steps": 6,
+      "words": 439,
+      "sha256": "880009de556b6597aef9260e38b20aceeac06dd80823db67e9b9250458bdb126"
+    },
+    {
+      "id": "formal_gpt4o_16",
+      "steps": 6,
+      "words": 465,
+      "sha256": "bb367b43083fc8a8b2c8f13c682f383973a023d802258bfe9236a0ddc9866ebd"
+    },
+    {
+      "id": "formal_gpt4o_17",
+      "steps": 6,
+      "words": 389,
+      "sha256": "8ad098afded26fbaf724a95badcad86854a2cc1897fcaa6d4ee78520f10d2f03"
+    },
+    {
+      "id": "formal_gpt4o_18",
+      "steps": 6,
+      "words": 476,
+      "sha256": "63f6a85e2a8218738a0871c61cc7d56e52a9cc23a609b6274d7c818ee0e56fbf"
+    },
+    {
+      "id": "formal_gpt4o_19",
+      "steps": 6,
+      "words": 451,
+      "sha256": "857f4a4079fecc53415355acd4ab718875742453e279653793cda09dae4ed803"
+    },
+    {
+      "id": "formal_gpt4o_20",
+      "steps": 6,
+      "words": 523,
+      "sha256": "12293cff91ea274b56c43f7ac2a45a33e3ad8e28d41fa5251983ec8f35addc43"
+    },
+    {
+      "id": "formal_gpt4o_21",
+      "steps": 6,
+      "words": 300,
+      "sha256": "c2c52749468ea5f07ee04e92e4488524ab6ac1d86c41b261ad452cc26333180b"
+    },
+    {
+      "id": "formal_gpt4o_22",
+      "steps": 6,
+      "words": 432,
+      "sha256": "b06069a25a090b8a43e551d22d82c8aaacce96dacefe8e9dd458b39b4c91222c"
+    },
+    {
+      "id": "formal_gpt4o_23",
+      "steps": 6,
+      "words": 478,
+      "sha256": "272d89c55f0f782e44eea9144422fcfb0e64b0604b4f5a0bf11d9e59e4bd073c"
+    },
+    {
+      "id": "formal_gpt4o_24",
+      "steps": 6,
+      "words": 385,
+      "sha256": "9b52e65acf0142974ae46ac153310a9a5941b3c4460a651cff1f3c7d565b8d32"
+    },
+    {
+      "id": "formal_gpt4o_25",
+      "steps": 5,
+      "words": 510,
+      "sha256": "ee8287ca590a7ca351063f5354f7ffac46f5497b4dbc79a57cf9f2983dbdc367"
+    }
+  ],
+  "presentationsPath": "eval/evaluation1/tasks/hard/presentations_formal_25x2.json",
+  "presentationsSha256": "caa23be8abcde77bf208ea339fae6b0f336c507872547fbc67b423326b66820c",
+  "stepCountDistribution": {
+    "5": 1,
+    "6": 24
+  },
+  "nonFiveOrSixStepGuides": []
+}

@@ -1,0 +1,94 @@
+{
+  "runId": "formal-normal-luna28-note-vs-no-note-6round-2models-200-20260825",
+  "startedAt": "2026-08-25T22:21:52.345Z",
+  "protocolVersion": "evaluation2-normal-luna28-note-vs-no-note-v5-round6-unseen-deduplicated",
+  "protocolSha256": "8479b72e2f0f281918148376b9a8457ce69e1314e0a1cd20e8c1b36cdd943b51",
+  "modelDescriptors": {
+    "4omini": {
+      "backend": "openai-responses",
+      "identifier": "gpt-4o-mini-2024-07-18",
+      "endpointSha256": "ee0291cefbb5b6136483fb38ba9efe9264f9b685d5006c273e293a54b43a1883",
+      "credentialReferenceName": "env:OPENAI_API_KEY",
+      "transportPayloadSemantics": "POST input to the OpenAI Responses API with max_output_tokens and store=false; temperature is included only when configured because some models do not support it; the API exposes no sampling seed field",
+      "responseSemantics": "output_text content plus whitelisted model, input/output token counts, status, response-id and request-id metadata",
+      "nonSecretConfigSha256": "9861fa632d97e38f98015f35d8d7a205f08906bd2a6a7a408da21de4f2898989"
+    },
+    "luna": {
+      "backend": "openai-responses",
+      "identifier": "gpt-5.6-luna",
+      "endpointSha256": "ee0291cefbb5b6136483fb38ba9efe9264f9b685d5006c273e293a54b43a1883",
+      "credentialReferenceName": "env:OPENAI_API_KEY",
+      "transportPayloadSemantics": "POST input to the OpenAI Responses API with max_output_tokens and store=false; temperature is included only when configured because some models do not support it; the API exposes no sampling seed field",
+      "responseSemantics": "output_text content plus whitelisted model, input/output token counts, status, response-id and request-id metadata",
+      "nonSecretConfigSha256": "7cb8de77844b78015c8cad359c58db9f580e2da035c8eb5ba6884e91cf8a65b6"
+    }
+  },
+  "modelIdentities": {
+    "4omini": {
+      "backend": "openai-responses",
+      "id": "gpt-4o-mini-2024-07-18",
+      "object": "model",
+      "created": 1721172717,
+      "ownedBy": "system",
+      "requestId": "66dcbd86-d1c7-45a0-98b0-0618d3fbdc6f"
+    },
+    "luna": {
+      "backend": "openai-responses",
+      "id": "gpt-5.6-luna",
+      "object": "model",
+      "created": 1782228658,
+      "ownedBy": "system",
+      "requestId": "18477be4-db7f-4120-99d6-537cc3f14779"
+    }
+  },
+  "preflight": {
+    "studentModelCalls": 0,
+    "referenceVisible": 1,
+    "referenceHidden": 1,
+    "starterVisible": 0,
+    "starterHidden": 0,
+    "scheduledSessions": 200,
+    "maximumRounds": 6,
+    "presentationWords": {
+      "plain": 717,
+      "project_steps": 657
+    },
+    "assetSha256": {
+      "statement": "e1d3f995208190958f6b608e4cece12af0a8042cfef2fd925e49327821909b78",
+      "steps": "005c9e9fdb89433f27bc8671fa27391ce9331829a94918fc4ebe953b19ff1099",
+      "presentations": "aff20bf21443b10d80709da7d41e56b219b60f4621007812359329cc8c2b58cb",
+      "requirementTestMap": "1ec54c61c1393bc6978c57789f7588362dfa05cb71ac56fd7cba20d314fbef2d",
+      "starter": "d82392086996f2b2d614f2d740878606b9fc97b8665ba89eb5dd696a7bb73da1",
+      "reference": "7a7cd4835e028e0d3dda0b9fbccb650b141e2463e6316cf43534ef2e8c007434",
+      "visibleTests": "13d0463427dfde628b6982829869bbc1caec1af28ccc1d7650a4844a9e918132",
+      "hiddenTests": "dc679940aed6b0b0c7e488f8df9678649691694545fd59a66f04816340d344c8"
+    }
+  },
+  "postHocTransformation": {
+    "transformedAt": "2026-08-25T23:23:26.085Z",
+    "method": "truncate_existing_clean_sessions_at_end_of_round_6_without_rerun",
+    "sourceRunId": "formal-normal-luna28-note-vs-no-note-12round-2models-200-20260825",
+    "recoverySnapshot": "evaluation2_archive/20260826_cleanup/pre_round6_truncation/formal-normal-luna28-note-vs-no-note-12round-2models-200-20260825",
+    "originalRepairRoundsRemoved": 570
+  },
+  "testPolicy": {
+    "visibility": "unseen",
+    "aggregation": "paired_semantic_tests_all_case_variants_must_pass",
+    "logicalTestCount": 26,
+    "underlyingCaseVariantCount": 52,
+    "pairMappingAsset": "requirements.json",
+    "legacyAssetFields": [
+      "visibleTests",
+      "hiddenTests"
+    ]
+  },
+  "metricTransformation": {
+    "transformedAt": "2026-08-25T23:45:56.362Z",
+    "method": "pair_52_unseen_case_variants_into_26_semantic_tests_without_rerunning_students",
+    "recoverySnapshot": "evaluation2_archive/20260826_cleanup/pre_unseen_metric_merge/formal-normal-luna28-note-vs-no-note-6round-2models-200-20260825",
+    "logicalTestCount": 26,
+    "underlyingCaseVariantCount": 52,
+    "pairMappingAsset": "tasks/normal/requirements.json",
+    "logicalPassRule": "both_case_variants_must_pass"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "runId": "formal-normal-luna28-note-vs-no-note-6round-2models-200-20260825",
+  "completedAt": "2026-08-25T23:45:56.362Z",
+  "sessions": 200,
+  "finalDefinition": "end_of_round_6_paired_unseen_logical_tests",
+  "postHocTransformation": true,
+  "resultsSha256": "6dcb5c74b99c7ff7dbe7ab210b2bf8ad10d20762fee54a91ea427c8c650c820d",
+  "callsSha256": "a91fae26f004c81888dc050db751ca6cbb72cf9498261d4c724756cf80dc1294",
+  "healthAuditSha256": "d5d93a68d5399b7ddbfa4d02dd214925de0a5a4b823508d1caa58bac194fc236"
+}

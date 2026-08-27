@@ -1,0 +1,9 @@
+{
+  "name": "cellmate-evaluation1-reproduction",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Minimal runtime dependency for evaluation1 generation and student sessions",
+  "dependencies": {
+    "axios": "1.9.0"
+  }
+}

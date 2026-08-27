@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse monetary amounts",
+      "intent": "Implement `parse_amount(s)` to convert monetary strings to integer cents.\n- Return integer cents for a valid amount string.\n- Strings with more than three fractional digits are invalid.\n- Apply **round-half-up** for the third fractional digit.\n- Only ordinary decimal format is valid, no scientific notation.\n- Handle only numeric strings; every other input returns `None`.\n- Example: `\"12.30\"` becomes `1230`.",
+      "checkHint": "parse_amount(\"12.345\") returns 1235",
+      "timeShare": 10
+    },
+    {
+      "index": 2,
+      "label": "Parse order and payment records",
+      "intent": "Implement `parse_record(line)` to produce parsed records as dictionaries.\n- Handle only lines with exactly six `|`-separated fields: `TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP`.\n- Normalize `TYPE` to uppercase and accept only `ORDER` or `PAYMENT`, ignoring case.\n- Remove surrounding whitespace from identifiers.\n- `RECORD_ID` and `ORDER_ID` must match for `ORDER`.\n- Convert `AMOUNT` to cents through `parse_amount`.\n- Only `USD` currency is valid after trimming whitespace.\n- `TIMESTAMP` must match `YYYY-MM-DD HH:MM` exactly, with valid calendar values.\n- Return `None` for any invalid field.",
+      "checkHint": "parse_record('Order|123|123|12.30|USD|2024-03-15 14:30') returns a valid dictionary",
+      "timeShare": 15
+    },
+    {
+      "index": 3,
+      "label": "Load and filter records",
+      "intent": "Implement `load_records(text)` to parse and filter lines into records.\n- Skip invalid lines without exceptions or warnings.\n- Use `parse_record` to process each line.\n- Apply the first-valid-record rule: ignore duplicate `RECORD_ID`s after the first.\n- Return a list of valid parsed-record dictionaries, maintaining the order of valid records.",
+      "checkHint": "load_records should skip duplicate record IDs after the first valid occurrence",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Compute total refunds",
+      "intent": "Implement `compute_refunds(records)` to calculate the total refunds in cents.\n- Sum the absolute values of negative `PAYMENT` amounts.\n- Process every `PAYMENT`, even if no corresponding order exists.\n- Each refund has a negative amount, so add the positive equivalent.\n- Return the total sum of refunds in cents.",
+      "checkHint": "compute_refunds([{...}]) returns the sum of absolute negative payment amounts",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match payments to orders",
+      "intent": "Implement `match_payments(records)` to associate payments with orders.\n- Consider only payments whose timestamp is within **72 hours** from the order's timestamp, inclusive.\n- Use the earliest timestamp payment for ties.\n- Maintain the order of `ORDER` records in results.\n- Negative payments are **refunds** and do not qualify as matched payments.\n- Each result is a dictionary with `\"order_id\"`, `\"status\"`, and `\"amount\"`.\n- Unmatched orders have `\"status\"` as `\"unmatched\"` and amount `0`.\n- Matched orders have `\"status\"` as `\"matched\"` and the payment `\"amount\"`.",
+      "checkHint": "match_payments should associate each order with at most one payment or mark as unmatched",
+      "timeShare": 25
+    },
+    {
+      "index": 6,
+      "label": "Build summary report",
+      "intent": "Implement `build_summary(matches, refund_total)` to generate the summary report.\n- `\"total_orders\"` counts the number of valid orders.\n- `\"matched_count\"` counts results with `\"status\"` `\"matched\"`.\n- `\"net_total\"` is the sum of matched payment amounts minus `refund_total`.\n- `\"unmatched_ids\"` is a list of unmatched order IDs in ascending lexicographic order.\n- The summary is a dictionary with specified keys and values.",
+      "checkHint": "build_summary should correctly calculate net total considering refunds",
+      "timeShare": 25
+    }
+  ]
+}

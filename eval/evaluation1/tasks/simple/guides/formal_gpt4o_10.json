@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_simple_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Convert to integer cents",
+      "intent": "Implement `parse_amount(s)` to convert dollar amounts to cents.\n- Accepts a string `s` representing a decimal amount with at most two fractional digits.\n- Convert the string to an integer representing the total cents. For example, \"12.30\" becomes `1230`, \"3\" becomes `300`, and \"-2.00\" becomes `-200`.\n- Return `None` for malformed or non-string input without raising exceptions or printing errors.",
+      "checkHint": "`parse_amount('12.30')` should return `1230`.",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parse record from line",
+      "intent": "Implement `parse_record(line)` to parse a `|`-separated line into record fields.\n- Each line has exactly five `|`-separated fields: `TYPE|RECORD_ID|ORDER_ID|AMOUNT|TIMESTAMP`.\n- `TYPE` is either `ORDER` or `PAYMENT`, matched case-insensitively and stored in uppercase.\n- Trim both `RECORD_ID` and `ORDER_ID` and reject the line if either is empty.\n- For `ORDER`, verify `RECORD_ID` equals `ORDER_ID`. Record IDs must be unique.\n- Use `parse_amount` to parse `AMOUNT`. Orders with negative amounts are invalid, but negative payments are refunds.\n- Parse `TIMESTAMP` in format `YYYY-MM-DD HH:MM` as a naive `datetime`.\n- Return a dictionary with fields: `type`, `record_id`, `order_id`, `amount`, and `timestamp`, or `None` for invalid rows, handled silently.",
+      "checkHint": "A malformed line like `ORDER|||100|2023-09-01 12:00` returns `None`.",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Load records from text",
+      "intent": "Implement `load_records(text)` to process records from a multi-line string.\n- Parse each line using `parse_record`, skipping invalid rows silently.\n- Return a list of valid records in the source order.\n- For empty or non-string input, return an empty list.\n- Do not mutate inputs or maintain any global state.",
+      "checkHint": "`load_records(\"ORDER|1|1|100|2023-09-01 12:00\\nINVALID\")` should return a list with one dictionary.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Calculate refunds",
+      "intent": "Implement `compute_refunds(records)` to calculate refund totals.\n- A refund is a `PAYMENT` with a negative integer-cent amount.\n- Return the positive sum of the absolute values of all refunds.\n- Include any refund regardless of whether an order with the same `order_id` exists.\n- Return `0` when there are no refunds.",
+      "checkHint": "`compute_refunds([{'type': 'PAYMENT', 'amount': -200}, {'type': 'PAYMENT', 'amount': -300}])` should return `500`.",
+      "timeShare": 15
+    },
+    {
+      "index": 5,
+      "label": "Match orders to payments",
+      "intent": "Implement `match_payments(records)` to associate payments with orders.\n- Produce one result for every `ORDER`, following their input order.\n- Match non-negative `PAYMENT`s by `order_id` if the timestamp is between the order timestamp and 72 hours later, inclusive.\n- Choose the earliest valid payment timestamp, retaining source order for ties.\n- Refunds never match.\n- Each result dictionary contains `order_id`, `status` ('matched'/ 'unmatched'), and `amount`: matched use an amount from a payment; unmatched use `0`.",
+      "checkHint": "An order with `match_payments` might return `{'order_id': '1', 'status': 'matched', 'amount': 100}` if a matching payment exists.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Build summary of matches",
+      "intent": "Implement `build_summary(matches, refund_total)` to compose a summary of order matching.\n- Return a dictionary with `total_orders`, `matched_count`, `net_total`, and `unmatched_ids`.\n- `total_orders`: total number of results.\n- `matched_count`: the count of matched status results.\n- `net_total`: sum of matched amounts minus `refund_total`.\n- `unmatched_ids`: unmatched order IDs sorted in ascending lexicographic order.\n- Interpret any status case-insensitively.",
+      "checkHint": "From `matches = [{'order_id': '1', 'status': 'matched', 'amount': 100}]` and `refund_total = 50`, ensures `net_total` is 50.",
+      "timeShare": 15
+    }
+  ]
+}

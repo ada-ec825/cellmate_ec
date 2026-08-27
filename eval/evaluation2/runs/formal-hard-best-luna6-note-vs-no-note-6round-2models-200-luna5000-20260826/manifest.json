@@ -1,0 +1,78 @@
+{
+  "runId": "formal-hard-best-luna6-note-vs-no-note-6round-2models-200-luna5000-20260826",
+  "startedAt": "2026-08-26T00:37:52.397Z",
+  "protocolVersion": "evaluation2-hard-best-luna6-note-vs-no-note-v2-round6-luna5000-unseen-deduplicated",
+  "protocolSha256": "e2de13363007fac78782a6dcb72f18e68b4cc8aee161bf1ba17a85343104856a",
+  "modelDescriptors": {
+    "4omini": {
+      "backend": "openai-responses",
+      "identifier": "gpt-4o-mini-2024-07-18",
+      "endpointSha256": "ee0291cefbb5b6136483fb38ba9efe9264f9b685d5006c273e293a54b43a1883",
+      "credentialReferenceName": "env:OPENAI_API_KEY",
+      "transportPayloadSemantics": "POST input to the OpenAI Responses API with max_output_tokens and store=false; temperature is included only when configured because some models do not support it; the API exposes no sampling seed field",
+      "responseSemantics": "output_text content plus whitelisted model, input/output token counts, status, response-id and request-id metadata",
+      "nonSecretConfigSha256": "9861fa632d97e38f98015f35d8d7a205f08906bd2a6a7a408da21de4f2898989"
+    },
+    "luna": {
+      "backend": "openai-responses",
+      "identifier": "gpt-5.6-luna",
+      "endpointSha256": "ee0291cefbb5b6136483fb38ba9efe9264f9b685d5006c273e293a54b43a1883",
+      "credentialReferenceName": "env:OPENAI_API_KEY",
+      "transportPayloadSemantics": "POST input to the OpenAI Responses API with max_output_tokens and store=false; temperature is included only when configured because some models do not support it; the API exposes no sampling seed field",
+      "responseSemantics": "output_text content plus whitelisted model, input/output token counts, status, response-id and request-id metadata",
+      "nonSecretConfigSha256": "7cb8de77844b78015c8cad359c58db9f580e2da035c8eb5ba6884e91cf8a65b6"
+    }
+  },
+  "modelIdentities": {
+    "4omini": {
+      "backend": "openai-responses",
+      "id": "gpt-4o-mini-2024-07-18",
+      "object": "model",
+      "created": 1721172717,
+      "ownedBy": "system",
+      "requestId": "ec7b3b39-055d-4aa2-adfa-1a5722bad9f6"
+    },
+    "luna": {
+      "backend": "openai-responses",
+      "id": "gpt-5.6-luna",
+      "object": "model",
+      "created": 1782228658,
+      "ownedBy": "system",
+      "requestId": "5b4d7484-d99c-4aa6-9ea3-9025263b5b8d"
+    }
+  },
+  "preflight": {
+    "studentModelCalls": 0,
+    "referenceTest": 1,
+    "starterTest": 0,
+    "logicalUnseenTests": 22,
+    "underlyingCaseVariants": 44,
+    "scheduledSessions": 200,
+    "maximumRounds": 6,
+    "presentationWords": {
+      "plain": 451,
+      "project_steps": 660
+    },
+    "assetSha256": {
+      "statement": "28fb0e9c3c5567e48682c88522135c2e430f72b8502c0e3172871fcbe7f383b2",
+      "steps": "8c5f6e4928cfae65d6d4882218f4cc1e808a27ff917c6459ba5bc6b114b0f715",
+      "presentations": "305fd27bf1cb685d024d6d63289a04a0d1c3ff24bf287d147c758484d8408b6d",
+      "requirementTestMap": "61e72d0234f13c2c9b1a49e64650a89beb6091bbf4f1c2fa44b619fb35cb6eff",
+      "starter": "dd9bdbc128e3ff5daaae4e3e742b25f95d5336b0e2560f219f91e4a803a7d849",
+      "reference": "c02b9655d2740f0b2f17055e516b5a502a3af7208d46881e7601875ed00adb4c",
+      "visibleTests": "4cee9d0c1761ca681f40e57d3fe952b029bc048656c5834b7bd5fae2c6efc5a9",
+      "hiddenTests": "9b13439027ed4ceab5367bfef70a5db447c133d705d246851b5bf572d58348f3",
+      "unseenTests": "aa174166258a42f6dc274958e4d3f6a01aa08d90c6083854e1d810cb11968ef3"
+    }
+  },
+  "migration": {
+    "migratedAt": "2026-08-26T00:58:49.590Z",
+    "reason": "raise Hard GPT-5.6-Luna max output tokens from 1800 to 5000 after repeated completion-cap failures",
+    "archivedPartialRun": "/Users/ec825/cellmate_ec/eval/evaluation2_archive/20260826_hard_luna1800_partial/formal-hard-best-luna6-note-vs-no-note-6round-2models-200-20260826",
+    "retainedStudentModel": "gpt-4o-mini-2024-07-18",
+    "retainedCleanSessions": 33,
+    "excludedOldCapLunaSessions": 28,
+    "oldLunaMaxOutputTokens": 1800,
+    "newLunaMaxOutputTokens": 5000
+  }
+}

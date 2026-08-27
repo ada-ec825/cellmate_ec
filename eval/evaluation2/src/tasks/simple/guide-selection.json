@@ -1,0 +1,13 @@
+{
+  "task": "simple",
+  "materialId": "formal_luna_12",
+  "sourceRun": "formal-simple-25x2-10students-currentprompt-20260825",
+  "generatorModel": "gpt-5.6-luna",
+  "selectionRule": "best mean final logical-test fraction among six-step Luna guides",
+  "sourceStudentModel": "gpt-4o-mini-2024-07-18",
+  "sourceSessions": 10,
+  "sourceMeanFinalTestFraction": 1,
+  "sourceFullPasses": 10,
+  "steps": 6,
+  "words": 505
+}

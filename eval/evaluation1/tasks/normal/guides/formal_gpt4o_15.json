@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Build parse_amount function",
+      "intent": "Define a function named `parse_amount(s)`.\n- It takes one input `s`, expected to be a string representing an amount.\n- Return integer cents for a valid amount string.\n- Treat the input as **invalid** and return `None` if it is not a string, contains more than three fractional digits, or uses any numeric notation other than digits and at most one decimal point.\n- An invalid amount or a negative order amount returns `None`.\n- Always round a third fractional digit to cents using round-half-up.",
+      "checkHint": "parse_amount(\"15.256\") returns 1526",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Implement parse_record function",
+      "intent": "Create a function named `parse_record(line)`.\n- It receives `line`, a string with exactly six `|`-separated fields.\n- Construct a dictionary with keys: `\"type\"`, `\"record_id\"`, `\"order_id\"`, `\"amount\"`, `\"currency\"`, and `\"timestamp\"`.\n- Convert `TYPE` to uppercase and ensure it is `ORDER` or `PAYMENT`.\n- Trim `RECORD_ID` and `ORDER_ID` and ensure both are non-empty; for `ORDER`, both must match.\n- Validate `AMOUNT` and convert it to integer cents, skipping invalid entries.\n- Ensure `CURRENCY` is precisely `USD` after trimming.\n- Validate `TIMESTAMP` format as `YYYY-MM-DD HH:MM`(UTC).\n- Return the dictionary for valid records, or `None` for invalid ones.",
+      "checkHint": "parse_record(\"ORDER|1|1|13.50|USD|2023-10-01 12:00\") returns a valid dictionary",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Develop load_records function",
+      "intent": "Write a function called `load_records(text)`.\n- It receives a single string `text` containing multiple lines, each representing a record.\n- Parse each line using `parse_record`.\n- Skip lines that return `None` or have duplicate `RECORD_ID` after trimming.\n- Retain only the first valid occurrence of each `RECORD_ID`.\n- Return a list of parsed record dictionaries for valid entries only.",
+      "checkHint": "load_records(...) returns a list without duplicates and skips invalid records",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Build compute_refunds function",
+      "intent": "Develop a function named `compute_refunds(records)`.\n- It takes a list of parsed `records` as input.\n- Identify `PAYMENT` types with negative amounts, treating these as refunds.\n- Calculate the **positive** sum of the absolute values of all negative `PAYMENT` amounts.\n- Return this sum in cents.",
+      "checkHint": "compute_refunds([...]) returns the correct refund total in cents",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Create match_payments function",
+      "intent": "Implement a function named `match_payments(records)`.\n- It takes a list of `records` containing both orders and payments.\n- For a payment to qualify, it must have a non-negative amount and its timestamp should be **between** the order timestamp and exactly 72 hours after.\n- If multiple payments qualify, select the one with the earliest timestamp, using order-record order to break ties.\n- Prepare a dictionary for each order with keys `\"order_id\"`, `\"status\"`, and `\"amount\"`.\n- Set `\"status\"` to \"matched\" or \"unmatched\" (lowercase).\n- An unmatched order has `\"amount\"` set to 0.",
+      "checkHint": "match_payments([...]) includes status and amount in each order's dictionary",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Generate build_summary function",
+      "intent": "Construct a function named `build_summary(matches, refund_total)`.\n- Accepts `matches`, a list of result dictionaries, and `refund_total`, an integer in cents.\n- Return a dictionary with keys: `\"total_orders\"`, `\"matched_count\"`, `\"net_total\"`, and `\"unmatched_ids\"`.\n- `\"total_orders\"` is the count of valid order records.\n- `\"matched_count\"` is the count of orders with `status` as `\"matched\"`.\n- `\"net_total\"` is the sum of amounts of matched payments minus `refund_total`.\n- Sort `\"unmatched_ids\"` in ascending lexicographic order.",
+      "checkHint": "build_summary(...) correctly incorporates refund adjustments into net total",
+      "timeShare": 20
+    }
+  ]
+}

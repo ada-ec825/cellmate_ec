@@ -1,0 +1,10 @@
+{
+  "sessions": 530,
+  "uniqueSessionKeys": 530,
+  "cleanResultMechanicalFailures": 0,
+  "transportErrors": 0,
+  "logicalTestCount": 22,
+  "forbiddenLegacyMetricRows": [],
+  "finalScoreViolations": [],
+  "passed": true
+}

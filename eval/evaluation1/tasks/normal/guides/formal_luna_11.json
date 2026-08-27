@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse monetary amounts",
+      "intent": "Implement `parse_amount(s)` so every valid amount becomes integer cents.\n- A non-string input returns `None`.\n- Accept only an ordinary decimal string with digits, at most one decimal point, and an optional leading minus sign.\n- Reject scientific notation, other numeric notation, and more than three fractional digits.\n- **Round a third fractional digit to cents using round-half-up**.\n- Return the signed integer number of cents; negative values are allowed here.\n- Invalid input returns `None` without raising an exception, printing, mutating input, or using global state.",
+      "checkHint": "For example, input `12.305` produces 1231, while input `1.2345` produces `None`.",
+      "timeShare": 18
+    },
+    {
+      "index": 2,
+      "label": "Parse individual records",
+      "intent": "Implement `parse_record(line)` to return one validated parsed-record dictionary or `None`.\n- The line must contain exactly six fields separated by `|` in the format `TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP`.\n- `TYPE` is case-insensitive `ORDER` or `PAYMENT`, then becomes uppercase.\n- Trim both identifiers; both must be non-empty, and an `ORDER` requires equal `RECORD_ID` and `ORDER_ID`.\n- Parse `AMOUNT` with `parse_amount(s)`; a negative `ORDER` is invalid, while a negative `PAYMENT` is a refund.\n- Trim `CURRENCY`; only exactly `USD` is valid.\n- Require timestamp format `2024-03-15 14:30` and a valid calendar value; store it as a naive Python `datetime` representing UTC, with no timezone conversion.\n- Return exactly the keys `type`, `record_id`, `order_id`, `amount`, `currency`, and `timestamp`; invalid input returns `None` silently.",
+      "checkHint": "A valid order line with `ORDER|A1|A1|12.30|USD|2024-03-15 14:30` returns a dictionary whose amount is 1230.",
+      "timeShare": 18
+    },
+    {
+      "index": 3,
+      "label": "Load valid records",
+      "intent": "Implement `load_records(text)` to parse the complete mixed text file.\n- Process one record per line and use `parse_record(line)` for validation.\n- Silently skip every invalid line; do not raise exceptions or print warnings.\n- **If the same trimmed `RECORD_ID` occurs more than once, retain the first valid occurrence and skip later valid occurrences**.\n- An invalid occurrence does not reserve its record ID.\n- Preserve the retained records’ source order.\n- Every retained item is an ordinary dictionary with exactly `type`, `record_id`, `order_id`, `amount`, `currency`, and `timestamp`; amounts are integer cents, currencies are `USD`, and timestamps are naive UTC `datetime` values.\n- Do not mutate an input object, print output, or store global state.",
+      "checkHint": "If an invalid record with ID `A` is followed by two valid records with ID `A`, only the first valid one is loaded.",
+      "timeShare": 16
+    },
+    {
+      "index": 4,
+      "label": "Match payments to orders",
+      "intent": "Implement `match_payments(records)` for parsed records whose monetary amounts are integer cents and timestamps are naive UTC values.\n- Associate records by equal `order_id` and return one ordinary result dictionary for every retained order, in retained order-record order.\n- A non-refund payment qualifies only when its timestamp is at or after the order timestamp and no later than exactly 72 hours after it; both endpoints are included.\n- Negative `PAYMENT` amounts are refunds and never qualify.\n- If several payments qualify, choose the earliest timestamp; an exact timestamp tie uses retained source order.\n- A matched result has exactly `order_id`, `status`, and `amount`, with status exactly `matched` and the payment amount in cents.\n- An unmatched result has the same exact keys, status exactly `unmatched`, and amount `0`.\n- Do not convert timezones, mutate inputs, print output, raise for ordinary nonmatches, or use global state.",
+      "checkHint": "A payment exactly 72 hours after its order is eligible, but a payment 72 hours and one second later is unmatched.",
+      "timeShare": 18
+    },
+    {
+      "index": 5,
+      "label": "Compute refund totals",
+      "intent": "Implement `compute_refunds(records)` for parsed record dictionaries.\n- Return the positive sum in cents of the absolute values of all negative `PAYMENT` amounts.\n- Count every negative payment refund even when no order with its `order_id` exists.\n- Do not include orders or nonnegative payments in the total.\n- Amounts are already stored as integer cents, and timestamps and currencies require no further conversion.\n- Do not mutate the input, print output, raise an exception for ordinary records, or store global state.",
+      "checkHint": "A single negative payment amount of -250 produces a refund total of 250, even without a matching order.",
+      "timeShare": 10
+    },
+    {
+      "index": 6,
+      "label": "Build the final summary",
+      "intent": "Implement `build_summary(matches, refund_total)` using the result dictionaries from `match_payments` and the positive cents total from `compute_refunds`.\n- Return exactly the keys `total_orders`, `matched_count`, `net_total`, and `unmatched_ids`.\n- `total_orders` is the number of valid orders represented by `matches`.\n- `matched_count` is the number of results whose status is exactly `matched`.\n- **The clarified final rule is `net_total` = sum of matched payment amounts − `refund_total`; this supersedes the earlier rule excluding refunds**.\n- `unmatched_ids` contains unmatched order IDs in ascending lexicographic order.\n- Every match item is an ordinary dictionary with exactly `order_id`, `status`, and `amount`; unmatched amounts are `0`.\n- Do not mutate inputs, print output, or store global state.",
+      "checkHint": "If matched amounts total 1000 cents and `refund_total` is 150, the summary net total is 850.",
+      "timeShare": 20
+    }
+  ]
+}

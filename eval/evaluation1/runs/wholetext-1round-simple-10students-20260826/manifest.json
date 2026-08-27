@@ -1,0 +1,61 @@
+{
+  "runId": "wholetext-1round-simple-10students-20260826",
+  "startedAt": "2026-08-26T01:27:16.503Z",
+  "protocolSha256": "75168983ab3942817ebbed990e79bbf631ed8a4b319b803a9d085223edcf320b",
+  "presentationsPath": "eval/evaluation1/tasks/simple/presentations_wholetext_1round.json",
+  "presentationsSha256": "f1d7ae24fa11e7aba4ad4b35d4cd27542d3e6bf8284dbe21792db45fb56b0c93",
+  "modelDescriptor": {
+    "backend": "openai-responses",
+    "identifier": "gpt-4o-mini-2024-07-18",
+    "endpointSha256": "ee0291cefbb5b6136483fb38ba9efe9264f9b685d5006c273e293a54b43a1883",
+    "credentialReferenceName": "env:OPENAI_API_KEY",
+    "transportPayloadSemantics": "POST input to the OpenAI Responses API with explicit temperature, max_output_tokens and store=false; the API exposes no sampling seed field",
+    "responseSemantics": "output_text content plus whitelisted model, input/output token counts, status, response-id and request-id metadata",
+    "nonSecretConfigSha256": "3ed421dcc5efca9ba03c1dcec80f67ce9e98deae87cf75690a82be58287bd88c"
+  },
+  "modelIdentity": {
+    "backend": "openai-responses",
+    "id": "gpt-4o-mini-2024-07-18",
+    "object": "model",
+    "created": 1721172717,
+    "ownedBy": "system",
+    "requestId": "c33a18b6-3fae-4538-9f9b-abee5414b2fd"
+  },
+  "generationSeeds": [
+    80001,
+    80002,
+    80003,
+    80004,
+    80005,
+    80006,
+    80007,
+    80008,
+    80009,
+    80010
+  ],
+  "preflight": {
+    "referenceTest": 1,
+    "starterTest": 0,
+    "logicalUnseenTests": 22,
+    "underlyingCaseVariants": 44,
+    "materials": 1,
+    "stagesPerMaterial": {
+      "plain_wholetext_1round": 1
+    },
+    "repairRoundsPerMaterial": {
+      "plain_wholetext_1round": 0
+    },
+    "totalRoundsPerMaterial": {
+      "plain_wholetext_1round": 1
+    },
+    "stopAfterPresentation": true,
+    "task": "simple",
+    "plainControlWords": {
+      "plain_5parts": 358,
+      "plain_6parts": 358
+    },
+    "presentationWords": {
+      "plain_wholetext_1round": 358
+    }
+  }
+}

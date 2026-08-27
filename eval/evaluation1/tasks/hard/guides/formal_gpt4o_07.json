@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_hard_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse Individual Records",
+      "intent": "Implement the `parse_record(line)` function.\n- Input is a single string `line` with six `|`-separated fields: `TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP`.\n- Convert `TYPE` to uppercase; it must be `ORDER` or `PAYMENT`.\n- `ORDER_ID` must start with `ORD-` and both IDs must remain non-empty after trimming.\n- Trim whitespace from all identifiers.\n- Amounts must be convertible to cents, have at most one decimal point, and allow an optional leading minus.\n- **Amounts exceeding ±1,000,000 cents are invalid.**\n- Timestamps must be in `YYYY-MM-DD HH:MM` or `YYYY-MM-DD HH:MM:SS`.\n- Currency must be `USD`.\n- Return a dictionary with the parsed values or `None` for invalid inputs.",
+      "checkHint": "`parse_record('ORDER|1|ORD-1|100.00|USD|2021-06-01 12:00')` returns a valid dictionary",
+      "timeShare": 20
+    },
+    {
+      "index": 2,
+      "label": "Parse and Load Records",
+      "intent": "Implement the `load_records(text)` function.\n- Input is a multi-line string `text`.\n- Each line must be parsed using `parse_record(line)`.\n- Silently skip invalid rows; **do not raise errors or print messages**.\n- Maintain the input order of records.\n- Retain only the first valid occurrence of each `RECORD_ID`.\n- Return a list of all valid parsed records.",
+      "checkHint": "When given text with duplicate `RECORD_ID`, only the first valid occurrence is loaded.",
+      "timeShare": 15
+    },
+    {
+      "index": 3,
+      "label": "Compute Refund Totals",
+      "intent": "Implement the `compute_refunds(records)` function.\n- Input is a list of parsed records.\n- Only consider refund records (negative payments) linked to existing orders.\n- Refunds are payments with a negative amount.\n- Sum all such qualifying refund amounts as positive values.\n- Return the total refund amount.",
+      "checkHint": "`compute_refunds()` with records including a refund linked to an order returns the positive sum.",
+      "timeShare": 10
+    },
+    {
+      "index": 4,
+      "label": "Payment Matching Logic",
+      "intent": "Implement the `match_payments(records)` function.\n- Input is a list of parsed records.\n- Match payments to orders within the window from order timestamp to **strictly less than 72 hours later**.\n- Refunds do not count as matches.\n- If multiple valid payments qualify, select the earliest by timestamp and source order.\n- Return a list of dictionaries for each order with keys: `order_id`, `status`, and `amount`.\n- The `status` is `matched` or `unmatched`; unmatched orders have an `amount` of `0`.",
+      "checkHint": "An order with a payment timestamp exactly 72 hours later is unmatched.",
+      "timeShare": 25
+    },
+    {
+      "index": 5,
+      "label": "Build Summary Report",
+      "intent": "Implement the `build_summary(matches, refund_total)` function.\n- `matches` is a list of match results; `refund_total` is an integer.\n- Calculate `total_orders` as the count of all orders.\n- `matched_count` is the count of entries with `status = 'matched'`.\n- `net_total` is the total of matched payment amounts minus the `refund_total`, **capped at zero.**\n- `unmatched_ids` is a deduplicated, lexicographically sorted list of unmatched order IDs.\n- Return a dictionary with exactly these five keys: `total_orders`, `matched_count`, `refund_total`, `net_total`, `unmatched_ids`.",
+      "checkHint": "For a list with unmatched orders, `unmatched_ids` returns these IDs sorted.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Parse Amounts with Rules",
+      "intent": "Implement the `parse_amount(s)` function.\n- Input is a string `s` representing the amount.\n- Allow at most three fractional digits and round a third digit to cents using round-half-up.\n- **Scientific notation is invalid.**\n- Convert the rounded amount to integer cents.\n- Amounts above ±1,000,000 cents are invalid after conversion.\n- Keep negative values negative for refunds.\n- Return the amount in cents or `None` if invalid.",
+      "checkHint": "`parse_amount('1234.567')` properly rounds and returns 123456",
+      "timeShare": 10
+    }
+  ]
+}

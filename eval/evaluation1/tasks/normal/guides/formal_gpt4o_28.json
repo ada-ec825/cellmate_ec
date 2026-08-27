@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse and Validate Amount",
+      "intent": "Define the function `parse_amount(s)` to convert a valid amount string to integer cents.\n- Return `None` if input is not a string.\n- Expects a decimal string with at most three fractional digits.\n- Round a third fractional digit to cents using **round-half-up**.\n- An amount with more than three fractional digits or invalid syntax returns `None`.\n- Silently skip invalid inputs without exceptions or prints.",
+      "checkHint": "`parse_amount('12.345')` returns 1235",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parse and Validate Records",
+      "intent": "Define `parse_record(line)` to convert a line of text into a valid record dictionary.\n- The line format is `TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP`.\n- `TYPE` is normalized to uppercase and must be `ORDER` or `PAYMENT`.\n- `RECORD_ID` and `ORDER_ID` should be trimmed and non-empty; they must match in an `ORDER`.\n- `AMOUNT` must be parsed using `parse_amount(s)` and conditions for negative amounts apply.\n- `CURRENCY` must be 'USD' after trimming surrounding whitespace.\n- `TIMESTAMP` must be `2024-03-15 14:30` format.\n- Return `None` for any invalid or non-parsable field.",
+      "checkHint": "For `parse_record('ORDER| 123 | 123 |12.30| USD |2024-03-15 14:30')`, check the dictionary keys and values including `amount` as integer cents.",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Load Records from Text",
+      "intent": "Implement `load_records(text)` to parse multiple lines and load records.\n- Split `text` into lines and apply `parse_record(line)` to each.\n- Silently skip lines that result in `None`.\n- Retain only the **first valid occurrence** for any `RECORD_ID`.\n- Handle text reading without mutating input objects or producing output messages.",
+      "checkHint": "`load_records('ORDER| 123 | 123 |12.30| USD |2024-03-15 14:30\\nINVALID| 456 |')` skips invalid and returns a list with one valid record dictionary.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Compute Refund Totals",
+      "intent": "Create `compute_refunds(records)` to calculate total refunds.\n- Sum positive values of negative `PAYMENT` amounts, returning the result in cents.\n- Include refunds even if no `ORDER_ID` matches.\n- The function must not mutate input lists, print output or store global state.",
+      "checkHint": "For `compute_refunds(records)`, ensure total cents of negative payments are summed correctly.",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match Payments to Orders",
+      "intent": "Implement `match_payments(records)` to associate payments with orders.\n- Match non-refund payments if timestamp is between order's timestamp and 72 hours after it inclusively.\n- If multiple valid payments, choose the earliest one; break ties by input order.\n- Negative payments do not qualify as matched payments.\n- Return a list of dictionaries for each order with keys: `order_id`, `status` as `matched` or `unmatched`, and `amount` where **unmatched amounts are zero**.",
+      "checkHint": "Verify if payments within the 72-hour window are matched correctly for `match_payments(records)`. ",
+      "timeShare": 25
+    },
+    {
+      "index": 6,
+      "label": "Build Summary",
+      "intent": "Write `build_summary(matches, refund_total)` to compile reconciliation results.\n- `total_orders`: count of valid `ORDER` records.\n- `matched_count`: number of results with `status` as `matched`.\n- `net_total`: sum of matched payments minus `refund_total` (clarification overrides previous rule).\n- `unmatched_ids`: list of unmatched `order_id`s sorted lexicographically.\n- Ensure summary keys and spelling are exactly as specified.",
+      "checkHint": "For `build_summary(...)`, check all dictionary keys exist and contain correct counts, sum, and sorted order IDs.",
+      "timeShare": 15
+    }
+  ]
+}

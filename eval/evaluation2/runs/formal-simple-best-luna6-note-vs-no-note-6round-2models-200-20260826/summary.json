@@ -1,0 +1,128 @@
+{
+  "protocolVersion": "evaluation2-simple-best-luna6-note-vs-no-note-v1-round6-unseen-deduplicated",
+  "sessions": 200,
+  "expectedSessions": 200,
+  "completeGrid": true,
+  "overall": {
+    "sessions": 200,
+    "meanRound6Test": 0.8868181818181814,
+    "meanFinalTest": 0.8868181818181814,
+    "testFullPasses": 108,
+    "testFullPassRate": 0.54,
+    "meanTotalRounds": 6,
+    "roundFormatRetries": 333
+  },
+  "byModelAndArm": {
+    "4omini": {
+      "label": "GPT-4o-mini",
+      "plain_note": {
+        "sessions": 25,
+        "meanRound6Test": 0.8745454545454541,
+        "meanFinalTest": 0.8745454545454541,
+        "testFullPasses": 0,
+        "testFullPassRate": 0,
+        "meanTotalRounds": 6,
+        "roundFormatRetries": 150
+      },
+      "plain_no_note": {
+        "sessions": 25,
+        "meanRound6Test": 0.9418181818181816,
+        "meanFinalTest": 0.9418181818181816,
+        "testFullPasses": 2,
+        "testFullPassRate": 0.08,
+        "meanTotalRounds": 6,
+        "roundFormatRetries": 0
+      },
+      "guide_note": {
+        "sessions": 25,
+        "meanRound6Test": 0.9981818181818182,
+        "meanFinalTest": 0.9981818181818182,
+        "testFullPasses": 24,
+        "testFullPassRate": 0.96,
+        "meanTotalRounds": 6,
+        "roundFormatRetries": 137
+      },
+      "guide_no_note": {
+        "sessions": 25,
+        "meanRound6Test": 1,
+        "meanFinalTest": 1,
+        "testFullPasses": 25,
+        "testFullPassRate": 1,
+        "meanTotalRounds": 6,
+        "roundFormatRetries": 0
+      }
+    },
+    "luna": {
+      "label": "GPT-5.6-Luna",
+      "plain_note": {
+        "sessions": 25,
+        "meanRound6Test": 0.9818181818181819,
+        "meanFinalTest": 0.9818181818181819,
+        "testFullPasses": 24,
+        "testFullPassRate": 0.96,
+        "meanTotalRounds": 6,
+        "roundFormatRetries": 21
+      },
+      "plain_no_note": {
+        "sessions": 25,
+        "meanRound6Test": 0.7018181818181817,
+        "meanFinalTest": 0.7018181818181817,
+        "testFullPasses": 7,
+        "testFullPassRate": 0.28,
+        "meanTotalRounds": 6,
+        "roundFormatRetries": 0
+      },
+      "guide_note": {
+        "sessions": 25,
+        "meanRound6Test": 0.889090909090909,
+        "meanFinalTest": 0.889090909090909,
+        "testFullPasses": 18,
+        "testFullPassRate": 0.72,
+        "meanTotalRounds": 6,
+        "roundFormatRetries": 25
+      },
+      "guide_no_note": {
+        "sessions": 25,
+        "meanRound6Test": 0.7072727272727272,
+        "meanFinalTest": 0.7072727272727272,
+        "testFullPasses": 8,
+        "testFullPassRate": 0.32,
+        "meanTotalRounds": 6,
+        "roundFormatRetries": 0
+      }
+    }
+  },
+  "health": {
+    "expectedSessions": 200,
+    "cleanSessions": 200,
+    "uniqueSessionKeys": 200,
+    "cellCounts": {
+      "4omini": {
+        "plain_note": 25,
+        "plain_no_note": 25,
+        "guide_note": 25,
+        "guide_no_note": 25
+      },
+      "luna": {
+        "plain_note": 25,
+        "plain_no_note": 25,
+        "guide_note": 25,
+        "guide_no_note": 25
+      }
+    },
+    "allCellsComplete": true,
+    "cleanResultMechanicalFailures": 0,
+    "transportErrors": 0,
+    "discardedMechanicalSessionAttempts": 2,
+    "roundFormatRetries": 337,
+    "clearScheduleMismatches": [],
+    "roundViolations": [],
+    "repairRegressions": [],
+    "noteTreatmentViolations": [],
+    "formatIntegrityViolations": [],
+    "testSchemaViolations": [],
+    "testScoreViolations": [],
+    "independentRescoreMismatches": [],
+    "passed": true
+  }
+}

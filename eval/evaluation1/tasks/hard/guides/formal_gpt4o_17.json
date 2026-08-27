@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_hard_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse Amount from String",
+      "intent": "Implement `parse_amount(s)` which converts a string representing a monetary value into integer cents.\n- Convert amounts to integer cents after applying rounding when necessary.\n- Strings can have at most one decimal point and may start with a `-` for negative amounts, indicating refunds for payments.\n- **Apply round-half-up* for amounts with more than two decimal places.\n- An amount is invalid if its absolute value exceeds 1,000,000 cents ($10,000.00).\n- Return `None` if input is invalid.",
+      "checkHint": "parse_amount('-1234.567') returns -123457",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parse Single Record Line",
+      "intent": "Create `parse_record(line)` to process a six-field, `|`-separated format input.\n- Handle `TYPE` case-insensitively and store it in uppercase.\n- `RECORD_ID` and `ORDER_ID` must remain non-empty after trimming; ensure `ORDER_ID` starts with `ORD-`.\n- Store amounts as integer cents using `parse_amount(s)`; skip record if amount is invalid.\n- Only `USD` currency is valid.\n- Accept timestamps in `YYYY-MM-DD HH:MM` or `YYYY-MM-DD HH:MM:SS` formats with valid calendar values.\n- Negative orders are invalid.\n- Return a dictionary with `type`, `record_id`, `order_id`, `amount`, `currency`, and `timestamp` keys or `None` for invalid records.",
+      "checkHint": "parse_record('ORDER| rec1 |ORD-2001|123.45|USD|2023-09-01 10:00') returns the correct dictionary",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Load Records from Text",
+      "intent": "Develop `load_records(text)` to parse multiple lines from a string input into records.\n- Each line corresponds to a record. Use `parse_record(line)` to parse each line.\n- Silently skip invalid records and preserve the input order.\n- Only the first valid occurrence of a duplicate record ID should be retained.",
+      "checkHint": "`load_records('...')` returns a list of valid records with the correct order and uniqueness",
+      "timeShare": 10
+    },
+    {
+      "index": 4,
+      "label": "Compute Refunds from Records",
+      "intent": "Define `compute_refunds(records)` to calculate the total amount of valid refunds.\n- Refunds are negative amounts within `PAYMENT` type records.\n- Only count refunds where `order_id` corresponds to an existing order.\n- Return the positive sum of these refund amounts.",
+      "checkHint": "`compute_refunds(records)` calculates the correct sum of valid refunds",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match Payments to Orders",
+      "intent": "Build `match_payments(records)` to determine payment matches for each order.\n- Each matched result has `order_id`, `status`, and `amount`; status is `matched` or `unmatched`.\n- A payment matches if it is a non-refund and occurs **strictly less than 72 hours** after the order, starting from the order timestamp. This overrides the earlier 72 hours inclusive rule.\n- If multiple payments qualify, choose the earliest timestamp and break ties by input order.\n- Refunds cannot be matched.\n- If unmatched, the amount should be `0`.",
+      "checkHint": "`match_payments(records)` returns a list of matched and unmatched order details",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Build Summary Report",
+      "intent": "Implement `build_summary(matches, refund_total)` to generate a summary dictionary.\n- Include keys: `total_orders`, `matched_count`, `refund_total`, `net_total`, and `unmatched_ids`.\n- Count only statuses that are exactly `matched` for calculations.\n- Calculate `net_total` as matched payment amounts minus `refund_total`, with a lower bound of `0`.\n- Ensure `unmatched_ids` are unique and in ascending lexicographic order.",
+      "checkHint": "`build_summary(matches, refund_total)` returns a dictionary with the correct structure and values",
+      "timeShare": 25
+    }
+  ]
+}

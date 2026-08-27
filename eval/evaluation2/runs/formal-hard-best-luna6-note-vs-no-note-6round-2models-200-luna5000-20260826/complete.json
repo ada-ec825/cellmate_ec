@@ -1,0 +1,8 @@
+{
+  "runId": "formal-hard-best-luna6-note-vs-no-note-6round-2models-200-luna5000-20260826",
+  "completedAt": "2026-08-26T01:23:20.084Z",
+  "sessions": 200,
+  "resultsSha256": "235992ecf155ad29c0faf72a881885faacc40e639fbb40ac2b1608e4acf19580",
+  "callsSha256": "6b9b41ceb3fd6422ad33688af1fdac985683b31ca153f078ee5ea671139a3003",
+  "healthAuditSha256": "c62b65d5903fdd01332cdfedeaeebbd15ff910c08a154758430f1f0631e1967d"
+}

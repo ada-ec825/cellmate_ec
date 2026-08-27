@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_hard_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse and validate a single record",
+      "intent": "Implement `parse_record(line)` to parse and validate a single line of input.\n- Input is a single line string with six `|`-separated fields: `TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP`.\n- `TYPE` must be `ORDER` or `PAYMENT` and stored in uppercase.\n- All IDs must remain non-empty after trimming spaces.\n- `ORDER_ID` must start with `ORD-`.\n- `AMOUNT` can have at most three fractional digits; **round the third digit to cents using round-half-up**.\n- Assume `USD` as the only valid currency.\n- Timestamps can be `YYYY-MM-DD HH:MM` or `YYYY-MM-DD HH:MM:SS`.\n- Return `None` for invalid records, preserving above rules.\n- Silently skip records that do not meet these criteria.",
+      "checkHint": "`parse_record` returns a dictionary for valid input or `None` for invalid input.",
+      "timeShare": 20
+    },
+    {
+      "index": 2,
+      "label": "Load and filter records",
+      "intent": "Create `load_records(text)` to process and filter lines of text to produce valid records.\n- Input is a string of multiple lines, each potentially representing a record.\n- Call `parse_record` on each line and **silently skip invalid lines**.\n- Keep the first valid occurrence of duplicate `record_id`.\n- Maintain the order of non-duplicate records.",
+      "checkHint": "Lines that parse to `None` are not included in output.",
+      "timeShare": 15
+    },
+    {
+      "index": 3,
+      "label": "Implement amount parsing",
+      "intent": "Develop `parse_amount(s)` for converting and rounding amounts to cents.\n- Input is a string that represents a monetary amount.\n- The amount may have digits and at most one decimal point.\n- Apply rounding: a third fractional digit is **rounded to cents using round-half-up**.\n- Convert the amount to the integer number of cents.\n- Return `None` for invalid amounts or if the absolute value exceeds 1,000,000 cents.",
+      "checkHint": "`parse_amount('15.567')` returns `1557`.",
+      "timeShare": 10
+    },
+    {
+      "index": 4,
+      "label": "Compute refund amounts",
+      "intent": "Implement `compute_refunds(records)` to calculate the total refunds.\n- Input is a list of records filtered by `load_records`.\n- Consider only records marked as `PAYMENT` and where `amount` is negative.\n- Only count refunds for payments where `order_id` belongs to an existing `ORDER`.\n- Return the positive sum of qualifying negative payment amounts.",
+      "checkHint": "Ensure `compute_refunds` returns the refunded amount as a positive integer.",
+      "timeShare": 15
+    },
+    {
+      "index": 5,
+      "label": "Implement payment matching",
+      "intent": "Create `match_payments(records)` for matching payments to orders.\n- Input is a list of records with valid data.\n- When `order` record appears, find earliest `PAYMENT` made **strictly less than 72 hours** after order timestamp.\n- If multiple payments are suitable, choose the earliest timestamp; break ties by input order.\n- Refund payments never match an order.\n- Return a list of dictionaries each with `order_id`, `status` ('matched' or 'unmatched'), and `amount` (0 if unmatched).",
+      "checkHint": "Payments at exactly 72 hours after order should not match.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Generate final summary report",
+      "intent": "Develop `build_summary(matches, refund_total)` for creating a summary report.\n- Input contains matched results and a total refund amount.\n- Compute and return a dictionary with keys: `total_orders`, `matched_count`, `refund_total`, `net_total`, `unmatched_ids`.\n- `net_total` is the total matched payment minus `refund_total`, ensuring non-negativity (report as `0` if below zero).\n- `unmatched_ids` should list unmatched order IDs with deduplicated ascending order.",
+      "checkHint": "Ensure unmatched non-empty `order_id` is included in `unmatched_ids`.",
+      "timeShare": 20
+    }
+  ]
+}

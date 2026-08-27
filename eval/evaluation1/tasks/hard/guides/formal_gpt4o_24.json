@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_hard_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse and validate record lines",
+      "intent": "Implement `parse_record(line)` to process a single line of input.\n- Split the line into six `|`-separated fields exactly: `TYPE`, `RECORD_ID`, `ORDER_ID`, `AMOUNT`, `CURRENCY`, `TIMESTAMP`.\n- **Store `TYPE` uppercased** and validate it as `ORDER` or `PAYMENT`.\n- Trim `RECORD_ID` and `ORDER_ID`; ensure they're non-empty.\n- Validate `ORDER_ID` starts with `ORD-`.\n- Call `parse_amount(s)` for `AMOUNT`; handle rounding and limits as specified\n- Validate `CURRENCY` as `USD`.\n- Validate `TIMESTAMP` matches `YYYY-MM-DD HH:MM` or `YYYY-MM-DD HH:MM:SS`.\n- Return a dictionary of valid fields or `None` for any invalid record.",
+      "checkHint": "`parse_record` should return `None` for lines with invalid timestamps.",
+      "timeShare": 20
+    },
+    {
+      "index": 2,
+      "label": "Convert and validate amounts",
+      "intent": "Implement `parse_amount(s)` to process the amount field.\n- Ensure the amount is a valid numeric string with at most one decimal point and optional leading minus.\n- **Reject scientific notation.**\n- Allow at most three fractional digits and round to cents using round-half-up.\n- Convert amount to integer cents.\n- **Ensure absolute value does not exceed 1,000,000 cents.**\n- Return the valid integer cents amount, including negative for refunds, or `None` if invalid.",
+      "checkHint": "`parse_amount('1000000.987')` should return `None` because it exceeds the limit after rounding.",
+      "timeShare": 15
+    },
+    {
+      "index": 3,
+      "label": "Load and filter valid records",
+      "intent": "Implement `load_records(text)` to process multiple lines of input.\n- Split input `text` into lines and apply `parse_record` to each line.\n- **Skip invalid or duplicate `RECORD_ID` records silently.**\n- Maintain the order of the first valid record.\n- Return a list of valid record dictionaries in input order.",
+      "checkHint": "Ensure `load_records` keeps only the first occurrence of a valid `RECORD_ID` when duplicates are present.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Compute payment refunds",
+      "intent": "Implement `compute_refunds(records)` to calculate the refund total.\n- Filter for `PAYMENT` records with negative amounts, treating them as refunds.\n- Only include a refund if its `ORDER_ID` matches a valid existing `ORDER`.\n- Calculate and return the total refunds as the sum of the absolute values of these negative amounts.",
+      "checkHint": "Verify positive refund totals result from valid refunds tied to existing orders.",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match payments to orders",
+      "intent": "Implement `match_payments(records)` to determine payment matches for `ORDER` records.\n- Each retained `ORDER` must find the earliest eligible `PAYMENT` within the new window: **strictly less than 72 hours from the order.**\n- Report each order with `order_id`, `status` (`matched` or `unmatched`), and `amount` (or `0` if unmatched).\n- Refunds cannot be matched, and ties must be resolved by earliest timestamp and retained order.",
+      "checkHint": "Ensure `match_payments` returns an `unmatched` status when no valid payment falls in the window.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Generate summary report",
+      "intent": "Construct `build_summary(matches, refund_total)` to create a summary report.\n- Calculate `total_orders` as the number of distinct orders processed.\n- Count occurrences of `status` as exactly `matched` for `matched_count`.\n- Deduce `net_total` as (total matched payment amounts - `refund_total`) with a floor of `0`.\n- Sort and deduplicate `unmatched_ids` for a lexicographic list.\n- Return a dictionary with keys: `total_orders`, `matched_count`, `refund_total`, `net_total`, and `unmatched_ids`.",
+      "checkHint": "`build_summary` should ensure `net_total` never drops below zero, returning zero if negative.",
+      "timeShare": 20
+    }
+  ]
+}

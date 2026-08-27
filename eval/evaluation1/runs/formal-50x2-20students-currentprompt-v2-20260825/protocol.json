@@ -1,0 +1,905 @@
+{
+  "protocolVersion": "evaluation1-guide-only-v4-unseen-deduplicated",
+  "presentationVersion": "evaluation1-formal-50x2-current-prompt-v1",
+  "task": "reconciliation",
+  "model": {
+    "spec": "openai-responses:gpt-4o-mini-2024-07-18",
+    "snapshot": "gpt-4o-mini-2024-07-18"
+  },
+  "arms": [
+    "formal_gpt4o_01",
+    "formal_gpt4o_02",
+    "formal_gpt4o_03",
+    "formal_gpt4o_04",
+    "formal_gpt4o_05",
+    "formal_gpt4o_06",
+    "formal_gpt4o_07",
+    "formal_gpt4o_08",
+    "formal_gpt4o_09",
+    "formal_gpt4o_10",
+    "formal_gpt4o_11",
+    "formal_gpt4o_12",
+    "formal_gpt4o_13",
+    "formal_gpt4o_14",
+    "formal_gpt4o_15",
+    "formal_gpt4o_16",
+    "formal_gpt4o_17",
+    "formal_gpt4o_18",
+    "formal_gpt4o_19",
+    "formal_gpt4o_20",
+    "formal_gpt4o_21",
+    "formal_gpt4o_22",
+    "formal_gpt4o_23",
+    "formal_gpt4o_24",
+    "formal_gpt4o_25",
+    "formal_gpt4o_26",
+    "formal_gpt4o_27",
+    "formal_gpt4o_28",
+    "formal_gpt4o_29",
+    "formal_gpt4o_30",
+    "formal_gpt4o_31",
+    "formal_gpt4o_32",
+    "formal_gpt4o_33",
+    "formal_gpt4o_34",
+    "formal_gpt4o_35",
+    "formal_gpt4o_36",
+    "formal_gpt4o_37",
+    "formal_gpt4o_38",
+    "formal_gpt4o_39",
+    "formal_gpt4o_40",
+    "formal_gpt4o_41",
+    "formal_gpt4o_42",
+    "formal_gpt4o_43",
+    "formal_gpt4o_44",
+    "formal_gpt4o_45",
+    "formal_gpt4o_46",
+    "formal_gpt4o_47",
+    "formal_gpt4o_48",
+    "formal_gpt4o_49",
+    "formal_gpt4o_50",
+    "formal_luna_01",
+    "formal_luna_02",
+    "formal_luna_03",
+    "formal_luna_04",
+    "formal_luna_05",
+    "formal_luna_06",
+    "formal_luna_07",
+    "formal_luna_08",
+    "formal_luna_09",
+    "formal_luna_10",
+    "formal_luna_11",
+    "formal_luna_12",
+    "formal_luna_13",
+    "formal_luna_14",
+    "formal_luna_15",
+    "formal_luna_16",
+    "formal_luna_17",
+    "formal_luna_18",
+    "formal_luna_19",
+    "formal_luna_20",
+    "formal_luna_21",
+    "formal_luna_22",
+    "formal_luna_23",
+    "formal_luna_24",
+    "formal_luna_25",
+    "formal_luna_26",
+    "formal_luna_27",
+    "formal_luna_28",
+    "formal_luna_29",
+    "formal_luna_30",
+    "formal_luna_31",
+    "formal_luna_32",
+    "formal_luna_33",
+    "formal_luna_34",
+    "formal_luna_35",
+    "formal_luna_36",
+    "formal_luna_37",
+    "formal_luna_38",
+    "formal_luna_39",
+    "formal_luna_40",
+    "formal_luna_41",
+    "formal_luna_42",
+    "formal_luna_43",
+    "formal_luna_44",
+    "formal_luna_45",
+    "formal_luna_46",
+    "formal_luna_47",
+    "formal_luna_48",
+    "formal_luna_49",
+    "formal_luna_50",
+    "reference_steps",
+    "plain_6parts",
+    "plain_5parts"
+  ],
+  "seeds": [
+    78001,
+    78002,
+    78003,
+    78004,
+    78005,
+    78006,
+    78007,
+    78008,
+    78009,
+    78010,
+    78011,
+    78012,
+    78013,
+    78014,
+    78015,
+    78016,
+    78017,
+    78018,
+    78019,
+    78020
+  ],
+  "cellDefinitions": {
+    "formal_gpt4o_01": {
+      "presentation": "formal_gpt4o_01",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_02": {
+      "presentation": "formal_gpt4o_02",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_03": {
+      "presentation": "formal_gpt4o_03",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_04": {
+      "presentation": "formal_gpt4o_04",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_05": {
+      "presentation": "formal_gpt4o_05",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_06": {
+      "presentation": "formal_gpt4o_06",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_07": {
+      "presentation": "formal_gpt4o_07",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_08": {
+      "presentation": "formal_gpt4o_08",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_09": {
+      "presentation": "formal_gpt4o_09",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_10": {
+      "presentation": "formal_gpt4o_10",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_11": {
+      "presentation": "formal_gpt4o_11",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_12": {
+      "presentation": "formal_gpt4o_12",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_13": {
+      "presentation": "formal_gpt4o_13",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_14": {
+      "presentation": "formal_gpt4o_14",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_15": {
+      "presentation": "formal_gpt4o_15",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_16": {
+      "presentation": "formal_gpt4o_16",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_17": {
+      "presentation": "formal_gpt4o_17",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_18": {
+      "presentation": "formal_gpt4o_18",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_19": {
+      "presentation": "formal_gpt4o_19",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_20": {
+      "presentation": "formal_gpt4o_20",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_21": {
+      "presentation": "formal_gpt4o_21",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_22": {
+      "presentation": "formal_gpt4o_22",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_23": {
+      "presentation": "formal_gpt4o_23",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_24": {
+      "presentation": "formal_gpt4o_24",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_25": {
+      "presentation": "formal_gpt4o_25",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_26": {
+      "presentation": "formal_gpt4o_26",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_27": {
+      "presentation": "formal_gpt4o_27",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_28": {
+      "presentation": "formal_gpt4o_28",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_29": {
+      "presentation": "formal_gpt4o_29",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_30": {
+      "presentation": "formal_gpt4o_30",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_31": {
+      "presentation": "formal_gpt4o_31",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_32": {
+      "presentation": "formal_gpt4o_32",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_33": {
+      "presentation": "formal_gpt4o_33",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_34": {
+      "presentation": "formal_gpt4o_34",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_35": {
+      "presentation": "formal_gpt4o_35",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_36": {
+      "presentation": "formal_gpt4o_36",
+      "numberOfStages": 7,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_37": {
+      "presentation": "formal_gpt4o_37",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_38": {
+      "presentation": "formal_gpt4o_38",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_39": {
+      "presentation": "formal_gpt4o_39",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_40": {
+      "presentation": "formal_gpt4o_40",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_41": {
+      "presentation": "formal_gpt4o_41",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_42": {
+      "presentation": "formal_gpt4o_42",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_43": {
+      "presentation": "formal_gpt4o_43",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_44": {
+      "presentation": "formal_gpt4o_44",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_45": {
+      "presentation": "formal_gpt4o_45",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_46": {
+      "presentation": "formal_gpt4o_46",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_47": {
+      "presentation": "formal_gpt4o_47",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_48": {
+      "presentation": "formal_gpt4o_48",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_49": {
+      "presentation": "formal_gpt4o_49",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_gpt4o_50": {
+      "presentation": "formal_gpt4o_50",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_01": {
+      "presentation": "formal_luna_01",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_02": {
+      "presentation": "formal_luna_02",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_03": {
+      "presentation": "formal_luna_03",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_04": {
+      "presentation": "formal_luna_04",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_05": {
+      "presentation": "formal_luna_05",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_06": {
+      "presentation": "formal_luna_06",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_07": {
+      "presentation": "formal_luna_07",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_08": {
+      "presentation": "formal_luna_08",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_09": {
+      "presentation": "formal_luna_09",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_10": {
+      "presentation": "formal_luna_10",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_11": {
+      "presentation": "formal_luna_11",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_12": {
+      "presentation": "formal_luna_12",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_13": {
+      "presentation": "formal_luna_13",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_14": {
+      "presentation": "formal_luna_14",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_15": {
+      "presentation": "formal_luna_15",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_16": {
+      "presentation": "formal_luna_16",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_17": {
+      "presentation": "formal_luna_17",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_18": {
+      "presentation": "formal_luna_18",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_19": {
+      "presentation": "formal_luna_19",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_20": {
+      "presentation": "formal_luna_20",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_21": {
+      "presentation": "formal_luna_21",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_22": {
+      "presentation": "formal_luna_22",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_23": {
+      "presentation": "formal_luna_23",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_24": {
+      "presentation": "formal_luna_24",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_25": {
+      "presentation": "formal_luna_25",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_26": {
+      "presentation": "formal_luna_26",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_27": {
+      "presentation": "formal_luna_27",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_28": {
+      "presentation": "formal_luna_28",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_29": {
+      "presentation": "formal_luna_29",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_30": {
+      "presentation": "formal_luna_30",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_31": {
+      "presentation": "formal_luna_31",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_32": {
+      "presentation": "formal_luna_32",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_33": {
+      "presentation": "formal_luna_33",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_34": {
+      "presentation": "formal_luna_34",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_35": {
+      "presentation": "formal_luna_35",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_36": {
+      "presentation": "formal_luna_36",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_37": {
+      "presentation": "formal_luna_37",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_38": {
+      "presentation": "formal_luna_38",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_39": {
+      "presentation": "formal_luna_39",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_40": {
+      "presentation": "formal_luna_40",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_41": {
+      "presentation": "formal_luna_41",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_42": {
+      "presentation": "formal_luna_42",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_43": {
+      "presentation": "formal_luna_43",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_44": {
+      "presentation": "formal_luna_44",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_45": {
+      "presentation": "formal_luna_45",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_46": {
+      "presentation": "formal_luna_46",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_47": {
+      "presentation": "formal_luna_47",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_48": {
+      "presentation": "formal_luna_48",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_49": {
+      "presentation": "formal_luna_49",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "formal_luna_50": {
+      "presentation": "formal_luna_50",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "reference_steps": {
+      "presentation": "reference_steps",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "plain_6parts": {
+      "presentation": "plain_6parts",
+      "numberOfStages": 6,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    },
+    "plain_5parts": {
+      "presentation": "plain_5parts",
+      "numberOfStages": 5,
+      "maximumFinalRepairRounds": 0,
+      "noteClear": false
+    }
+  },
+  "functionNames": [
+    "parse_amount",
+    "parse_record",
+    "load_records",
+    "match_payments",
+    "compute_refunds",
+    "build_summary"
+  ],
+  "stableInterfaceLines": "- parse_amount(s)\n- parse_record(line) -> dictionary or None\n- load_records(text) -> list of record dictionaries\n- match_payments(records) -> list of result dictionaries\n- compute_refunds(records)\n- build_summary(matches, refund_total)\nRecord and result fields use the exact string keys stated in the current task part. The starter already imports datetime, timedelta, Decimal, InvalidOperation, and ROUND_HALF_UP.",
+  "generationSeedSalt": "evaluation1-multimaterial-student-v2",
+  "scheduleSalt": "evaluation1-multimaterial-schedule-v2",
+  "numberOfStages": 7,
+  "presentationStages": {
+    "formal_gpt4o_01": 6,
+    "formal_gpt4o_02": 6,
+    "formal_gpt4o_03": 6,
+    "formal_gpt4o_04": 6,
+    "formal_gpt4o_05": 6,
+    "formal_gpt4o_06": 6,
+    "formal_gpt4o_07": 6,
+    "formal_gpt4o_08": 6,
+    "formal_gpt4o_09": 6,
+    "formal_gpt4o_10": 6,
+    "formal_gpt4o_11": 6,
+    "formal_gpt4o_12": 6,
+    "formal_gpt4o_13": 6,
+    "formal_gpt4o_14": 6,
+    "formal_gpt4o_15": 6,
+    "formal_gpt4o_16": 6,
+    "formal_gpt4o_17": 6,
+    "formal_gpt4o_18": 6,
+    "formal_gpt4o_19": 6,
+    "formal_gpt4o_20": 6,
+    "formal_gpt4o_21": 6,
+    "formal_gpt4o_22": 6,
+    "formal_gpt4o_23": 6,
+    "formal_gpt4o_24": 6,
+    "formal_gpt4o_25": 6,
+    "formal_gpt4o_26": 6,
+    "formal_gpt4o_27": 6,
+    "formal_gpt4o_28": 6,
+    "formal_gpt4o_29": 6,
+    "formal_gpt4o_30": 6,
+    "formal_gpt4o_31": 6,
+    "formal_gpt4o_32": 6,
+    "formal_gpt4o_33": 6,
+    "formal_gpt4o_34": 6,
+    "formal_gpt4o_35": 6,
+    "formal_gpt4o_36": 7,
+    "formal_gpt4o_37": 6,
+    "formal_gpt4o_38": 6,
+    "formal_gpt4o_39": 6,
+    "formal_gpt4o_40": 6,
+    "formal_gpt4o_41": 6,
+    "formal_gpt4o_42": 6,
+    "formal_gpt4o_43": 6,
+    "formal_gpt4o_44": 6,
+    "formal_gpt4o_45": 6,
+    "formal_gpt4o_46": 6,
+    "formal_gpt4o_47": 6,
+    "formal_gpt4o_48": 6,
+    "formal_gpt4o_49": 6,
+    "formal_gpt4o_50": 6,
+    "formal_luna_01": 6,
+    "formal_luna_02": 6,
+    "formal_luna_03": 6,
+    "formal_luna_04": 5,
+    "formal_luna_05": 6,
+    "formal_luna_06": 6,
+    "formal_luna_07": 6,
+    "formal_luna_08": 5,
+    "formal_luna_09": 5,
+    "formal_luna_10": 6,
+    "formal_luna_11": 6,
+    "formal_luna_12": 5,
+    "formal_luna_13": 5,
+    "formal_luna_14": 5,
+    "formal_luna_15": 6,
+    "formal_luna_16": 5,
+    "formal_luna_17": 6,
+    "formal_luna_18": 5,
+    "formal_luna_19": 6,
+    "formal_luna_20": 6,
+    "formal_luna_21": 6,
+    "formal_luna_22": 5,
+    "formal_luna_23": 6,
+    "formal_luna_24": 6,
+    "formal_luna_25": 5,
+    "formal_luna_26": 6,
+    "formal_luna_27": 5,
+    "formal_luna_28": 6,
+    "formal_luna_29": 5,
+    "formal_luna_30": 5,
+    "formal_luna_31": 5,
+    "formal_luna_32": 5,
+    "formal_luna_33": 5,
+    "formal_luna_34": 5,
+    "formal_luna_35": 6,
+    "formal_luna_36": 6,
+    "formal_luna_37": 6,
+    "formal_luna_38": 6,
+    "formal_luna_39": 6,
+    "formal_luna_40": 6,
+    "formal_luna_41": 6,
+    "formal_luna_42": 5,
+    "formal_luna_43": 5,
+    "formal_luna_44": 5,
+    "formal_luna_45": 6,
+    "formal_luna_46": 6,
+    "formal_luna_47": 6,
+    "formal_luna_48": 6,
+    "formal_luna_49": 6,
+    "formal_luna_50": 5,
+    "reference_steps": 6,
+    "plain_6parts": 6,
+    "plain_5parts": 5
+  },
+  "maximumFinalRepairRounds": 0,
+  "maximumNoteCharacters": 3000,
+  "maximumNoteWords": 300,
+  "noteInstructionVersion": "source-note",
+  "temperature": 0.2,
+  "repeatRepairTemperature": 0.4,
+  "numPredict": 1800,
+  "maximumTransportAttempts": 6,
+  "maximumCompletionCapRetries": 1,
+  "rules": {
+    "completeNoteReplacesPreviousNoteEveryRound": true,
+    "noteUsesAtomicSourceRules": true,
+    "hardNoteWordLimit": 300,
+    "repeatPartsAfterFirstPass": false,
+    "stopAfterPresentation": true
+  },
+  "testPolicy": {
+    "visibility": "unseen",
+    "aggregation": "paired_semantic_tests_all_case_variants_must_pass",
+    "logicalTestCount": 26,
+    "underlyingCaseVariantCount": 52,
+    "pairMappingAsset": "task_assets/requirements.json"
+  },
+  "metricTransformation": {
+    "transformedAt": "2026-08-26T00:17:41.457Z",
+    "method": "pair_unseen_case_variants_into_semantic_tests_without_rerunning_students",
+    "logicalTestCount": 26,
+    "underlyingCaseVariantCount": 52,
+    "pairMappingAsset": "task_assets/requirements.json",
+    "logicalPassRule": "both_case_variants_must_pass",
+    "intermediateStagePolicy": "legacy_split_scores_removed; final_stage_independently_rescored"
+  }
+}

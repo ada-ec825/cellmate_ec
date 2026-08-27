@@ -1,0 +1,38 @@
+{
+  "normalizedAt": "2026-08-26T01:22:50.834Z",
+  "method": "zero_collected_tests_from_uncollectable_student_code_count_as_zero_of_fixed_logical_total",
+  "logicalTestCount": 22,
+  "externalBackupPath": "/Users/ec825/cellmate_ec/eval/evaluation2_archive/20260826_hard_zero_collection_scoring_pre_normalization/results.before-normalization.jsonl",
+  "beforeResultsSha256": "7a9d48cfa0ecb752dccd605bc3d6f48b4100f62ec3423e4783c2e027e7a06754",
+  "afterResultsSha256": "235992ecf155ad29c0faf72a881885faacc40e639fbb40ac2b1608e4acf19580",
+  "affectedRows": [
+    "4omini:plain_no_note:81005",
+    "luna:plain_note:81011"
+  ],
+  "changes": [
+    {
+      "key": "4omini:plain_no_note:81005",
+      "field": "test",
+      "from": "0/0",
+      "to": "0/22"
+    },
+    {
+      "key": "4omini:plain_no_note:81005",
+      "field": "preRepairTest",
+      "from": "0/0",
+      "to": "0/22"
+    },
+    {
+      "key": "4omini:plain_no_note:81005",
+      "field": "finalTest",
+      "from": "0/0",
+      "to": "0/22"
+    },
+    {
+      "key": "luna:plain_note:81011",
+      "field": "test",
+      "from": "0/0",
+      "to": "0/22"
+    }
+  ]
+}

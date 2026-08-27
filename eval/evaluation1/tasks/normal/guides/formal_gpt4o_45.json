@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse amount as integer cents",
+      "intent": "Implement `parse_amount(s)` to handle an amount string.\n- The function receives a string `s` representing a monetary amount.\n- Return integer cents corresponding to the amount, rounding the third fractional digit using **round-half-up**.\n- Return `None` if the string is invalid or contains more than three fractional digits.\n- The string must only contain digits, at most one decimal point, and an optional leading minus sign.\n- If the input is not a string, return `None`.",
+      "checkHint": "`parse_amount('12.305')` returns `1231`",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parse line into record dictionary",
+      "intent": "Create the `parse_record(line)` function to convert a single line into a dictionary.\n- The function takes a `line` with six fields separated by `|`.\n- Fields: `TYPE`, `RECORD_ID`, `ORDER_ID`, `AMOUNT`, `CURRENCY`, `TIMESTAMP`.\n- Trim surrounding whitespace from `RECORD_ID` and `ORDER_ID`.\n- `RECORD_ID` and `ORDER_ID` must not be empty; they must be equal for `ORDER` type.\n- `AMOUNT` is parsed using `parse_amount`, must be non-negative for `ORDER` type.\n- `CURRENCY` must be exactly `'USD'`.\n- `TIMESTAMP` must match the format `2024-03-15 14:30`.\n- Return `None` if any field is invalid or records duplicate `RECORD_ID`.",
+      "checkHint": "`parse_record('ORDER|rid|oid|12.30|USD|2024-03-15 14:30')` returns a valid dictionary",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Load and filter all records",
+      "intent": "Design the `load_records(text)` function to parse a complete input text.\n- Takes a multi-line `text` where each line contains one record.\n- Use `parse_record` to handle each line separately.\n- **Silently skip** lines that result in `None` without errors or warnings.\n- Apply the **first-valid record** rule to manage duplicate `RECORD_ID`s.\n- Return all the valid parsed records as a list of dictionaries.",
+      "checkHint": "Given lines with duplicate IDs, `load_records` retains the first valid one.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Compute total refunds",
+      "intent": "Implement `compute_refunds(records)` to calculate refund totals.\n- Receives a list of valid dictionaries as `records`.\n- Calculate the positive sum of absolute amounts for all `PAYMENT` records where `amount` is negative.\n- Use the total sum in **cents**.\n- Refunds are counted even if no matching order record exists.",
+      "checkHint": "`compute_refunds` returns a positive sum of all negative payments.",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match payments to orders",
+      "intent": "Develop `match_payments(records)` to link payments with orders.\n- It accepts a list of `records` as dictionaries.\n- A `PAYMENT` qualifies if non-negative and its `timestamp` is at/after the `ORDER` `timestamp` and within 72 hours.\n- Return the earliest qualifying payment (by `timestamp`) or retain source order for ties.\n- Refunds never qualify as matched payments.\n- Return one result per order with `order_id`, `status`, and `amount`.\n- `status` is `'matched'` or `'unmatched'`; unmatched has `amount` 0.",
+      "checkHint": "Earliest valid payment is chosen for each order.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Build and return summary",
+      "intent": "Complete the `build_summary(matches, refund_total)` to generate a summary.\n- `matches` is a list of dictionaries with `order_id`, `status`, and `amount`.\n- `refund_total` is the total positive refund amount in cents.\n- `total_orders` is the count of valid orders.\n- `matched_count` is how many have `'matched'` status.\n- `net_total` is the sum of matched `amounts` minus `refund_total`.\n- `unmatched_ids` includes order IDs of all unmatched records in ascending order lexicographically.",
+      "checkHint": "Summary includes correct values for total orders, matched count, net total, and unmatched IDs.",
+      "timeShare": 20
+    }
+  ]
+}

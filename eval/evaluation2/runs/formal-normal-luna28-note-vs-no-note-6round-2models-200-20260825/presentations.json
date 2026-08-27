@@ -1,0 +1,130 @@
+{
+  "version": "presentations",
+  "numberOfStages": 6,
+  "sourceDocumentWords": 775,
+  "arms": {
+    "plain": [
+      {
+        "title": "Part 1 of 6 — Background and global conventions",
+        "words": 118,
+        "text": "Implement a small reconciliation tool for an e-commerce settlement team. Each day, the team exports one mixed text file containing both order and payment records. The tool parses the file, matches payments to orders, and produces a summary.\n\nThe following conventions apply everywhere:\n\n- Store and calculate every monetary amount internally as an integer number of cents. For example, `\"12.30\"` becomes `1230`.\n- Silently skip records that cannot be parsed or do not satisfy the format. Do not raise an exception and do not print a warning.\n- Process only records whose currency is exactly `USD` after surrounding whitespace is removed. Treat every other currency as invalid.\n- Treat every timestamp as UTC. Do not perform timezone conversion."
+      },
+      {
+        "title": "Part 2 of 6 — Data format",
+        "words": 205,
+        "text": "The input contains one record per line. Every line has exactly six fields separated by `|`:\n\n```text\nTYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP\n```\n\n- `TYPE` is `ORDER` or `PAYMENT`, matched without regard to case and normalised to uppercase.\n- Trim surrounding whitespace from both identifiers. Both must then be non-empty. For an `ORDER`, `RECORD_ID` and `ORDER_ID` must be equal.\n- `AMOUNT` is an ordinary decimal string with at most three fractional digits. It may contain only digits and at most one decimal point, with an optional leading minus sign; scientific notation and every other numeric notation are invalid. Round a third fractional digit to cents using round-half-up; more than three fractional digits is invalid. A negative `PAYMENT` is a refund. A negative `ORDER` is invalid.\n- `TIMESTAMP` must have the exact format `2024-03-15 14:30`. Invalid calendar values or other formats are invalid.\n- If the same trimmed `RECORD_ID` occurs more than once, retain the first valid occurrence and skip later occurrences.\n\nA parsed record is an ordinary dictionary, never a tuple. It has exactly the keys `\"type\"`, `\"record_id\"`, `\"order_id\"`, `\"amount\"`, `\"currency\"`, and `\"timestamp\"`; fields are read by those key names, for example `record[\"type\"]`. `amount` is integer cents, `currency` is `\"USD\"`, and `timestamp` is a naive Python `datetime` representing UTC."
+      },
+      {
+        "title": "Part 3 of 6 — Summary report",
+        "words": 100,
+        "text": "`build_summary(matches, refund_total)` returns one dictionary with exactly four keys:\n\n- `\"total_orders\"`: number of valid orders;\n- `\"matched_count\"`: number of results whose status is matched;\n- `\"net_total\"`: sum of the amounts of matched payments, in cents, not including refunds under the initial rule in this part; and\n- `\"unmatched_ids\"`: unmatched order IDs in ascending lexicographic order.\n\nEvery item in `matches` is the result dictionary specified in Part 4, not a tuple. The exact key spellings and the lowercase status value described later are part of the contract. A release clarification in Part 6 may override one detail in this initial rule."
+      },
+      {
+        "title": "Part 4 of 6 — Payment matching",
+        "words": 116,
+        "text": "`match_payments(records)` associates payments with orders by `order_id`.\n\n- A non-refund payment qualifies only when its timestamp is at or after the order timestamp and no later than exactly 72 hours after it. Both endpoints are included.\n- If several payments qualify, use the one with the earliest timestamp. Break an exact timestamp tie by retained source order.\n- Negative payments are refunds and never qualify as matched payments.\n- Return one result for every order, following retained order-record order. Each result is an ordinary dictionary, never a tuple, with exactly `\"order_id\"`, `\"status\"`, and `\"amount\"`. Read these fields by key name, for example `result[\"order_id\"]`. Status is exactly lowercase `\"matched\"` or `\"unmatched\"`. An unmatched result has amount `0`."
+      },
+      {
+        "title": "Part 5 of 6 — Parsing and loading functions",
+        "words": 116,
+        "text": "- `parse_amount(s)` returns integer cents for a valid amount string and `None` otherwise. It follows the syntax, precision, and round-half-up rules in Part 2. A non-string input is invalid and returns `None`.\n- `parse_record(line)` returns the exact parsed-record dictionary described in Part 2, or `None` when any field is invalid.\n- `load_records(text)` parses all lines, silently skips invalid lines, and applies the first-valid-record duplicate rule. An invalid occurrence does not reserve its record ID.\n- `compute_refunds(records)` returns the positive sum, in cents, of the absolute values of all negative `PAYMENT` amounts. A refund counts even if no order with its `order_id` exists.\n\nNone of these functions mutates an input object, prints output, or stores global state."
+      },
+      {
+        "title": "Part 6 of 6 — Release clarification",
+        "words": 62,
+        "text": "The released calculation changes one sentence in Part 3: `net_total` must subtract `refund_total`. It is therefore the sum of matched payment amounts minus the positive refund total. This clarification overrides only the earlier statement that refunds were not included.\n\nAfter trimming, an empty record ID is invalid. The order IDs placed in `unmatched_ids` are the same already-trimmed IDs stored in parsed records."
+      }
+    ],
+    "plain_5parts": [
+      {
+        "title": "Part 1 of 5 — Background and global conventions",
+        "words": 118,
+        "text": "Implement a small reconciliation tool for an e-commerce settlement team. Each day, the team exports one mixed text file containing both order and payment records. The tool parses the file, matches payments to orders, and produces a summary.\n\nThe following conventions apply everywhere:\n\n- Store and calculate every monetary amount internally as an integer number of cents. For example, `\"12.30\"` becomes `1230`.\n- Silently skip records that cannot be parsed or do not satisfy the format. Do not raise an exception and do not print a warning.\n- Process only records whose currency is exactly `USD` after surrounding whitespace is removed. Treat every other currency as invalid.\n- Treat every timestamp as UTC. Do not perform timezone conversion."
+      },
+      {
+        "title": "Part 2 of 5 — Data format",
+        "words": 205,
+        "text": "The input contains one record per line. Every line has exactly six fields separated by `|`:\n\n```text\nTYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP\n```\n\n- `TYPE` is `ORDER` or `PAYMENT`, matched without regard to case and normalised to uppercase.\n- Trim surrounding whitespace from both identifiers. Both must then be non-empty. For an `ORDER`, `RECORD_ID` and `ORDER_ID` must be equal.\n- `AMOUNT` is an ordinary decimal string with at most three fractional digits. It may contain only digits and at most one decimal point, with an optional leading minus sign; scientific notation and every other numeric notation are invalid. Round a third fractional digit to cents using round-half-up; more than three fractional digits is invalid. A negative `PAYMENT` is a refund. A negative `ORDER` is invalid.\n- `TIMESTAMP` must have the exact format `2024-03-15 14:30`. Invalid calendar values or other formats are invalid.\n- If the same trimmed `RECORD_ID` occurs more than once, retain the first valid occurrence and skip later occurrences.\n\nA parsed record is an ordinary dictionary, never a tuple. It has exactly the keys `\"type\"`, `\"record_id\"`, `\"order_id\"`, `\"amount\"`, `\"currency\"`, and `\"timestamp\"`; fields are read by those key names, for example `record[\"type\"]`. `amount` is integer cents, `currency` is `\"USD\"`, and `timestamp` is a naive Python `datetime` representing UTC."
+      },
+      {
+        "title": "Part 3 of 5 — Summary report and payment matching",
+        "words": 216,
+        "text": "`build_summary(matches, refund_total)` returns one dictionary with exactly four keys:\n\n- `\"total_orders\"`: number of valid orders;\n- `\"matched_count\"`: number of results whose status is matched;\n- `\"net_total\"`: sum of the amounts of matched payments, in cents, not including refunds under the initial rule in this part; and\n- `\"unmatched_ids\"`: unmatched order IDs in ascending lexicographic order.\n\nEvery item in `matches` is the result dictionary specified in Part 3, not a tuple. The exact key spellings and the lowercase status value described later are part of the contract. A release clarification in Part 5 may override one detail in this initial rule.\n\n`match_payments(records)` associates payments with orders by `order_id`.\n\n- A non-refund payment qualifies only when its timestamp is at or after the order timestamp and no later than exactly 72 hours after it. Both endpoints are included.\n- If several payments qualify, use the one with the earliest timestamp. Break an exact timestamp tie by retained source order.\n- Negative payments are refunds and never qualify as matched payments.\n- Return one result for every order, following retained order-record order. Each result is an ordinary dictionary, never a tuple, with exactly `\"order_id\"`, `\"status\"`, and `\"amount\"`. Read these fields by key name, for example `result[\"order_id\"]`. Status is exactly lowercase `\"matched\"` or `\"unmatched\"`. An unmatched result has amount `0`."
+      },
+      {
+        "title": "Part 4 of 5 — Parsing and loading functions",
+        "words": 116,
+        "text": "- `parse_amount(s)` returns integer cents for a valid amount string and `None` otherwise. It follows the syntax, precision, and round-half-up rules in Part 2. A non-string input is invalid and returns `None`.\n- `parse_record(line)` returns the exact parsed-record dictionary described in Part 2, or `None` when any field is invalid.\n- `load_records(text)` parses all lines, silently skips invalid lines, and applies the first-valid-record duplicate rule. An invalid occurrence does not reserve its record ID.\n- `compute_refunds(records)` returns the positive sum, in cents, of the absolute values of all negative `PAYMENT` amounts. A refund counts even if no order with its `order_id` exists.\n\nNone of these functions mutates an input object, prints output, or stores global state."
+      },
+      {
+        "title": "Part 5 of 5 — Release clarification",
+        "words": 62,
+        "text": "The released calculation changes one sentence in Part 3: `net_total` must subtract `refund_total`. It is therefore the sum of matched payment amounts minus the positive refund total. This clarification overrides only the earlier statement that refunds were not included.\n\nAfter trimming, an empty record ID is invalid. The order IDs placed in `unmatched_ids` are the same already-trimmed IDs stored in parsed records."
+      }
+    ],
+    "provided_steps_original": [
+      {
+        "title": "Step 1 of 6 — Implement parse_amount(s)",
+        "words": 105,
+        "text": "Convert an amount string to an integer number of cents, so 12.30 becomes 1230. The input must be a string containing only digits and at most one decimal point, with an optional leading minus sign; scientific notation and every other numeric notation are invalid. One or two fractional digits are scaled normally. A third fractional digit is rounded to cents using round-half-up, including for negative values; more than three fractional digits is invalid. Return None for malformed, non-string, or non-finite input. Negative amounts remain negative at this stage because a negative PAYMENT represents a refund, while a negative ORDER is rejected in the next step."
+      },
+      {
+        "title": "Step 2 of 6 — Implement parse_record(line)",
+        "words": 130,
+        "text": "Parse one line containing exactly six | separated fields in this order: TYPE, RECORD_ID, ORDER_ID, AMOUNT, CURRENCY, TIMESTAMP. TYPE is case-insensitive ORDER or PAYMENT and is stored uppercase. Trim both identifiers and reject the line if either becomes empty. An ORDER requires equal record and order IDs and cannot have a negative amount; a negative PAYMENT is valid. Apply all parse_amount rules to AMOUNT. CURRENCY must be exactly USD after trimming. TIMESTAMP must use the exact format 2024-03-15 14:30 and represents UTC without conversion. Return None for any invalid field without raising or printing. Otherwise return an ordinary dictionary, never a tuple, with exactly type, record_id, order_id, amount, currency, and timestamp. Read fields by key name, for example record[\"type\"]. amount is integer cents and timestamp is a naive Python datetime."
+      },
+      {
+        "title": "Step 3 of 6 — Implement load_records(text)",
+        "words": 67,
+        "text": "Parse the input one line at a time with parse_record and preserve retained source order. Silently skip every invalid line. Compare record IDs after trimming. For a repeated record ID, retain the first valid occurrence and skip later valid occurrences; an invalid occurrence does not reserve that ID. Return an empty list for non-string or empty input. Do not mutate inputs, print output, or store global state."
+      },
+      {
+        "title": "Step 4 of 6 — Implement compute_refunds(records)",
+        "words": 54,
+        "text": "A refund is any PAYMENT record whose integer-cent amount is negative. Return the positive sum of the absolute amounts of all refunds. A refund counts even when no order has the same order ID. Non-negative payments and ORDER records contribute nothing, and no refund returns 0. Do not mutate records or store global state."
+      },
+      {
+        "title": "Step 5 of 6 — Implement match_payments(records)",
+        "words": 111,
+        "text": "Produce one result for every ORDER, following retained order-record order. Associate non-negative PAYMENT records by order_id. A payment qualifies only when its timestamp is at or after the order timestamp and no later than exactly 72 hours afterward; both endpoints are included. If several payments qualify, choose the earliest timestamp and break an exact timestamp tie by retained source order. Negative payments are refunds and never match. Each result is an ordinary dictionary, never a tuple, with exactly order_id, status, and amount. Read fields by key name, for example result[\"order_id\"]. Status is exactly lowercase matched or unmatched. A matched result uses the chosen payment amount; an unmatched result uses amount 0."
+      },
+      {
+        "title": "Step 6 of 6 — Implement build_summary(matches, refund_total)",
+        "words": 101,
+        "text": "Every item in matches is the result dictionary from Step 5, never a tuple; read order_id, status, and amount by their exact key names. Return a dictionary with exactly four keys. total_orders is len(matches). matched_count counts results whose status is exactly lowercase matched. net_total follows the released rule: sum the amounts of matched results and subtract the positive refund_total; this overrides the earlier draft that excluded refunds. unmatched_ids contains the already-trimmed order_id from every result whose status is exactly lowercase unmatched, sorted in ascending lexicographic order. With empty matches, the counts are 0, unmatched_ids is empty, and net_total still subtracts refund_total."
+      }
+    ],
+    "project_steps": [
+      {
+        "title": "Step 1 of 6 — Parse monetary amounts",
+        "words": 93,
+        "text": "Implement `parse_amount(s)` so valid decimal text becomes integer cents.\n- A non-string input returns `None`.\n- Valid text contains digits, at most one decimal point, and an optional leading minus sign only.\n- Scientific notation and every other numeric notation are invalid and return `None`.\n- More than three fractional digits is invalid and returns `None`.\n- Round a third fractional digit to cents using **round-half-up**, preserving the sign.\n- Return the result as an integer number of cents.\n- Invalid input returns `None` without raising, printing, mutating input, or using global state."
+      },
+      {
+        "title": "Step 2 of 6 — Parse individual records",
+        "words": 125,
+        "text": "Implement `parse_record(line)` to return one valid parsed-record dictionary or `None`.\n- The line must have exactly six `|`-separated fields in `TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP` order.\n- `TYPE` is case-insensitive `ORDER` or `PAYMENT`, then stored uppercase.\n- Trim both identifiers; they must be non-empty, and an `ORDER` requires equal `RECORD_ID` and `ORDER_ID`.\n- Currency is trimmed and must be exactly `USD`.\n- Parse `AMOUNT` with `parse_amount(s)`; a negative `ORDER` is invalid, while a negative `PAYMENT` is a refund.\n- `TIMESTAMP` must exactly match `2024-03-15 14:30` format, use valid calendar values, and become a naive `datetime` representing UTC without timezone conversion.\n- Return an ordinary dictionary with exactly `type`, `record_id`, `order_id`, `amount`, `currency`, and `timestamp`; invalid fields return `None` silently.\n- Do not mutate input, print, or use global state."
+      },
+      {
+        "title": "Step 3 of 6 — Load valid records",
+        "words": 109,
+        "text": "Implement `load_records(text)` to produce the retained parsed records in source-line order.\n- Parse every input line with `parse_record(line)`.\n- Silently skip lines that cannot be parsed or do not satisfy the format; do not raise or print warnings.\n- If the same trimmed `RECORD_ID` occurs more than once, retain the first valid occurrence and skip later valid occurrences.\n- An invalid occurrence does not reserve its record ID.\n- Return records as ordinary dictionaries with exactly `type`, `record_id`, `order_id`, `amount`, `currency`, and `timestamp`.\n- Amounts remain integer cents, currencies are `USD`, and timestamps are naive UTC `datetime` values.\n- Do not mutate an input object or use global state."
+      },
+      {
+        "title": "Step 4 of 6 — Match payments to orders",
+        "words": 141,
+        "text": "Implement `match_payments(records)` with one result for every order.\n- Read parsed records through dictionary keys; records are ordinary dictionaries and retained source order is significant.\n- For each order, consider only non-negative `PAYMENT` records with the same `order_id`.\n- A payment qualifies when its naive UTC timestamp is at or after the order timestamp and at or before exactly 72 hours after it; both endpoints are included.\n- Negative payments are refunds and never qualify as matched payments.\n- Choose the qualifying payment with the earliest timestamp; break exact timestamp ties by retained source order.\n- Return results in retained order-record order, each an ordinary dictionary with exactly `order_id`, `status`, and `amount`.\n- Status is exactly lowercase `matched` or `unmatched`; unmatched amounts are `0`.\n- Amounts are integer cents, and the function does not mutate inputs, print, or use global state."
+      },
+      {
+        "title": "Step 5 of 6 — Compute refund totals",
+        "words": 79,
+        "text": "Implement `compute_refunds(records)` to calculate the positive refund total in cents.\n- Read each parsed record by dictionary keys.\n- Include every negative `PAYMENT` amount, even when no order with its `order_id` exists.\n- Add the absolute value of each included negative amount.\n- Ignore orders and non-negative payments.\n- Return `0` when there are no refunds.\n- Return the total as an integer number of cents without mutating inputs, printing, raising for valid parsed records, or using global state."
+      },
+      {
+        "title": "Step 6 of 6 — Build the final summary",
+        "words": 110,
+        "text": "Implement `build_summary(matches, refund_total)` as the final reconciliation summary.\n- Every item in `matches` is an ordinary result dictionary with exactly `order_id`, `status`, and `amount`.\n- Return one ordinary dictionary with exactly `total_orders`, `matched_count`, `net_total`, and `unmatched_ids`.\n- `total_orders` is the number of order results in `matches`.\n- `matched_count` is the number of results whose status is exactly `matched`.\n- **`net_total` is the sum of matched payment amounts minus the positive `refund_total`; this overrides the earlier rule excluding refunds.**\n- `unmatched_ids` contains unmatched order IDs in ascending lexicographic order, using the already-trimmed IDs from parsed records.\n- Monetary values are integer cents; do not mutate inputs, print, or use global state."
+      }
+    ]
+  }
+}

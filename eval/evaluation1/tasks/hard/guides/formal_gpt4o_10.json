@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_hard_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse amount with rules",
+      "intent": "Implement the `parse_amount(s)` function.\n- Receive a string `s` representing an amount.\n- Convert this amount to integer cents, accepting at most three fractional digits.\n- Round a third fractional digit to cents using round-half-up.\n- Silently skip invalid formats and return `None`. Invalid formats include scientific notation, non-numeric, or malformed amounts.\n- **Return `None` if the absolute value exceeds 1,000,000 cents.**\n- Preserve negative values because payment refunds need them.",
+      "checkHint": "parse_amount('1234.567') returns 123457",
+      "timeShare": 15
+    },
+    {
+      "index": 2,
+      "label": "Parse record line",
+      "intent": "Implement the `parse_record(line)` function.\n- Receive a string `line` with six `|`-separated fields: `TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP`.\n- `TYPE` must be `ORDER` or `PAYMENT`, case insensitive, and stored uppercase.\n- `RECORD_ID` and `ORDER_ID` must remain non-empty after trimming; `ORDER_ID` must start with `ORD-`.\n- Only process records with `CURRENCY` as `USD`.\n- Apply amount parsing using the `parse_amount` function.\n- **Silently skip invalid records (incorrect formats or values), returning `None`.**\n- Accept valid timestamp formats: `YYYY-MM-DD HH:MM` or `YYYY-MM-DD HH:MM:SS` with valid calendar values.",
+      "checkHint": "parse_record('Order|rec001|ORD-001|1500.00|USD|2023-10-01 10:00') returns a dictionary",
+      "timeShare": 20
+    },
+    {
+      "index": 3,
+      "label": "Load records from input",
+      "intent": "Implement the `load_records(text)` function.\n- Receive `text`, a string of multiple lines, each a single record.\n- Process each line using `parse_record`.\n- **Silently skip lines that are `None` due to invalid records.**\n- Preserve the input order.\n- Keep only the first valid occurrence for duplicate `RECORD_ID`s.",
+      "checkHint": "Given text input with duplicate record IDs, `load_records` returns records with only the first occurrence.",
+      "timeShare": 15
+    },
+    {
+      "index": 4,
+      "label": "Compute valid refunds",
+      "intent": "Implement the `compute_refunds(records)` function.\n- Receive `records`, a list of parsed record dictionaries.\n- Calculate the sum of `AMOUNT`s from `PAYMENT` types that are negative.\n- **Include only those whose `ORDER_ID` belongs to an existing valid order.**\n- Return the sum as a positive integer.",
+      "checkHint": "compute_refunds(...) for records with properly matched negative `PAYMENT`s returns sum of those.",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Match payments to orders",
+      "intent": "Implement the `match_payments(records)` function.\n- Receive `records`, a list of parsed record dictionaries.\n- For each `ORDER`, attempt to match with `PAYMENT`s excluding refunds.\n- **A `PAYMENT` matches if its timestamp is strictly less than 72 hours after the order's timestamp.**\n- Choose the earliest valid `PAYMENT` by timestamp, tie-breaking by input order.\n- Each order result includes `order_id`, `status` as `matched` or `unmatched`, and `amount`. \n- Unmatched orders have `amount=0`. Refunds never match.",
+      "checkHint": "match_payments(...) determines if payments fall within the modified 72-hour window.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Build summary report",
+      "intent": "Implement the `build_summary(matches, refund_total)` function.\n- `matches` is a list of order result dictionaries.\n- `refund_total` is the total amount of refunds computed earlier.\n- Calculate `total_orders` as total length of `matches`.\n- Calculate `matched_count` as count of results with status `matched`.\n- **Compute `net_total` as total of matched payment amounts minus `refund_total`, with a lower bound of 0.**\n- Derive `unmatched_ids` as a deduplicated ascending lexicographic list of unmatched order IDs.\n- **Return a dictionary with keys: `total_orders`, `matched_count`, `refund_total`, `net_total`, `unmatched_ids`.**",
+      "checkHint": "build_summary(...) provides a consistent five-key dictionary as the final report.",
+      "timeShare": 20
+    }
+  ]
+}

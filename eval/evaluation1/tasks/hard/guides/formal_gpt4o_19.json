@@ -1,0 +1,48 @@
+{
+  "exerciseId": "evaluation1_hard_order_payment_reconciliation",
+  "source": "generated",
+  "steps": [
+    {
+      "index": 1,
+      "label": "Parse Individual Records",
+      "intent": "Implement `parse_record(line)`. This function processes a single `|`-separated line with fields: `TYPE|RECORD_ID|ORDER_ID|AMOUNT|CURRENCY|TIMESTAMP` in this order.\n- `TYPE` must be `ORDER` or `PAYMENT`, and stored in uppercase, case-sensitive.\n- Both `RECORD_ID` and `ORDER_ID` are non-empty after trimming; `ORDER_ID` must start with `ORD-`.\n- `AMOUNT` is a numerical string with at most three fractional digits; apply rounding to cents using round-half-up.\n- Amounts exceeding `1,000,000` cents are invalid.\n- `CURRENCY` must be `USD`.\n- `TIMESTAMP` must match `YYYY-MM-DD HH:MM` or `YYYY-MM-DD HH:MM:SS` with valid calendar values.\n- Return a dictionary with keys `type`, `record_id`, `order_id`, `amount`, `currency`, `timestamp` for valid records.\n- Return `None` for invalid records, and do not raise exceptions.",
+      "checkHint": "parse_record('order|rec123|ORD-456|200.99|USD|2023-10-10 15:00') correctly returns a dictionary.",
+      "timeShare": 20
+    },
+    {
+      "index": 2,
+      "label": "Load and Validate Records",
+      "intent": "Implement `load_records(text)`. This function takes multiline text input where each line contains a record.\n- Parse each line using `parse_record(line)`.\n- Retain valid records only, in their original input order.\n- Preserve only the first valid occurrence of a `RECORD_ID`, ignoring any subsequent duplicates.\n- Silently skip invalid records without raising any error.\n- Return a list of dictionaries for the valid records.",
+      "checkHint": "Given two records with the same `record_id`, only the first valid one should be retained.",
+      "timeShare": 15
+    },
+    {
+      "index": 3,
+      "label": "Match Payments to Orders",
+      "intent": "Implement `match_payments(records)`. This takes a list of records and attempts to match `PAYMENT` to `ORDER` records.\n- Payments can match if their timestamp is **strictly less than 72 hours** after the order's timestamp.\n- Select the earliest possible payment by timestamp and by source order if timestamps are equal.\n- Refund payments do not match any order.\n- Return a list of dictionaries with `order_id`, `status`, and `amount` for each order.\n- `status` is `matched` or `unmatched`.\n- For unmatched orders, `amount` is `0`.",
+      "checkHint": "match_payments([{'type': 'ORDER', 'record_id': ..., 'timestamp': '...', ...}]) returns a list where each order includes `matched` or `unmatched` status.",
+      "timeShare": 20
+    },
+    {
+      "index": 4,
+      "label": "Compute Refund Totals",
+      "intent": "Implement `compute_refunds(records)`. This function calculates the total refunds.\n- Consider only `PAYMENT` records with negative `amount` values as refunds.\n- A negative payment only counts if its `order_id` matches an existing order in the records.\n- Calculate the sum of valid refund amounts.\n- Return the sum as a positive value.",
+      "checkHint": "compute_refunds([{'type': 'PAYMENT', 'order_id': '/ORD-123', 'amount': -200}]) returns the positive sum of qualifying refund amounts.",
+      "timeShare": 10
+    },
+    {
+      "index": 5,
+      "label": "Build Summary Report",
+      "intent": "Implement `build_summary(matches, refund_total)`. This function compiles a summary of matched and unmatched records.\n- `matches` is a list of dictionaries from `match_payments`.\n- Include keys `total_orders`, `matched_count`, `refund_total`, `net_total`, and `unmatched_ids`.\n- `total_orders` is the count of all order records.\n- `matched_count` counts entries with status `matched`.\n- `net_total` is the matched payment amount minus `refund_total`, with **a lower bound of zero**.\n- `unmatched_ids` is a deduplicated lexicographic list of unmatched order IDs.\n- `refund_total` is included exactly as passed to the function.",
+      "checkHint": "A summary report includes 5 keys and `net_total` cannot be negative.",
+      "timeShare": 20
+    },
+    {
+      "index": 6,
+      "label": "Parse Amount Strings",
+      "intent": "Implement `parse_amount(s)`. This function processes a string for its numerical value.\n- Convert eligible strings to an integer representing cents, accounting for potential negative sign.\n- If more than three fractional digits are present, round to cents using round-half-up.\n- Amounts exceeding absolute value of `1,000,000` cents are invalid.\n- Return the value in cents or `None` for invalid strings.",
+      "checkHint": "parse_amount('100.559') returns 10056, rounding appropriately.",
+      "timeShare": 15
+    }
+  ]
+}
