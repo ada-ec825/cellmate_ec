@@ -11,7 +11,7 @@
   "bugs": {
     "url": "https://github.com/ada-ec825/cellmate_ec/issues"
   },
-  "version": "0.4.0",
+  "version": "0.5.1",
   "engines": {
     "vscode": "^1.75.0"
   },
