@@ -5,21 +5,5 @@ out/
 .vscode/
 .env
 .env.local
-test.ipynb
-eval/runs/
-eval/.venv/
 __pycache__/
 *.py[cod]
-eval/last-*.log
-report/*.aux
-report/*.fdb_latexmk
-report/*.fls
-report/*.log
-report/*.out
-
-# Local presentation/report exports pending explicit release review.
-/brief.pptx
-/progress-brief.pptx
-/ec825-project-plan.pdf
-/report/final-report.pdf
-/report/final-report.tex
